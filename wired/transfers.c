@@ -559,6 +559,8 @@ static wd_transfer_t * wd_transfer_init_upload_with_user(wd_transfer_t *transfer
 
 static void wd_transfer_dealloc(wi_runtime_instance_t *instance) {
 	wd_transfer_t		*transfer = instance;
+	
+	wd_transfer_close(transfer);
 
 	wi_release(transfer->user);
 	wi_release(transfer->key);
@@ -593,7 +595,35 @@ static void wd_transfer_set_state(wd_transfer_t *transfer, wd_transfer_state_t s
 
 
 
-static inline void wd_transfer_limit_download_speed(wd_transfer_t *transfer, wd_account_t *account, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
+static inline void wd_transfer_limit_speed(wd_transfer_t *transfer, wi_uinteger_t totalspeed, wi_uinteger_t accountspeed, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
+	wi_uinteger_t	limit, totallimit;
+	
+	if(totalspeed > 0 || accountspeed > 0) {
+		totallimit = (totalspeed > 0)
+			? (float) totalspeed / (float) wd_current_downloads
+			: 0;
+		
+		if(totallimit > 0 && accountspeed > 0)
+			limit = WI_MIN(totallimit, accountspeed);
+		else if(totallimit > 0)
+			limit = totallimit;
+		else
+			limit = accountspeed;
+
+		if(limit > 0) {
+			while(transfer->speed > limit) {
+				usleep(10000);
+				now += 0.01;
+				
+				transfer->speed = bytes / (now - then);
+			}
+		}
+	}
+}
+
+
+
+/*static inline void wd_transfer_limit_download_speed(wd_transfer_t *transfer, wd_account_t *account, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
 	wi_uinteger_t	limit, totallimit;
 	
 	if(account->transfer_download_speed_limit > 0 || wd_transfers_total_download_speed > 0) {
@@ -645,7 +675,7 @@ static inline void wd_transfer_limit_upload_speed(wd_transfer_t *transfer, wd_ac
 			}
 		}
 	}
-}
+}*/
 
 
 
@@ -726,8 +756,10 @@ static wi_boolean_t wd_transfer_open(wd_transfer_t *transfer) {
 
 
 static void wd_transfer_close(wd_transfer_t *transfer) {
-	if(transfer->fd >= 0)
+	if(transfer->fd >= 0) {
 		close(transfer->fd);
+		transfer->fd = -1;
+	}
 }
 
 
@@ -840,7 +872,12 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 		
 		transfer->speed = speedbytes / (interval - speedinterval);
 
-		wd_transfer_limit_download_speed(transfer, account, speedbytes, interval, speedinterval);
+		wd_transfer_limit_speed(transfer,
+								wd_transfers_total_download_speed,
+								account->transfer_download_speed_limit,
+								speedbytes,
+								interval,
+								speedinterval);
 		
 		if(interval - speedinterval > 30.0) {
 			speedbytes = 0;
@@ -984,7 +1021,12 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 
 		transfer->speed = speedbytes / (interval - speedinterval);
 
-		wd_transfer_limit_upload_speed(transfer, account, speedbytes, interval, speedinterval);
+		wd_transfer_limit_speed(transfer,
+								wd_transfers_total_upload_speed,
+								account->transfer_upload_speed_limit,
+								speedbytes,
+								interval,
+								speedinterval);
 		
 		if(interval - speedinterval > 30.0) {
 			speedbytes = 0;

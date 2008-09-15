@@ -488,8 +488,7 @@ void wd_signal_thread(wi_runtime_instance_t *arg) {
 static void wd_signal_crash(int sigraised) {
 	wd_cleanup();
 
-	if(signal(sigraised, SIG_DFL) != SIG_ERR)
-		raise(sigraised);
+	signal(sigraised, SIG_DFL);
 }
 
 
