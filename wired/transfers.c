@@ -63,8 +63,7 @@ static void								wd_transfer_dealloc(wi_runtime_instance_t *);
 static wi_string_t *					wd_transfer_description(wi_runtime_instance_t *);
 
 static void								wd_transfer_set_state(wd_transfer_t *, wd_transfer_state_t);
-static inline void						wd_transfer_limit_download_speed(wd_transfer_t *, wd_account_t *, ssize_t, wi_time_interval_t, wi_time_interval_t);
-static inline void						wd_transfer_limit_upload_speed(wd_transfer_t *, wd_account_t *, ssize_t, wi_time_interval_t, wi_time_interval_t);
+static inline void						wd_transfer_limit_speed(wd_transfer_t *, wi_uinteger_t, wi_uinteger_t, ssize_t, wi_time_interval_t, wi_time_interval_t);
 
 static void								wd_transfer_thread(wi_runtime_instance_t *);
 static wi_boolean_t						wd_transfer_open(wd_transfer_t *);
@@ -620,62 +619,6 @@ static inline void wd_transfer_limit_speed(wd_transfer_t *transfer, wi_uinteger_
 		}
 	}
 }
-
-
-
-/*static inline void wd_transfer_limit_download_speed(wd_transfer_t *transfer, wd_account_t *account, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
-	wi_uinteger_t	limit, totallimit;
-	
-	if(account->transfer_download_speed_limit > 0 || wd_transfers_total_download_speed > 0) {
-		totallimit = (wd_transfers_total_download_speed > 0)
-			? (float) wd_transfers_total_download_speed / (float) wd_current_downloads
-			: 0;
-		
-		if(totallimit > 0 && account->transfer_download_speed_limit > 0)
-			limit = WI_MIN(totallimit, account->transfer_download_speed_limit);
-		else if(totallimit > 0)
-			limit = totallimit;
-		else
-			limit = account->transfer_download_speed_limit;
-
-		if(limit > 0) {
-			while(transfer->speed > limit) {
-				usleep(10000);
-				now += 0.01;
-				
-				transfer->speed = bytes / (now - then);
-			}
-		}
-	}
-}
-
-
-
-static inline void wd_transfer_limit_upload_speed(wd_transfer_t *transfer, wd_account_t *account, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
-	wi_uinteger_t	limit, totallimit;
-	
-	if(account->transfer_upload_speed_limit > 0 || wd_transfers_total_upload_speed > 0) {
-		totallimit = (wd_transfers_total_upload_speed > 0)
-			? (float) wd_transfers_total_upload_speed / (float) wd_current_uploads
-			: 0;
-		
-		if(totallimit > 0 && account->transfer_upload_speed_limit > 0)
-			limit = WI_MIN(totallimit, account->transfer_upload_speed_limit);
-		else if(totallimit > 0)
-			limit = totallimit;
-		else
-			limit = account->transfer_upload_speed_limit;
-
-		if(limit > 0) {
-			while(transfer->speed > limit) {
-				usleep(10000);
-				now += 0.01;
-				
-				transfer->speed = bytes / (now - then);
-			}
-		}
-	}
-}*/
 
 
 
