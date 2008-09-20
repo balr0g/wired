@@ -100,6 +100,9 @@ static void							wd_message_log_subscribe(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_log_unsubscribe(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_settings_get_settings(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_settings_set_settings(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_banlist_get_bans(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_banlist_add_ban(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_banlist_delete_ban(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_tracker_get_categories(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_tracker_get_servers(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_tracker_send_register(wd_user_t *, wi_p7_message_t *);
@@ -172,6 +175,9 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.unsubscribe"), wd_message_log_unsubscribe);
 	WD_MESSAGE_HANDLER(WI_STR("wired.settings.get_settings"), wd_message_settings_get_settings);
 	WD_MESSAGE_HANDLER(WI_STR("wired.settings.set_settings"), wd_message_settings_set_settings);
+	WD_MESSAGE_HANDLER(WI_STR("wired.banlist.get_bans"), wd_message_banlist_get_bans);
+	WD_MESSAGE_HANDLER(WI_STR("wired.banlist.add_ban"), wd_message_banlist_add_ban);
+	WD_MESSAGE_HANDLER(WI_STR("wired.banlist.delete_ban"), wd_message_banlist_delete_ban);
 	WD_MESSAGE_HANDLER(WI_STR("wired.tracker.get_categories"), wd_message_tracker_get_categories);
 	WD_MESSAGE_HANDLER(WI_STR("wired.tracker.get_servers"), wd_message_tracker_get_servers);
 	WD_MESSAGE_HANDLER(WI_STR("wired.tracker.send_register"), wd_message_tracker_send_register);
@@ -597,11 +603,26 @@ static void wd_message_chat_kick_user(wd_user_t *user, wi_p7_message_t *message)
 static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t		*reply;
 	wi_string_t			*login, *password;
+	wi_date_t			*expiration_date;
 	wd_account_t		*account;
 	
 	login = wi_p7_message_string_for_name(message, WI_STR("wired.user.login"));
 	
 	wd_user_set_login(user, login);
+	
+	if(wd_banlist_ip_is_banned(wd_user_ip(user), &expiration_date)) {
+		reply = wi_p7_message_with_name(WI_STR("wired.banned"), wd_p7_spec);
+		
+		if(expiration_date)
+			wi_p7_message_set_date_for_name(reply, expiration_date, WI_STR("wired.banlist.expiration_date"));
+		
+		wd_user_reply_message(user, reply, message);
+
+		wi_log_info(WI_STR("Login from %@ failed: Banned"),
+			wd_user_identifier(user));
+
+		return;
+	}
 	
 	account = wd_accounts_read_user_and_group(login);
 	
@@ -722,6 +743,7 @@ static void wd_message_user_set_status(wd_user_t *user, wi_p7_message_t *message
 static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t		*broadcast;
 	wi_string_t			*disconnect_message;
+	wi_date_t			*expiration_date;
 	wd_user_t			*peer;
 	wi_p7_uint32_t		uid;
 
@@ -751,7 +773,8 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 		wd_user_identifier(user),
 		wd_user_identifier(peer));
 
-	disconnect_message = wi_p7_message_string_for_name(message, WI_STR("wired.user.disconnect_message"));
+	disconnect_message	= wi_p7_message_string_for_name(message, WI_STR("wired.user.disconnect_message"));
+	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
 
 	broadcast = wi_p7_message_with_name(WI_STR("wired.user.user_ban"), wd_p7_spec);
 	wi_p7_message_set_uint32_for_name(broadcast, wd_user_id(user), WI_STR("wired.user.id"));
@@ -759,7 +782,7 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 	wi_p7_message_set_string_for_name(broadcast, disconnect_message, WI_STR("wired.user.disconnect_message"));
 	wd_chat_broadcast_message(wd_public_chat, broadcast);
 
-	wd_banlist_add_temporary_ban_for_ip(wd_user_ip(peer));
+	wd_banlist_add_ban(user, message, wd_user_ip(peer), expiration_date);
 	wd_user_set_state(peer, WD_USER_DISCONNECTED);
 }
 
@@ -1407,6 +1430,8 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 		wi_log_ll(WI_STR("%@ created the user \"%@\""),
 			wd_user_identifier(user),
 			account->name);
+	} else {
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -1452,6 +1477,8 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 		wi_log_ll(WI_STR("%@ created the group \"%@\""),
 			wd_user_identifier(user),
 			account->name);
+	} else {
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -1493,6 +1520,8 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 		wi_log_ll(WI_STR("%@ modified the user \"%@\""),
 			wd_user_identifier(user),
 			account->name);
+	} else {
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -1534,6 +1563,8 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 		wi_log_ll(WI_STR("%@ modified the group \"%@\""),
 			wd_user_identifier(user),
 			account->name);
+	} else {
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -1562,6 +1593,8 @@ static void wd_message_account_delete_user(wd_user_t *user, wi_p7_message_t *mes
 		wi_log_ll(WI_STR("%@ deleted the user \"%@\""),
 			wd_user_identifier(user),
 			name);
+	} else {
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -1592,6 +1625,8 @@ static void wd_message_account_delete_group(wd_user_t *user, wi_p7_message_t *me
 		wi_log_ll(WI_STR("%@ deleted the group \"%@\""),
 			wd_user_identifier(user),
 			name);
+	} else {
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -1794,6 +1829,54 @@ static void wd_message_settings_set_settings(wd_user_t *user, wi_p7_message_t *m
 	}
 
 	wd_settings_set_settings(message);
+}
+
+
+
+static void wd_message_banlist_get_bans(wd_user_t *user, wi_p7_message_t *message) {
+	if(!wd_user_account(user)->banlist_get_bans) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return;
+	}
+	
+	wd_banlist_reply_bans(user, message);
+}
+
+
+
+static void wd_message_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*ip;
+	wi_date_t		*expiration_date;
+	
+	if(!wd_user_account(user)->banlist_add_bans) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return;
+	}
+	
+	ip					= wi_p7_message_string_for_name(message, WI_STR("wired.banlist.ip"));
+	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
+	
+	wd_banlist_add_ban(user, message, ip, expiration_date);
+}
+
+
+
+static void wd_message_banlist_delete_ban(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*ip;
+	wi_date_t		*expiration_date;
+	
+	if(!wd_user_account(user)->banlist_delete_bans) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+	 
+		return;
+	}
+
+	ip					= wi_p7_message_string_for_name(message, WI_STR("wired.banlist.ip"));
+	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
+	
+	wd_banlist_delete_ban(user, message, ip, expiration_date);
 }
 
 

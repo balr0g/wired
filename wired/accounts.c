@@ -723,6 +723,9 @@ wd_account_t * wd_account_init_user_with_array(wd_account_t *account, wi_array_t
 	account->log_view_log						= wd_account_next_bool(array, false, &i);
 	account->settings_get_settings				= wd_account_next_bool(array, false, &i);
 	account->settings_set_settings				= wd_account_next_bool(array, false, &i);
+	account->banlist_get_bans					= wd_account_next_bool(array, false, &i);
+	account->banlist_add_bans					= wd_account_next_bool(array, false, &i);
+	account->banlist_delete_bans				= wd_account_next_bool(array, false, &i);
 	account->tracker_list_servers				= wd_account_next_bool(array, false, &i);
 	account->tracker_register_servers			= wd_account_next_bool(array, false, &i);
 	
@@ -791,6 +794,9 @@ wd_account_t * wd_account_init_group_with_array(wd_account_t *account, wi_array_
 	account->log_view_log						= wd_account_next_bool(array, false, &i);
 	account->settings_get_settings				= wd_account_next_bool(array, false, &i);
 	account->settings_set_settings				= wd_account_next_bool(array, false, &i);
+	account->banlist_get_bans					= wd_account_next_bool(array, false, &i);
+	account->banlist_add_bans					= wd_account_next_bool(array, false, &i);
+	account->banlist_delete_bans				= wd_account_next_bool(array, false, &i);
 	account->tracker_list_servers				= wd_account_next_bool(array, false, &i);
 	account->tracker_register_servers			= wd_account_next_bool(array, false, &i);
 
@@ -933,6 +939,9 @@ static void wd_account_read_privileges_from_message(wd_account_t *account, wi_p7
 	WD_ACCOUNT_GET_BOOL(&account->log_view_log, WI_STR("wired.account.log.view_log"));
 	WD_ACCOUNT_GET_BOOL(&account->settings_get_settings, WI_STR("wired.account.settings.get_settings"));
 	WD_ACCOUNT_GET_BOOL(&account->settings_set_settings, WI_STR("wired.account.settings.set_settings"));
+	WD_ACCOUNT_GET_BOOL(&account->banlist_get_bans, WI_STR("wired.account.banlist.get_bans"));
+	WD_ACCOUNT_GET_BOOL(&account->banlist_add_bans, WI_STR("wired.account.banlist.add_bans"));
+	WD_ACCOUNT_GET_BOOL(&account->banlist_delete_bans, WI_STR("wired.account.banlist.delete_bans"));
 	WD_ACCOUNT_GET_BOOL(&account->tracker_list_servers, WI_STR("wired.account.tracker.list_servers"));
 	WD_ACCOUNT_GET_BOOL(&account->tracker_register_servers, WI_STR("wired.account.tracker.register_servers"));
 }
@@ -998,11 +1007,17 @@ static void wd_account_write_privileges_to_message(wd_account_t *account, wi_p7_
 	WD_ACCOUNT_SET_BOOL(account->log_view_log, WI_STR("wired.account.log.view_log"));
 	WD_ACCOUNT_SET_BOOL(account->settings_get_settings, WI_STR("wired.account.settings.get_settings"));
 	WD_ACCOUNT_SET_BOOL(account->settings_set_settings, WI_STR("wired.account.settings.set_settings"));
+	WD_ACCOUNT_SET_BOOL(account->banlist_get_bans, WI_STR("wired.account.banlist.get_bans"));
+	WD_ACCOUNT_SET_BOOL(account->banlist_add_bans, WI_STR("wired.account.banlist.add_bans"));
+	WD_ACCOUNT_SET_BOOL(account->banlist_delete_bans, WI_STR("wired.account.banlist.delete_bans"));
 	WD_ACCOUNT_SET_BOOL(account->tracker_list_servers, WI_STR("wired.account.tracker.list_servers"));
 	WD_ACCOUNT_SET_BOOL(account->tracker_register_servers, WI_STR("wired.account.tracker.register_servers"));
 }
 
 
+
+#define WD_ACCOUNT_ADD_BOOL(value) \
+	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), (value)))
 
 static wi_array_t * wd_account_user_array(wd_account_t *account) {
 	wi_array_t		*array;
@@ -1011,29 +1026,29 @@ static wi_array_t * wd_account_user_array(wd_account_t *account) {
 	wi_array_add_data(array, account->name);
 	wi_array_add_data(array, account->password);
 	wi_array_add_data(array, account->group);
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_get_info));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->message_broadcast));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->news_post_news));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->news_clear_news));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_download_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_upload_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_upload_anywhere));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_create_directories));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_move_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_delete_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_access_all_dropboxes));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_create_accounts));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_edit_accounts));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_delete_accounts));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_raise_account_privileges));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_kick_users));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_ban_users));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_cannot_be_disconnected));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_download_speed_limit));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_upload_speed_limit));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_download_limit));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_upload_limit));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->chat_set_topic));
+	WD_ACCOUNT_ADD_BOOL(account->user_get_info);
+	WD_ACCOUNT_ADD_BOOL(account->message_broadcast);
+	WD_ACCOUNT_ADD_BOOL(account->news_post_news);
+	WD_ACCOUNT_ADD_BOOL(account->news_clear_news);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_download_files);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_files);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_anywhere);
+	WD_ACCOUNT_ADD_BOOL(account->file_create_directories);
+	WD_ACCOUNT_ADD_BOOL(account->file_move_files);
+	WD_ACCOUNT_ADD_BOOL(account->file_delete_files);
+	WD_ACCOUNT_ADD_BOOL(account->file_access_all_dropboxes);
+	WD_ACCOUNT_ADD_BOOL(account->account_create_accounts);
+	WD_ACCOUNT_ADD_BOOL(account->account_edit_accounts);
+	WD_ACCOUNT_ADD_BOOL(account->account_delete_accounts);
+	WD_ACCOUNT_ADD_BOOL(account->account_raise_account_privileges);
+	WD_ACCOUNT_ADD_BOOL(account->user_kick_users);
+	WD_ACCOUNT_ADD_BOOL(account->user_ban_users);
+	WD_ACCOUNT_ADD_BOOL(account->user_cannot_be_disconnected);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_download_speed_limit);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_speed_limit);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_download_limit);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_limit);
+	WD_ACCOUNT_ADD_BOOL(account->chat_set_topic);
 	wi_array_add_data(array, account->files);
 	wi_array_add_data(array, account->full_name);
 	wi_array_add_data(array, wi_string_by_replacing_string_with_string(wi_date_rfc3339_string(account->creation_time),
@@ -1044,29 +1059,32 @@ static wi_array_t * wd_account_user_array(wd_account_t *account) {
 		WI_STR(":"), WI_STR(";"), 0));
 	wi_array_add_data(array, account->edited_by);
 	wi_array_add_data(array, wi_array_components_joined_by_string(account->groups, WI_STR(",")));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->chat_create_chats));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->message_send_messages));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->news_read_news));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_list_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_get_info));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_create_links));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_rename_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_set_type));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_set_comment));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_set_permissions));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_set_executable));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_recursive_list_depth_limit));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_upload_directories));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_change_password));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_list_accounts));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_read_accounts));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_cannot_set_nick));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_get_users));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->log_view_log));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->settings_get_settings));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->settings_set_settings));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->tracker_list_servers));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->tracker_register_servers));
+	WD_ACCOUNT_ADD_BOOL(account->chat_create_chats);
+	WD_ACCOUNT_ADD_BOOL(account->message_send_messages);
+	WD_ACCOUNT_ADD_BOOL(account->news_read_news);
+	WD_ACCOUNT_ADD_BOOL(account->file_list_files);
+	WD_ACCOUNT_ADD_BOOL(account->file_get_info);
+	WD_ACCOUNT_ADD_BOOL(account->file_create_links);
+	WD_ACCOUNT_ADD_BOOL(account->file_rename_files);
+	WD_ACCOUNT_ADD_BOOL(account->file_set_type);
+	WD_ACCOUNT_ADD_BOOL(account->file_set_comment);
+	WD_ACCOUNT_ADD_BOOL(account->file_set_permissions);
+	WD_ACCOUNT_ADD_BOOL(account->file_set_executable);
+	WD_ACCOUNT_ADD_BOOL(account->file_recursive_list_depth_limit);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_directories);
+	WD_ACCOUNT_ADD_BOOL(account->account_change_password);
+	WD_ACCOUNT_ADD_BOOL(account->account_list_accounts);
+	WD_ACCOUNT_ADD_BOOL(account->account_read_accounts);
+	WD_ACCOUNT_ADD_BOOL(account->user_cannot_set_nick);
+	WD_ACCOUNT_ADD_BOOL(account->user_get_users);
+	WD_ACCOUNT_ADD_BOOL(account->log_view_log);
+	WD_ACCOUNT_ADD_BOOL(account->settings_get_settings);
+	WD_ACCOUNT_ADD_BOOL(account->settings_set_settings);
+	WD_ACCOUNT_ADD_BOOL(account->banlist_get_bans);
+	WD_ACCOUNT_ADD_BOOL(account->banlist_add_bans);
+	WD_ACCOUNT_ADD_BOOL(account->banlist_delete_bans);
+	WD_ACCOUNT_ADD_BOOL(account->tracker_list_servers);
+	WD_ACCOUNT_ADD_BOOL(account->tracker_register_servers);
 
 	return array;
 }
@@ -1079,58 +1097,61 @@ static wi_array_t * wd_account_group_array(wd_account_t *account) {
 	array = wi_array();
 	
 	wi_array_add_data(array, account->name);
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_get_info));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->message_broadcast));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->news_post_news));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->news_clear_news));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_download_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_upload_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_upload_anywhere));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_create_directories));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_move_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_delete_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_access_all_dropboxes));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_create_accounts));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_edit_accounts));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_delete_accounts));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_raise_account_privileges));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_kick_users));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_ban_users));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_cannot_be_disconnected));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_download_speed_limit));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_upload_speed_limit));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_download_limit));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_upload_limit));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->chat_set_topic));
+	WD_ACCOUNT_ADD_BOOL(account->user_get_info);
+	WD_ACCOUNT_ADD_BOOL(account->message_broadcast);
+	WD_ACCOUNT_ADD_BOOL(account->news_post_news);
+	WD_ACCOUNT_ADD_BOOL(account->news_clear_news);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_download_files);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_files);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_anywhere);
+	WD_ACCOUNT_ADD_BOOL(account->file_create_directories);
+	WD_ACCOUNT_ADD_BOOL(account->file_move_files);
+	WD_ACCOUNT_ADD_BOOL(account->file_delete_files);
+	WD_ACCOUNT_ADD_BOOL(account->file_access_all_dropboxes);
+	WD_ACCOUNT_ADD_BOOL(account->account_create_accounts);
+	WD_ACCOUNT_ADD_BOOL(account->account_edit_accounts);
+	WD_ACCOUNT_ADD_BOOL(account->account_delete_accounts);
+	WD_ACCOUNT_ADD_BOOL(account->account_raise_account_privileges);
+	WD_ACCOUNT_ADD_BOOL(account->user_kick_users);
+	WD_ACCOUNT_ADD_BOOL(account->user_ban_users);
+	WD_ACCOUNT_ADD_BOOL(account->user_cannot_be_disconnected);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_download_speed_limit);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_speed_limit);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_download_limit);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_limit);
+	WD_ACCOUNT_ADD_BOOL(account->chat_set_topic);
 	wi_array_add_data(array, account->files);
 	wi_array_add_data(array, wi_string_by_replacing_string_with_string(wi_date_rfc3339_string(account->creation_time),
 		WI_STR(":"), WI_STR(";"), 0));
 	wi_array_add_data(array, wi_string_by_replacing_string_with_string(wi_date_rfc3339_string(account->modification_time),
 		WI_STR(":"), WI_STR(";"), 0));
 	wi_array_add_data(array, account->edited_by);
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->chat_create_chats));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->message_send_messages));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->news_read_news));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_list_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_get_info));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_create_links));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_rename_files));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_set_type));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_set_comment));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_set_permissions));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_set_executable));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->file_recursive_list_depth_limit));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->transfer_upload_directories));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_change_password));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_list_accounts));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->account_read_accounts));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_cannot_set_nick));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->user_get_users));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->log_view_log));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->settings_get_settings));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->settings_set_settings));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->tracker_list_servers));
-	wi_array_add_data(array, wi_string_with_format(WI_STR("%u"), account->tracker_register_servers));
+	WD_ACCOUNT_ADD_BOOL(account->chat_create_chats);
+	WD_ACCOUNT_ADD_BOOL(account->message_send_messages);
+	WD_ACCOUNT_ADD_BOOL(account->news_read_news);
+	WD_ACCOUNT_ADD_BOOL(account->file_list_files);
+	WD_ACCOUNT_ADD_BOOL(account->file_get_info);
+	WD_ACCOUNT_ADD_BOOL(account->file_create_links);
+	WD_ACCOUNT_ADD_BOOL(account->file_rename_files);
+	WD_ACCOUNT_ADD_BOOL(account->file_set_type);
+	WD_ACCOUNT_ADD_BOOL(account->file_set_comment);
+	WD_ACCOUNT_ADD_BOOL(account->file_set_permissions);
+	WD_ACCOUNT_ADD_BOOL(account->file_set_executable);
+	WD_ACCOUNT_ADD_BOOL(account->file_recursive_list_depth_limit);
+	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_directories);
+	WD_ACCOUNT_ADD_BOOL(account->account_change_password);
+	WD_ACCOUNT_ADD_BOOL(account->account_list_accounts);
+	WD_ACCOUNT_ADD_BOOL(account->account_read_accounts);
+	WD_ACCOUNT_ADD_BOOL(account->user_cannot_set_nick);
+	WD_ACCOUNT_ADD_BOOL(account->user_get_users);
+	WD_ACCOUNT_ADD_BOOL(account->log_view_log);
+	WD_ACCOUNT_ADD_BOOL(account->settings_get_settings);
+	WD_ACCOUNT_ADD_BOOL(account->settings_set_settings);
+	WD_ACCOUNT_ADD_BOOL(account->banlist_get_bans);
+	WD_ACCOUNT_ADD_BOOL(account->banlist_add_bans);
+	WD_ACCOUNT_ADD_BOOL(account->banlist_delete_bans);
+	WD_ACCOUNT_ADD_BOOL(account->tracker_list_servers);
+	WD_ACCOUNT_ADD_BOOL(account->tracker_register_servers);
 	
 	return array;
 }
@@ -1241,6 +1262,9 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 		if(account->log_view_log && !user_account->log_view_log) return false;
 		if(account->settings_get_settings && !user_account->settings_get_settings) return false;
 		if(account->settings_set_settings && !user_account->settings_set_settings) return false;
+		if(account->banlist_get_bans && !user_account->banlist_get_bans) return false;
+		if(account->banlist_add_bans && !user_account->banlist_add_bans) return false;
+		if(account->banlist_delete_bans && !user_account->banlist_delete_bans) return false;
 		if(account->tracker_list_servers && !user_account->tracker_list_servers) return false;
 		if(account->tracker_register_servers && !user_account->tracker_register_servers) return false;
 	}

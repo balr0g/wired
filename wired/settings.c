@@ -66,16 +66,22 @@ void wd_settings_init(void) {
 	
 	defaults = wi_dictionary_with_data_and_keys(
 		wi_array(),								WI_STR("address"),
+		WI_STR("banner.png"),					WI_STR("banner"),
 		wi_array(),								WI_STR("category"),
 		WI_STR("Wired Server"),					WI_STR("description"),
 		wi_number_with_bool(false),				WI_STR("enable tracker"),
 		WI_STR("files"),						WI_STR("files"),
 		WI_STR("daemon"),						WI_STR("group"),
+		WI_INT32(0),							WI_STR("index time"),
 		WI_STR("Wired Server"),					WI_STR("name"),
+		WI_INT32(0),							WI_STR("news limit"),
 		WI_INT32(4871),							WI_STR("port"),
 		wi_number_with_bool(false),				WI_STR("register"),
+		WI_INT32(0),							WI_STR("total download speed"),
 		WI_INT32(10),							WI_STR("total downloads"),
+		WI_INT32(0),							WI_STR("total upload speed"),
 		WI_INT32(10),							WI_STR("total uploads"),
+		wi_array(),								WI_STR("tracker"),
 		WI_STR("wired"),						WI_STR("user"),
 		NULL);
 	
@@ -160,7 +166,7 @@ void wd_settings_set_settings(wi_p7_message_t *message) {
 		wi_config_note_change(wd_config, WI_STR("banner"));
 	else
 		wi_log_err(WI_STR("Could not write banner to %@: %m"), path);
-	
+		
 	name					= wi_p7_message_string_for_name(message, WI_STR("wired.info.name"));
 	description				= wi_p7_message_string_for_name(message, WI_STR("wired.info.description"));
 	total_downloads			= wi_p7_message_number_for_name(message, WI_STR("wired.info.downloads"));
@@ -188,4 +194,3 @@ void wd_settings_set_settings(wi_p7_message_t *message) {
 	if(!wi_config_write_file(wd_config))
 		wi_log_err(WI_STR("Could not write config: %m"));
 }
-

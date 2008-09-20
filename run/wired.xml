@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b3">
+			 version="2.0b4">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -13,16 +13,17 @@
 			<p7:enum name="wired.error.unrecognized_message" value="2" />
 			<p7:enum name="wired.error.message_out_of_sequence" value="3" />
 			<p7:enum name="wired.error.login_failed" value="4" />
-			<p7:enum name="wired.error.banned" value="5" />
-			<p7:enum name="wired.error.permission_denied" value="6" />
-			<p7:enum name="wired.error.chat_not_found" value="7" />
-			<p7:enum name="wired.error.user_not_found" value="8" />
-			<p7:enum name="wired.error.user_cannot_be_disconnected" value="9" />
-			<p7:enum name="wired.error.file_not_found" value="10" />
-			<p7:enum name="wired.error.file_exists" value="11" />
-			<p7:enum name="wired.error.account_not_found" value="12" />
-			<p7:enum name="wired.error.account_exists" value="13" />
-			<p7:enum name="wired.error.tracker_not_enabled" value="14" />
+			<p7:enum name="wired.error.permission_denied" value="5" />
+			<p7:enum name="wired.error.chat_not_found" value="6" />
+			<p7:enum name="wired.error.user_not_found" value="7" />
+			<p7:enum name="wired.error.user_cannot_be_disconnected" value="8" />
+			<p7:enum name="wired.error.file_not_found" value="9" />
+			<p7:enum name="wired.error.file_exists" value="10" />
+			<p7:enum name="wired.error.account_not_found" value="11" />
+			<p7:enum name="wired.error.account_exists" value="12" />
+			<p7:enum name="wired.error.tracker_not_enabled" value="13" />
+			<p7:enum name="wired.error.ban_not_found" value="14" />
+			<p7:enum name="wired.error.ban_exists" value="15" />
 		</p7:field>
 		
 		<p7:field name="wired.error.string" type="string" id="1002" />
@@ -160,8 +161,11 @@
 		<p7:field name="wired.account.log.view_log" type="bool" id="8051" />
 		<p7:field name="wired.account.settings.get_settings" type="bool" id="8052" />
 		<p7:field name="wired.account.settings.set_settings" type="bool" id="8053" />
-		<p7:field name="wired.account.tracker.list_servers" type="bool" id="8054" />
-		<p7:field name="wired.account.tracker.register_servers" type="bool" id="8055" />
+		<p7:field name="wired.account.banlist.get_bans" type="bool" id="8054" />
+		<p7:field name="wired.account.banlist.add_bans" type="bool" id="8055" />
+		<p7:field name="wired.account.banlist.delete_bans" type="bool" id="8056" />
+		<p7:field name="wired.account.tracker.list_servers" type="bool" id="8057" />
+		<p7:field name="wired.account.tracker.register_servers" type="bool" id="8058" />
 
 		<p7:field name="wired.transfer.type" type="enum" id="9000">
 			<p7:enum name="wired.transfer.type.download" value="0" />
@@ -183,6 +187,8 @@
 		<p7:field name="wired.log.message" type="string" id="10002" />
 		<p7:field name="wired.settings.register_with_trackers" type="bool" id="10003" />
 		<p7:field name="wired.settings.trackers" type="list" listtype="string" id="10004" />
+		<p7:field name="wired.banlist.ip" type="string" id="10005" />
+		<p7:field name="wired.banlist.expiration_date" type="date" id="10006" />
 		
 		<p7:field name="wired.tracker.tracker" type="bool" id="11000" />
 		<p7:field name="wired.tracker.categories" type="list" listtype="string" id="11001" />
@@ -278,6 +284,9 @@
 			<p7:member field="wired.account.log.view_log" />
 			<p7:member field="wired.account.settings.get_settings" />
 			<p7:member field="wired.account.settings.set_settings" />
+			<p7:member field="wired.account.banlist.get_bans" />
+			<p7:member field="wired.account.banlist.add_bans" />
+			<p7:member field="wired.account.banlist.delete_bans" />
 			<p7:member field="wired.account.tracker.list_servers" />
 			<p7:member field="wired.account.tracker.register_servers" />
 		</p7:collection>
@@ -307,6 +316,11 @@
 		<p7:message name="wired.login" id="1004">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.user.id" use="required" />
+		</p7:message>
+		
+		<p7:message name="wired.banned" id="1005">
+			<p7:parameter field="wired.transaction" />
+			<p7:parameter field="wired.banlist.expiration_date" />
 		</p7:message>
 		
 		<p7:message name="wired.client_info" id="2000">
@@ -488,6 +502,7 @@
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.user.id" use="required" />
 			<p7:parameter field="wired.user.disconnect_message" use="required" />
+			<p7:parameter field="wired.banlist.expiration_date" />
 		</p7:message>
 
 		<p7:message name="wired.user.user_ban" id="4010">
@@ -877,6 +892,32 @@
 			<p7:parameter field="wired.tracker.categories" use="required" />
 		</p7:message>
 		
+		<p7:message name="wired.banlist.get_bans" id="10006">
+			<p7:parameter field="wired.transaction" />
+		</p7:message>
+		
+		<p7:message name="wired.banlist.ban_list" id="10007">
+			<p7:parameter field="wired.transaction" />
+			<p7:parameter field="wired.banlist.ip" use="required" />
+			<p7:parameter field="wired.banlist.expiration_date" />
+		</p7:message>
+		
+		<p7:message name="wired.banlist.ban_list.done" id="10008">
+			<p7:parameter field="wired.transaction" />
+		</p7:message>
+		
+		<p7:message name="wired.banlist.add_ban" id="10009">
+			<p7:parameter field="wired.transaction" />
+			<p7:parameter field="wired.banlist.ip" use="required" />
+			<p7:parameter field="wired.banlist.expiration_date" />
+		</p7:message>
+		
+		<p7:message name="wired.banlist.delete_ban" id="10010">
+			<p7:parameter field="wired.transaction" />
+			<p7:parameter field="wired.banlist.ip" use="required" />
+			<p7:parameter field="wired.banlist.expiration_date" />
+		</p7:message>
+		
 		<p7:message name="wired.tracker.get_categories" id="11000">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
@@ -947,6 +988,7 @@
 					<p7:reply message="wired.account.privileges" count="1" use="required" />
 				</p7:and>
 				<p7:reply message="wired.error" count="1" use="required" />
+				<p7:reply message="wired.banned" count="1" use="required" />
 			</p7:or>
 		</p7:transaction>
 		
@@ -1201,6 +1243,24 @@
 				<p7:reply message="wired.tracker.categories" count="1" use="required" />
 				<p7:reply message="wired.error" count="1" use="required" />
 			</p7:or>
+		</p7:transaction>
+
+		<p7:transaction message="wired.banlist.get_bans" originator="client">
+			<p7:or>
+				<p7:and>
+					<p7:reply message="wired.banlist.ban_list" count="*" use="required" />
+					<p7:reply message="wired.banlist.ban_list.done" count="1" use="required" />
+				</p7:and>
+				<p7:reply message="wired.error" count="1" use="required" />
+			</p7:or>
+		</p7:transaction>
+
+		<p7:transaction message="wired.banlist.add_ban" originator="client">
+			<p7:reply message="wired.error" count="?" use="required" />
+		</p7:transaction>
+
+		<p7:transaction message="wired.banlist.delete_ban" originator="client">
+			<p7:reply message="wired.error" count="?" use="required" />
 		</p7:transaction>
 
 		<p7:transaction message="wired.tracker.get_servers" originator="client">

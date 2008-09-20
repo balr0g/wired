@@ -90,6 +90,9 @@ struct _wd_account {
 	wi_boolean_t					log_view_log;
 	wi_boolean_t					settings_get_settings;
 	wi_boolean_t					settings_set_settings;
+	wi_boolean_t					banlist_get_bans;
+	wi_boolean_t					banlist_add_bans;
+	wi_boolean_t					banlist_delete_bans;
 	wi_boolean_t					tracker_list_servers;
 	wi_boolean_t					tracker_register_servers;
 };

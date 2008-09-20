@@ -234,7 +234,7 @@ void wd_server_apply_settings(wi_set_t *changes) {
 			wd_banner = wi_data_init_with_contents_of_file(wi_data_alloc(), banner);
 			
 			if(!wd_banner)
-				wi_log_err(WI_STR("Could not open %@: %m"), banner);
+				wi_log_warn(WI_STR("Could not open %@: %m"), banner);
 		}
 	} else {
 		wi_release(wd_banner);
