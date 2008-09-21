@@ -344,7 +344,7 @@ static void wd_delete_pid(void) {
 	
 	path = WI_STR("wired.pid");
 
-	if(!wi_file_delete(path))
+	if(!wi_fs_delete(path))
 		wi_log_warn(WI_STR("Could not delete %@: %m"), path);
 }
 
@@ -395,7 +395,7 @@ static void wd_delete_status(void) {
 	
 	path = WI_STR("wired.status");
 
-	if(!wi_file_delete(path))
+	if(!wi_fs_delete(path))
 		wi_log_warn(WI_STR("Could not delete %@: %m"), path);
 }
 

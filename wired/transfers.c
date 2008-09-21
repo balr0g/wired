@@ -212,11 +212,11 @@ static void wd_transfers_add_or_remove_transfer(wd_transfer_t *transfer, wi_bool
 void wd_transfers_queue_download(wi_string_t *path, wi_file_offset_t offset, wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t			*realpath;
 	wd_transfer_t		*transfer;
-	wi_file_stat_t		sb;
+	wi_fs_stat_t		sb;
 	
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	
-	if(!wi_file_stat(realpath, &sb)) {
+	if(!wi_fs_stat(realpath, &sb)) {
 		wi_log_err(WI_STR("Could not open %@: %m"), realpath);
 		wd_user_reply_errno(user, message);
 
@@ -259,11 +259,11 @@ void wd_transfers_queue_upload(wi_string_t *path, wi_file_offset_t size, wi_bool
 	wi_string_t			*realpath;
 	wd_transfer_t		*transfer;
 	wi_file_offset_t	offset;
-	wi_file_stat_t		sb;
+	wi_fs_stat_t		sb;
 	
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	
-	if(wi_file_stat(realpath, &sb)) {
+	if(wi_fs_stat(realpath, &sb)) {
 		wd_user_reply_errno(user, message);
 
 		return;
@@ -272,7 +272,7 @@ void wd_transfers_queue_upload(wi_string_t *path, wi_file_offset_t size, wi_bool
 	if(!wi_string_has_suffix(realpath, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION)))
 		wi_string_append_string(realpath, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION));
 	
-	if(wi_file_stat(realpath, &sb))
+	if(wi_fs_stat(realpath, &sb))
 		offset = sb.size;
 	else
 		offset = 0;
@@ -1016,9 +1016,9 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 	if(transfer->transferred == transfer->size) {
 		path = wi_string_by_deleting_path_extension(transfer->realpath);
 
-		if(wi_file_rename(transfer->realpath, path)) {
+		if(wi_fs_rename(transfer->realpath, path)) {
 			if(transfer->executable) {
-				if(!wi_file_set_mode(path, 0755)) {
+				if(!wi_fs_set_mode(path, 0755)) {
 					wi_log_warn(WI_STR("Could not set mode for %@: %m"),
 						path);
 				}

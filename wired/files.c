@@ -87,7 +87,7 @@ static void										wd_files_index_write_entry(wi_file_t *, const char *, wi_st
 static void										wd_files_fsevents_thread(wi_runtime_instance_t *);
 static void										wd_files_fsevents_callback(wi_string_t *);
 
-static wd_file_type_t							wd_files_type_with_stat(wi_string_t *, wi_file_stat_t *);
+static wd_file_type_t							wd_files_type_with_stat(wi_string_t *, wi_fs_stat_t *);
 
 static void										wd_files_clear_comment(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 static wi_boolean_t								wd_files_read_comment(wi_file_t *, wi_string_t **, wi_string_t **);
@@ -170,11 +170,11 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 	WI_FTSENT				*p;
 	wi_string_t				*realpath, *filepath, *virtualpath;
 	wd_account_t			*account;
-	wi_file_statfs_t		sfb;
+	wi_fs_statfs_t			sfb;
 	wi_file_offset_t		size, available;
 	wd_file_type_t			type, pathtype;
 	wd_files_fts_action_t	action;
-	wi_file_stat_t			sb, lsb;
+	wi_fs_stat_t			sb, lsb;
 	wi_uinteger_t			pathlength, depthlimit;
 	int						error;
 	wi_boolean_t			root, upload, alias, readable;
@@ -244,19 +244,19 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		if(!root)
 			wi_string_insert_string_at_index(virtualpath, path, 0);
 		
-		alias = wi_file_is_alias_cpath(p->fts_path);
+		alias = wi_fs_is_alias_cpath(p->fts_path);
 		
 		if(alias)
 			wi_string_resolve_aliases_in_path(filepath);
 
-		if(!wi_file_lstat(filepath, &lsb)) {
+		if(!wi_fs_lstat(filepath, &lsb)) {
 			wi_log_warn(WI_STR("Could not list %@: %m"), filepath);
 			wi_fts_set(fts, p, WI_FTS_SKIP);
 
 			continue;
 		}
 
-		if(!wi_file_stat(filepath, &sb))
+		if(!wi_fs_stat(filepath, &sb))
 			sb = lsb;
 
 		type = wd_files_type_with_stat(filepath, &sb);
@@ -308,7 +308,7 @@ done:
 	else
 		upload = false;
 
-	if(upload && wi_file_statfs(realpath, &sfb))
+	if(upload && wi_fs_statfs(realpath, &sfb))
 		available = (wi_file_offset_t) sfb.bavail * (wi_file_offset_t) sfb.frsize;
 	else
 		available = 0;
@@ -362,24 +362,24 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	wi_string_t			*realpath, *comment, *owner, *group;
 	wi_file_offset_t	size;
 	wd_file_type_t		type;
-	wi_file_stat_t		sb, lsb;
+	wi_fs_stat_t		sb, lsb;
 	wi_uinteger_t		mode;
 	wi_boolean_t		alias, readable;
 	
 	realpath = wd_files_real_path(path, user);
-	alias = wi_file_is_alias(realpath);
+	alias = wi_fs_is_alias(realpath);
 	
 	if(alias)
 		wi_string_resolve_aliases_in_path(realpath);
 
-	if(!wi_file_lstat(realpath, &lsb)) {
+	if(!wi_fs_lstat(realpath, &lsb)) {
 		wi_log_warn(WI_STR("Could not read info for %@: %m"), realpath);
 		wd_user_reply_errno(user, message);
 		
 		return;
 	}
 	
-	if(!wi_file_stat(realpath, &sb))
+	if(!wi_fs_stat(realpath, &sb))
 		sb = lsb;
 
 	type = wd_files_type_with_stat(realpath, &sb);
@@ -444,7 +444,7 @@ wi_boolean_t wd_files_create_path(wi_string_t *path, wd_file_type_t type, wd_use
 	
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	
-	if(!wi_file_create_directory(realpath, 0777)) {
+	if(!wi_fs_create_directory(realpath, 0777)) {
 		wi_log_warn(WI_STR("Could not create %@: %m"), realpath);
 		wd_user_reply_errno(user, message);
 
@@ -470,7 +470,7 @@ wi_boolean_t wd_files_delete_path(wi_string_t *path, wd_user_t *user, wi_p7_mess
 	wi_string_resolve_aliases_in_path(realpath);
 	wi_string_append_path_component(realpath, component);
 	
-	result = wi_file_delete(realpath);
+	result = wi_fs_delete(realpath);
 	
 	if(result) {
 		wd_files_clear_comment(path, user, message);
@@ -489,7 +489,7 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 	wi_string_t			*realfrompath, *realtopath;
 	wi_string_t			*realfromname, *realtoname;
 	wi_string_t			*path;
-	wi_file_stat_t		sb;
+	wi_fs_stat_t		sb;
 	wi_boolean_t		result = false;
 	
 	realfrompath	= wd_files_real_path(frompath, user);
@@ -502,7 +502,7 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 	wi_string_resolve_aliases_in_path(realtopath);
 	wi_string_append_path_component(realtopath, realtoname);
 	
-	if(!wi_file_lstat(realfrompath, &sb)) {
+	if(!wi_fs_lstat(realfrompath, &sb)) {
 		wi_log_warn(WI_STR("Could not rename %@: %m"), realfrompath);
 		wd_user_reply_errno(user, message);
 
@@ -510,25 +510,25 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 	}
 
 	if(wi_string_case_insensitive_compare(realfrompath, realtopath) == 0) {
-		path = wi_file_temporary_path_with_template(
+		path = wi_fs_temporary_path_with_template(
 			wi_string_with_format(WI_STR("%@/.%@.XXXXXXXX"),
 				  wi_string_by_deleting_last_path_component(realfrompath),
 				  realfromname));
 		
 		if(path) {
-			result = wi_file_rename(realfrompath, path);
+			result = wi_fs_rename(realfrompath, path);
 		
 			if(result)
-				result = wi_file_rename(path, realtopath);
+				result = wi_fs_rename(path, realtopath);
 		}
 	} else {
-		if(wi_file_lstat(realtopath, &sb)) {
+		if(wi_fs_lstat(realtopath, &sb)) {
 			wd_user_reply_error(user, WI_STR("wired.error.file_exists"), message);
 
 			return false;
 		}
 		
-		result = wi_file_rename(realfrompath, realtopath);
+		result = wi_fs_rename(realfrompath, realtopath);
 	}
 	
 	if(result) {
@@ -573,8 +573,8 @@ static void wd_files_move_thread(wi_runtime_instance_t *argument) {
 	realfrompath	= WI_ARRAY(array, 2);
 	realtopath		= WI_ARRAY(array, 3);
 	
-	if(wi_file_copy(realfrompath, realtopath)) {
-		if(wi_file_delete(realfrompath))
+	if(wi_fs_copy(realfrompath, realtopath)) {
+		if(wi_fs_delete(realfrompath))
 			wd_files_move_comment(frompath, topath, NULL, NULL);
 		else
 			wi_log_warn(WI_STR("Could not delete %@: %m"), realfrompath);
@@ -590,7 +590,7 @@ static void wd_files_move_thread(wi_runtime_instance_t *argument) {
 wi_boolean_t wd_files_link_path(wi_string_t *frompath, wi_string_t *topath, wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t			*realfrompath, *realtopath;
 	wi_string_t			*realfromname, *realtoname;
-	wi_file_stat_t		sb;
+	wi_fs_stat_t		sb;
 	
 	realfrompath	= wd_files_real_path(frompath, user);
 	realtopath		= wd_files_real_path(topath, user);
@@ -602,20 +602,20 @@ wi_boolean_t wd_files_link_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 	wi_string_resolve_aliases_in_path(realtopath);
 	wi_string_append_path_component(realfrompath, realfromname);
 	
-	if(!wi_file_lstat(realfrompath, &sb)) {
+	if(!wi_fs_lstat(realfrompath, &sb)) {
 		wi_log_warn(WI_STR("Could not link %@: %m"), realfrompath);
 		wd_user_reply_errno(user, message);
 
 		return false;
 	}
 
-	if(wi_file_lstat(realtopath, &sb)) {
+	if(wi_fs_lstat(realtopath, &sb)) {
 		wd_user_reply_error(user, WI_STR("wired.error.file_exists"), message);
 
 		return false;
 	}
 	
-	if(!wi_file_symlink(realfrompath, realtopath)) {
+	if(!wi_fs_symlink(realfrompath, realtopath)) {
 		wd_user_reply_errno(user, message);
 		
 		return false;
@@ -713,12 +713,12 @@ static void wd_files_index_update(wi_timer_t *timer) {
 
 
 void wd_files_index(wi_boolean_t startup, wi_boolean_t force) {
-	wi_file_stat_t		sb;
+	wi_fs_stat_t		sb;
 	wi_time_interval_t	interval, index_time;
 	wi_boolean_t		index = true;
 	
 	if(!force) {
-		if(wi_file_stat(wd_files_index_path, &sb)) {
+		if(wi_fs_stat(wd_files_index_path, &sb)) {
 			interval = wi_date_time_interval_since_now(wi_date_with_time(sb.mtime));
 			index_time  = (wd_files_index_time > 0.0) ? wd_files_index_time : 3600.0;
 			
@@ -828,7 +828,7 @@ static void wd_files_index_thread(wi_runtime_instance_t *argument) {
 			
 			wi_rwlock_wrlock(wd_files_index_lock);
 			
-			if(wi_file_rename(path, wd_files_index_path)) {
+			if(wi_fs_rename(path, wd_files_index_path)) {
 				wi_log_info(WI_STR("Indexed %u %s and %u %s for a total of %llu %s in %.2f seconds"),
 					wd_files_count,
 					wd_files_count == 1
@@ -874,7 +874,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, cons
 	wi_file_offset_t		size;
 	wd_file_type_t			type;
 	wd_files_fts_action_t	action;
-	wi_file_stat_t			sb, lsb;
+	wi_fs_stat_t			sb, lsb;
 	int						error;
 	wi_uinteger_t			i = 0, pathlength;
 	wi_boolean_t			alias, recurse;
@@ -933,18 +933,18 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, cons
 		}
 		
 		filepath	= wi_string_init_with_cstring(wi_string_alloc(), p->fts_path);
-		alias		= wi_file_is_alias(filepath);
+		alias		= wi_fs_is_alias(filepath);
 		
 		if(alias)
 			resolvedpath = wi_string_by_resolving_aliases_in_path(filepath);
 		else
 			resolvedpath = filepath;
 		
-		if(!wi_file_lstat(resolvedpath, &lsb)) {
+		if(!wi_fs_lstat(resolvedpath, &lsb)) {
 			wi_log_warn(WI_STR("Skipping index of %@: %m"), resolvedpath);
 			wi_fts_set(fts, p, WI_FTS_SKIP);
 		} else {
-			if(!wi_file_stat(resolvedpath, &sb))
+			if(!wi_fs_stat(resolvedpath, &sb))
 				sb = lsb;
 			
 			set = wi_dictionary_data_for_key(wd_files_index_dictionary, (void *) (intptr_t) lsb.dev);
@@ -1154,9 +1154,9 @@ static void wd_files_fsevents_callback(wi_string_t *path) {
 #pragma mark -
 
 wd_file_type_t wd_files_type(wi_string_t *path) {
-	wi_file_stat_t	sb;
+	wi_fs_stat_t	sb;
 	
-	if(!wi_file_stat(path, &sb)) {
+	if(!wi_fs_stat(path, &sb)) {
 		wi_log_warn(WI_STR("Could not read type for %@: %m"), path);
 		
 		return WD_FILE_TYPE_FILE;
@@ -1167,9 +1167,9 @@ wd_file_type_t wd_files_type(wi_string_t *path) {
 
 
 
-static wd_file_type_t wd_files_type_with_stat(wi_string_t *realpath, wi_file_stat_t *sbp) {
+static wd_file_type_t wd_files_type_with_stat(wi_string_t *realpath, wi_fs_stat_t *sbp) {
 	wi_string_t		*typepath, *string;
-	wi_file_stat_t	sb;
+	wi_fs_stat_t	sb;
 	wd_file_type_t	type;
 	
 	if(!S_ISDIR(sbp->mode))
@@ -1177,7 +1177,7 @@ static wd_file_type_t wd_files_type_with_stat(wi_string_t *realpath, wi_file_sta
 	
 	typepath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_TYPE_PATH));
 	
-	if(!wi_file_stat(typepath, &sb) || sb.size > 8)
+	if(!wi_fs_stat(typepath, &sb) || sb.size > 8)
 		return WD_FILE_TYPE_DIR;
 	
 	string = wi_autorelease(wi_string_init_with_contents_of_file(wi_string_alloc(), typepath));
@@ -1205,7 +1205,7 @@ void wd_files_set_type(wi_string_t *path, wd_file_type_t type, wd_user_t *user, 
 	typepath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_TYPE_PATH));
 	
 	if(type != WD_FILE_TYPE_DIR) {
-		if(!wi_file_create_directory(metapath, 0777)) {
+		if(!wi_fs_create_directory(metapath, 0777)) {
 			if(wi_error_code() != EEXIST) {
 				wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
 				wd_user_reply_errno(user, message);
@@ -1219,7 +1219,7 @@ void wd_files_set_type(wi_string_t *path, wd_file_type_t type, wd_user_t *user, 
 			wd_user_reply_errno(user, message);
 		}
 	} else {
-		if(wi_file_delete(typepath))
+		if(wi_fs_delete(typepath))
 			(void) rmdir(wi_string_cstring(metapath));
 	}
 }
@@ -1233,7 +1233,7 @@ void wd_files_set_executable(wi_string_t *path, wi_boolean_t executable, wd_user
 	
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	
-	if(!wi_file_set_mode(realpath, executable ? 0755 : 0644)) {
+	if(!wi_fs_set_mode(realpath, executable ? 0755 : 0644)) {
 		wi_log_warn(WI_STR("Could not set mode for %@: %m"), realpath);
 		wd_user_reply_errno(user, message);
 	}
@@ -1253,7 +1253,7 @@ wi_string_t * wd_files_comment(wi_string_t *path, wd_user_t *user) {
 
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
-	comment		= wi_file_finder_comment(realpath);
+	comment		= wi_fs_finder_comment(realpath);
 	
 	if(comment)
 		return comment;
@@ -1294,7 +1294,7 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 	commentpath	= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
 	
 	if(comment && wi_string_length(comment) > 0) {
-		if(!wi_file_create_directory(metapath, 0777)) {
+		if(!wi_fs_create_directory(metapath, 0777)) {
 			if(wi_error_code() != EEXIST) {
 				wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
 				
@@ -1352,15 +1352,15 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 		wi_file_close(file);
 		wi_file_close(tmpfile);
 		
-		if(wi_file_delete(commentpath))
+		if(wi_fs_delete(commentpath))
 			(void) rmdir(wi_string_cstring(metapath));
 	}
 
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 
-	if(wi_file_exists(realpath, NULL)) {
-		if(!wi_file_set_finder_comment(realpath, comment))
+	if(wi_fs_exists(realpath, NULL)) {
+		if(!wi_fs_set_finder_comment(realpath, comment))
 			wi_log_info(WI_STR("Could not set Finder comment: %m"));
 	}
 #endif
@@ -1414,11 +1414,11 @@ static wi_boolean_t wd_files_read_comment(wi_file_t *file, wi_string_t **name, w
 wi_boolean_t wd_files_get_permissions(wi_string_t *realpath, wi_string_t **owner, wi_string_t **group, wi_uinteger_t *mode) {
 	wi_string_t		*permissionspath, *string;
 	wi_array_t		*array;
-	wi_file_stat_t	sb;
+	wi_fs_stat_t	sb;
 	
 	permissionspath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PERMISSIONS_PATH));
 	
-	if(!wi_file_stat(permissionspath, &sb) || sb.size > 128)
+	if(!wi_fs_stat(permissionspath, &sb) || sb.size > 128)
 		return false;
 	
 	string = wi_autorelease(wi_string_init_with_contents_of_file(wi_string_alloc(), permissionspath));
@@ -1451,7 +1451,7 @@ void wd_files_set_permissions(wi_string_t *path, wi_string_t *owner, wi_string_t
 	permissionspath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PERMISSIONS_PATH));
 	
 	if(wi_string_length(owner) > 0 || wi_string_length(group) > 0 || mode != WD_FILE_EVERYONE_WRITE) {
-		if(!wi_file_create_directory(metapath, 0777)) {
+		if(!wi_fs_create_directory(metapath, 0777)) {
 			if(wi_error_code() != EEXIST) {
 				wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
 				wd_user_reply_errno(user, message);
@@ -1470,7 +1470,7 @@ void wd_files_set_permissions(wi_string_t *path, wi_string_t *owner, wi_string_t
 			wd_user_reply_errno(user, message);
 		}
 	} else {
-		if(wi_file_delete(permissionspath))
+		if(wi_fs_delete(permissionspath))
 			(void) rmdir(wi_string_cstring(metapath));
 	}
 }
