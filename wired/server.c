@@ -544,8 +544,7 @@ void wd_user_reply_error(wd_user_t *user, wi_string_t *error, wi_p7_message_t *m
 
 
 void wd_user_reply_file_errno(wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t		*reply;
-	int					code;
+	int		code;
 	
 	code = wi_error_code();
 
