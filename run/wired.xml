@@ -896,13 +896,13 @@
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.ban_list" id="10007">
+		<p7:message name="wired.banlist.list" id="10007">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.banlist.ip" use="required" />
 			<p7:parameter field="wired.banlist.expiration_date" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.ban_list.done" id="10008">
+		<p7:message name="wired.banlist.list.done" id="10008">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 		
@@ -1248,8 +1248,8 @@
 		<p7:transaction message="wired.banlist.get_bans" originator="client">
 			<p7:or>
 				<p7:and>
-					<p7:reply message="wired.banlist.ban_list" count="*" use="required" />
-					<p7:reply message="wired.banlist.ban_list.done" count="1" use="required" />
+					<p7:reply message="wired.banlist.list" count="*" use="required" />
+					<p7:reply message="wired.banlist.list.done" count="1" use="required" />
 				</p7:and>
 				<p7:reply message="wired.error" count="1" use="required" />
 			</p7:or>

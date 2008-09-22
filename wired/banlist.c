@@ -134,7 +134,7 @@ void wd_banlist_reply_bans(wd_user_t *user, wi_p7_message_t *message) {
 		wi_log_err(WI_STR("Could not open %@: %m"), wd_banlist_path);
 	} else {
 		while((string = wi_file_read_config_line(file))) {
-			reply = wi_p7_message_with_name(WI_STR("wired.banlist.ban_list"), wd_p7_spec);
+			reply = wi_p7_message_with_name(WI_STR("wired.banlist.list"), wd_p7_spec);
 			wi_p7_message_set_string_for_name(reply, string, WI_STR("wired.banlist.ip"));
 			wd_user_reply_message(user, reply, message);
 		}
@@ -147,7 +147,7 @@ void wd_banlist_reply_bans(wd_user_t *user, wi_p7_message_t *message) {
 	enumerator = wi_dictionary_data_enumerator(wd_bans);
 	
 	while((ban = wi_enumerator_next_data(enumerator))) {
-		reply = wi_p7_message_with_name(WI_STR("wired.banlist.ban_list"), wd_p7_spec);
+		reply = wi_p7_message_with_name(WI_STR("wired.banlist.list"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(reply, ban->ip, WI_STR("wired.banlist.ip"));
 		wi_p7_message_set_date_for_name(reply, ban->expiration_date, WI_STR("wired.banlist.expiration_date"));
 		wd_user_reply_message(user, reply, message);
@@ -155,7 +155,7 @@ void wd_banlist_reply_bans(wd_user_t *user, wi_p7_message_t *message) {
 
 	wi_dictionary_unlock(wd_bans);
 
-	reply = wi_p7_message_with_name(WI_STR("wired.banlist.ban_list.done"), wd_p7_spec);
+	reply = wi_p7_message_with_name(WI_STR("wired.banlist.list.done"), wd_p7_spec);
 	wd_user_reply_message(user, reply, message);
 }
 
