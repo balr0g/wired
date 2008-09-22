@@ -703,8 +703,6 @@ void wd_files_index(wi_boolean_t startup, wi_boolean_t force) {
 		wd_trackers_register();
 	}
 
-	index = true;
-	
 	if(index) {
 		if(!wi_thread_create_thread_with_priority(wd_files_index_thread, wi_number_with_bool(startup), 0.0))
 			wi_log_warn(WI_STR("Could not create a thread for index: %m"));
