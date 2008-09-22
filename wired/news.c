@@ -168,7 +168,7 @@ end:
 void wd_news_clear_news(void) {
 	wi_rwlock_wrlock(wd_news_lock);
 
-	if(!wi_fs_clear(wd_news_path))
+	if(!wi_fs_clear_path(wd_news_path))
 		wi_log_err(WI_STR("Could not clear %@: %m"), wd_news_path);
 
 	wi_rwlock_unlock(wd_news_lock);
