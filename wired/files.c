@@ -56,14 +56,6 @@
 #define WD_FILES_INDEX_VERSION					1
 
 
-enum _wd_files_fts_action {
-	WD_FILES_FTS_KEEP,
-	WD_FILES_FTS_IGNORE,
-	WD_FILES_FTS_SKIP,
-	WD_FILES_FTS_ERROR
-};
-typedef enum _wd_files_fts_action				wd_files_fts_action_t;
-
 struct _wd_files_index_header {
 	char										magic[4];
 	uint32_t									version;
@@ -81,8 +73,8 @@ static void										wd_files_move_thread(wi_runtime_instance_t *);
 static void										wd_files_index_update(wi_timer_t *);
 static wi_boolean_t								wd_files_index_update_size(void);
 static void										wd_files_index_thread(wi_runtime_instance_t *);
-static void										wd_files_index_path_to_file(wi_string_t *, wi_file_t *, const char *);
-static void										wd_files_index_write_entry(wi_file_t *, const char *, wi_string_t *, wd_file_type_t, uint64_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t);
+static void										wd_files_index_path_to_file(wi_string_t *, wi_file_t *, wi_string_t *);
+static void										wd_files_index_write_entry(wi_file_t *, wi_string_t *, wd_file_type_t, uint64_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t);
 
 static void										wd_files_fsevents_thread(wi_runtime_instance_t *);
 static void										wd_files_fsevents_callback(wi_string_t *);
@@ -96,10 +88,6 @@ static wi_boolean_t								wd_files_drop_box_path_is_xable(wi_string_t *, wd_use
 static wi_boolean_t								wd_files_drop_box_path_is_listable(wi_string_t *, wd_account_t *);
 static wi_string_t *							wd_files_drop_box_path_in_path(wi_string_t *, wd_user_t *);
 static wi_boolean_t								wd_files_name_matches_query(wi_string_t *, wi_string_t *);
-
-static WI_FTS *									wd_files_fts_open(wi_string_t *, wi_boolean_t);
-static wd_files_fts_action_t					wd_files_fts_action(WI_FTSENT *, int *);
-static int										wd_files_fts_namecmp(const WI_FTSENT **, const WI_FTSENT **);
 
 
 static wi_string_t								*wd_files;
@@ -165,19 +153,17 @@ void wd_files_schedule(void) {
 #pragma mark -
 
 void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*reply;
-	WI_FTS					*fts = NULL;
-	WI_FTSENT				*p;
-	wi_string_t				*realpath, *filepath, *virtualpath;
-	wd_account_t			*account;
-	wi_fs_statfs_t			sfb;
-	wi_file_offset_t		size, available;
-	wd_file_type_t			type, pathtype;
-	wd_files_fts_action_t	action;
-	wi_fs_stat_t			sb, lsb;
-	wi_uinteger_t			pathlength, depthlimit;
-	int						error;
-	wi_boolean_t			root, upload, alias, readable;
+	wi_p7_message_t				*reply;
+	wi_string_t					*realpath, *filepath, *resolvedpath, *virtualpath;
+	wi_fsenumerator_t			*fsenumerator;
+	wd_account_t				*account;
+	wi_fs_statfs_t				sfb;
+	wi_fs_stat_t				sb, lsb;
+	wi_fsenumerator_status_t	status;
+	wi_file_offset_t			size, available;
+	wi_uinteger_t				pathlength, depthlimit;
+	wd_file_type_t				type, pathtype;
+	wi_boolean_t				root, upload, alias, readable;
 	
 	root		= wi_is_equal(path, WI_STR("/"));
 	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
@@ -191,78 +177,62 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 	}
 	
 	depthlimit = account->file_recursive_list_depth_limit;
-
-	fts = wd_files_fts_open(realpath, true);
 	
-	if(!fts) {
-		wi_log_warn(WI_STR("Could not open %@: %s"),
-			realpath, strerror(errno));
+	fsenumerator = wi_fs_enumerator_at_path(realpath);
+	
+	if(!fsenumerator) {
+		wi_log_warn(WI_STR("Could not open %@: %m"), realpath);
 		wd_user_reply_errno(user, message);
-
-		goto error;
+		
+		return;
 	}
-	
+
 	pathlength = wi_string_length(realpath);
 	
 	if(pathlength == 1)
 		pathlength--;
 	
-	while((p = wi_fts_read(fts))) {
-		if(depthlimit > 0 && (wi_uinteger_t) p->fts_level > depthlimit)
-			action = WD_FILES_FTS_SKIP;
-		else
-			action = wd_files_fts_action(p, &error);
-		
-		switch(action) {
-			case WD_FILES_FTS_KEEP:
-				break;
-				
-			case WD_FILES_FTS_IGNORE:
-				continue;
-				break;
-				
-			case WD_FILES_FTS_SKIP:
-				wi_fts_set(fts, p, WI_FTS_SKIP);
-				
-				continue;
-				break;
+	while((status = wi_fsenumerator_get_next_path(fsenumerator, &filepath)) != WI_FSENUMERATOR_EOF) {
+		if(status == WI_FSENUMERATOR_ERROR) {
+			wi_log_warn(WI_STR("Could not list %@: %m"), filepath);
 			
-			case WD_FILES_FTS_ERROR:
-				wi_log_warn(WI_STR("Could not list %s: %s"),
-					p->fts_path, strerror(error));
-
-				continue;
-				break;
+			continue;
+		}
+	
+		if(depthlimit > 0 && wi_fsenumerator_level(fsenumerator) > depthlimit) {
+			wi_fsenumerator_skip_descendents(fsenumerator);
+			
+			continue;
 		}
 		
 		if(!recursive)
-			wi_fts_set(fts, p, WI_FTS_SKIP);
+			wi_fsenumerator_skip_descendents(fsenumerator);
 		
-		filepath = wi_string_with_cstring(p->fts_path);
 		virtualpath = wi_string_substring_from_index(filepath, pathlength);
 		
 		if(!root)
 			wi_string_insert_string_at_index(virtualpath, path, 0);
 		
-		alias = wi_fs_is_alias_cpath(p->fts_path);
+		alias = wi_fs_is_alias(filepath);
 		
 		if(alias)
-			wi_string_resolve_aliases_in_path(filepath);
+			resolvedpath = wi_string_by_resolving_aliases_in_path(filepath);
+		else
+			resolvedpath = filepath;
 
-		if(!wi_fs_lstat(filepath, &lsb)) {
-			wi_log_warn(WI_STR("Could not list %@: %m"), filepath);
-			wi_fts_set(fts, p, WI_FTS_SKIP);
+		if(!wi_fs_lstat(resolvedpath, &lsb)) {
+			wi_log_warn(WI_STR("Could not list %@: %m"), resolvedpath);
 
 			continue;
 		}
 
-		if(!wi_fs_stat(filepath, &sb))
+		if(!wi_fs_stat(resolvedpath, &sb))
 			sb = lsb;
 
-		type = wd_files_type_with_stat(filepath, &sb);
+		type = wd_files_type_with_stat(resolvedpath, &sb);
 		
 		if(type == WD_FILE_TYPE_DROPBOX)
-			readable = wd_files_drop_box_path_is_listable(filepath, account);
+			readable = wd_files_drop_box_path_is_listable(resolvedpath, account);
 		else
 			readable = true;
 
@@ -271,7 +241,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 			case WD_FILE_TYPE_UPLOADS:
 			case WD_FILE_TYPE_DROPBOX:
 				if(readable)
-					size = wd_files_count_path(filepath, user, message);
+					size = wd_files_count_path(resolvedpath, user, message);
 				else
 					size = 0;
 				break;
@@ -294,7 +264,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		wi_release(reply);
 		
 		if(recursive && !readable) {
-			wi_fts_set(fts, p, WI_FTS_SKIP);
+			wi_fsenumerator_skip_descendents(fsenumerator);
 				
 			continue;
 		}
@@ -317,10 +287,6 @@ done:
 	wi_p7_message_set_string_for_name(reply, path, WI_STR("wired.file.path"));
 	wi_p7_message_set_uint64_for_name(reply, available, WI_STR("wired.file.available"));
 	wd_user_reply_message(user, reply, message);
-
-error:
-	if(fts)
-		wi_fts_close(fts);
 }
 
 
@@ -736,6 +702,8 @@ void wd_files_index(wi_boolean_t startup, wi_boolean_t force) {
 		
 		wd_trackers_register();
 	}
+
+	index = true;
 	
 	if(index) {
 		if(!wi_thread_create_thread_with_priority(wd_files_index_thread, wi_number_with_bool(startup), 0.0))
@@ -864,20 +832,18 @@ static void wd_files_index_thread(wi_runtime_instance_t *argument) {
 
 
 
-static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, const char *pathprefix) {
-	wi_pool_t				*pool;
-	WI_FTS					*fts = NULL;
-	WI_FTSENT				*p;
-	wi_string_t				*filepath, *virtualpath, *resolvedpath;
-	wi_set_t				*set;
-	wi_number_t				*number;
-	wi_file_offset_t		size;
-	wd_file_type_t			type;
-	wd_files_fts_action_t	action;
-	wi_fs_stat_t			sb, lsb;
-	int						error;
-	wi_uinteger_t			i = 0, pathlength;
-	wi_boolean_t			alias, recurse;
+static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_string_t *pathprefix) {
+	wi_pool_t					*pool;
+	wi_fsenumerator_t			*fsenumerator;
+	wi_string_t					*filepath, *virtualpath, *resolvedpath;
+	wi_set_t					*set;
+	wi_number_t					*number;
+	wi_file_offset_t			size;
+	wi_fs_stat_t				sb, lsb;
+	wi_fsenumerator_status_t	status;
+	wi_uinteger_t				i = 0, pathlength;
+	wi_boolean_t				alias, recurse;
+	wd_file_type_t				type;
 	
 	if(wd_files_index_level >= WD_FILES_MAX_LEVEL) {
 		wi_log_warn(WI_STR("Skipping index of %@: %s"),
@@ -885,12 +851,11 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, cons
 		
 		return;
 	}
-	
-	fts = wd_files_fts_open(path, false);
-	
-	if(!fts) {
-		wi_log_warn(WI_STR("Could not open %@: %s"),
-			path, strerror(errno));
+
+	fsenumerator = wi_fs_enumerator_at_path(path);
+
+	if(!fsenumerator) {
+		wi_log_warn(WI_STR("Could not open %@: %m"), path);
 		
 		return;
 	}
@@ -903,37 +868,15 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, cons
 		pathlength--;
 	
 	wd_files_index_level++;
-	
-	while((p = wi_fts_read(fts))) {
-		if(++i % 100 == 0)
-			wi_pool_drain(pool);
 
-		action = wd_files_fts_action(p, &error);
-		
-		switch(action) {
-			case WD_FILES_FTS_KEEP:
-				break;
+	while((status = wi_fsenumerator_get_next_path(fsenumerator, &filepath)) != WI_FSENUMERATOR_EOF) {
+		if(status == WI_FSENUMERATOR_ERROR) {
+			wi_log_warn(WI_STR("Skipping index of %@: %m"), path);
 				
-			case WD_FILES_FTS_IGNORE:
-				continue;
-				break;
-				
-			case WD_FILES_FTS_SKIP:
-				wi_fts_set(fts, p, WI_FTS_SKIP);
-				
-				continue;
-				break;
-				
-			case WD_FILES_FTS_ERROR:
-				wi_log_warn(WI_STR("Skipping index of %s: %s"),
-					p->fts_path, strerror(error));
-				
-				continue;
-				break;
+			continue;
 		}
-		
-		filepath	= wi_string_init_with_cstring(wi_string_alloc(), p->fts_path);
-		alias		= wi_fs_is_alias(filepath);
+
+		alias = wi_fs_is_alias(filepath);
 		
 		if(alias)
 			resolvedpath = wi_string_by_resolving_aliases_in_path(filepath);
@@ -942,7 +885,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, cons
 		
 		if(!wi_fs_lstat(resolvedpath, &lsb)) {
 			wi_log_warn(WI_STR("Skipping index of %@: %m"), resolvedpath);
-			wi_fts_set(fts, p, WI_FTS_SKIP);
+			wi_fsenumerator_skip_descendents(fsenumerator);
 		} else {
 			if(!wi_fs_stat(resolvedpath, &sb))
 				sb = lsb;
@@ -983,10 +926,9 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, cons
 				virtualpath	= wi_string_substring_from_index(filepath, pathlength);
 				
 				if(pathprefix)
-					wi_string_insert_cstring_at_index(virtualpath, pathprefix, 0);
+					wi_string_insert_string_at_index(virtualpath, pathprefix, 0);
 				
 				wd_files_index_write_entry(file,
-										   p->fts_name,
 										   virtualpath,
 										   type,
 										   size,
@@ -1003,32 +945,30 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, cons
 				}
 				
 				if(type == WD_FILE_TYPE_DROPBOX)
-					wi_fts_set(fts, p, WI_FTS_SKIP);
+					wi_fsenumerator_skip_descendents(fsenumerator);
 				else if(recurse)
-					wd_files_index_path_to_file(resolvedpath, file, p->fts_path + pathlength);
+					wd_files_index_path_to_file(resolvedpath, file, wi_string_substring_from_index(filepath, pathlength));
 			}
 		
 			wi_release(number);
 		}
-		
-		wi_release(filepath);
+
+		if(++i % 100 == 0)
+			wi_pool_drain(pool);
 	}
 	
 	wd_files_index_level--;
-	
-	if(fts)
-		wi_fts_close(fts);
 	
 	wi_release(pool);
 }
 
 
 
-static void wd_files_index_write_entry(wi_file_t *file, const char *name, wi_string_t *path, wd_file_type_t type, uint64_t size, wi_time_interval_t creationtime, wi_time_interval_t modificationtime, wi_boolean_t link, wi_boolean_t executable) {
+static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_file_type_t type, uint64_t size, wi_time_interval_t creationtime, wi_time_interval_t modificationtime, wi_boolean_t link, wi_boolean_t executable) {
 	static char				*buffer;
 	static wi_uinteger_t	bufferlength;
 	static uint32_t			searchlistid, pathid, typeid, sizeid, creationid, modificationid, linkid, executableid;
-	wi_string_t				*creationstring, *modificationstring;
+	wi_string_t				*name, *creationstring, *modificationstring;
 	uint32_t				entrylength, namelength, pathlength, creationlength, modificationlength;
 	char					*p;
 	
@@ -1042,11 +982,12 @@ static void wd_files_index_write_entry(wi_file_t *file, const char *name, wi_str
 		linkid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.link")));
 		executableid	= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.executable")));
 	}
-	
+
+	name				= wi_string_last_path_component(path);
 	creationstring		= wi_time_interval_rfc3339_string(creationtime);
 	modificationstring	= wi_time_interval_rfc3339_string(modificationtime);
 
-	namelength			= strlen(name) + 1;
+	namelength			= wi_string_length(name) + 1;
 	pathlength			= wi_string_length(path) + 1;
 	creationlength		= wi_string_length(creationstring) + 1;
 	modificationlength	= wi_string_length(modificationstring) + 1;
@@ -1073,7 +1014,7 @@ static void wd_files_index_write_entry(wi_file_t *file, const char *name, wi_str
 	
 	memcpy(p, &entrylength, sizeof(entrylength));							p += sizeof(entrylength);
 	memcpy(p, &namelength, sizeof(namelength));								p += sizeof(namelength);
-	memcpy(p, name, namelength);											p += namelength;
+	memcpy(p, wi_string_cstring(name), namelength);							p += namelength;
 	wi_write_swap_host_to_big_int32(p, 0, searchlistid);					p += sizeof(searchlistid);
 	wi_write_swap_host_to_big_int32(p, 0, pathid);							p += sizeof(pathid);
 	wi_write_swap_host_to_big_int32(p, 0, pathlength);						p += sizeof(pathlength);
@@ -1649,69 +1590,4 @@ static wi_boolean_t wd_files_name_matches_query(wi_string_t *name, wi_string_t *
 #else
 	return (wi_string_index_of_string(name, query, WI_STRING_CASE_INSENSITIVE) != WI_NOT_FOUND);
 #endif
-}
-
-
-
-#pragma mark -
-
-static WI_FTS * wd_files_fts_open(wi_string_t *path, wi_boolean_t sorted) {
-	WI_FTS		*fts;
-	char		*paths[2];
-	int			options;
-	
-	paths[0] = (char *) wi_string_cstring(path);
-	paths[1] = NULL;
-
-	options = WI_FTS_NOSTAT | WI_FTS_LOGICAL;
-	errno = 0;
-	fts = wi_fts_open(paths, options, sorted ? wd_files_fts_namecmp : NULL);
-	
-	if(fts && errno != 0) {
-		wi_fts_close(fts);
-		
-		fts = NULL;
-	}
-	
-	return fts;
-}
-
-
-
-static wd_files_fts_action_t wd_files_fts_action(WI_FTSENT *p, int *err) {
-	if(p->fts_level == 0)
-		return WD_FILES_FTS_IGNORE;
-
-	if(p->fts_level > WD_FILES_MAX_LEVEL)
-		return WD_FILES_FTS_SKIP;
-		
-	switch(p->fts_info) {
-		case WI_FTS_DC:
-			*err = ELOOP;
-			
-			return WD_FILES_FTS_ERROR;
-			break;
-
-		case WI_FTS_DP:
-			return WD_FILES_FTS_SKIP;
-			break;
-
-		case WI_FTS_DNR:
-		case WI_FTS_ERR:
-			*err = p->fts_errno;
-			
-			return WD_FILES_FTS_ERROR;
-			break;
-	}
-
-	if(p->fts_name[0] == '.')
-		return WD_FILES_FTS_SKIP;
-	
-	return WD_FILES_FTS_KEEP;
-}
-
-
-
-static int wd_files_fts_namecmp(const WI_FTSENT **a, const WI_FTSENT **b) {
-	return strcasecmp((*a)->fts_name, (*b)->fts_name);
 }
