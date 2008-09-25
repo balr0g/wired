@@ -88,11 +88,11 @@ wi_file_offset_t				wd_tracker_current_size;
 int main(int argc, const char **argv) {
 	wi_array_t			*arguments;
 	wi_pool_t			*pool;
-	wi_string_t			*string, *root_path;
+	wi_string_t			*string, *root_path, *user, *group;
 	const char			**xargv;
 	uint32_t			uid, gid;
 	int					ch, facility;
-	wi_boolean_t		test_config, daemonize;
+	wi_boolean_t		test_config, daemonize, change_directory, switch_user;
 
 	wi_initialize();
 	wi_load(argc, argv);
@@ -110,12 +110,14 @@ int main(int argc, const char **argv) {
 	wd_start_date			= wi_date_init(wi_date_alloc());
 	test_config				= false;
 	daemonize				= true;
+	change_directory		= true;
+	switch_user				= true;
 	wi_settings_config_path	= wi_string_init_with_cstring(wi_string_alloc(), WD_CONFIG_PATH);
 	wd_config_path			= wi_string_init_with_cstring(wi_string_alloc(), WD_CONFIG_PATH);
 	arguments				= wi_array_init(wi_array_alloc());
 	root_path				= WI_STR(WD_ROOT);
 
-	while((ch = getopt(argc, (char * const *) argv, "46Dd:f:hi:L:ls:tuVvX")) != -1) {
+	while((ch = getopt(argc, (char * const *) argv, "46Dd:f:hi:L:ls:tuVvXx")) != -1) {
 		switch(ch) {
 			case '4':
 				wd_address_family = WI_ADDRESS_IPV4;
@@ -185,7 +187,13 @@ int main(int argc, const char **argv) {
 			case 'X':
 				daemonize = false;
 				break;
-
+			
+			case 'x':
+				daemonize = false;
+				change_directory = false;
+				switch_user = false;
+				break;
+			
 			case '?':
 			case 'h':
 			default:
@@ -223,8 +231,10 @@ int main(int argc, const char **argv) {
 	
 	wi_release(arguments);
 	
-	if(!wi_chdir(root_path))
-		wi_log_err(WI_STR("Could not change directory to %@: %m"), root_path);
+	if(change_directory) {
+		if(!wi_fs_change_directory(root_path))
+			wi_log_err(WI_STR("Could not change directory to %@: %m"), root_path);
+	}
 	
 	wi_log_open();
 	
@@ -256,10 +266,24 @@ int main(int argc, const char **argv) {
 	
 	wi_log_info(WI_STR("Starting Wired version %s (%u)"), WD_VERSION, WI_REVISION);
 	
-	uid = wi_config_uid_for_name(wd_config, WI_STR("user"));
-	gid = wi_config_uid_for_name(wd_config, WI_STR("group"));
+	if(switch_user) {
+		uid = wi_config_uid_for_name(wd_config, WI_STR("user"));
+		gid = wi_config_uid_for_name(wd_config, WI_STR("group"));
 	
-	wi_switch_user(uid, gid);
+		wi_switch_user(uid, gid);
+	}
+	
+	user = wi_user_name();
+	group = wi_group_name();
+	
+	if(user && group) {
+		wi_log_info(WI_STR("Operating as user %@ (%d), group %@ (%d)"),
+			user, wi_user_id(), group, wi_group_id());
+	} else {
+		wi_log_info(WI_STR("Operating as user %d, group %d"),
+			wi_user_id(), wi_group_id());
+	}
+
 	wd_signals_init();
 	wd_block_signals();
 	wd_schedule();
