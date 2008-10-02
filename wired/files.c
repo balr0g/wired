@@ -120,14 +120,10 @@ void wd_files_init(void) {
 	
 	wd_files_fsevents = wi_fsevents_init(wi_fsevents_alloc());
 	
-	if(wd_files_fsevents) {
+	if(wd_files_fsevents)
 		wi_fsevents_set_callback(wd_files_fsevents, wd_files_fsevents_callback);
-		
-		if(!wi_thread_create_thread(wd_files_fsevents_thread, NULL))
-			wi_log_err(WI_STR("Could not create a thread: %m"));
-	} else {
+	else
 		wi_log_warn(WI_STR("Could not create fsevents: %m"));
-	}
 }
 
 
@@ -146,6 +142,11 @@ void wd_files_schedule(void) {
 		wi_timer_reschedule(wd_files_index_timer, wd_files_index_time);
 	else
 		wi_timer_invalidate(wd_files_index_timer);
+	
+	if(wd_files_fsevents) {
+		if(!wi_thread_create_thread(wd_files_fsevents_thread, NULL))
+			wi_log_err(WI_STR("Could not create a thread: %m"));
+	}
 }
 
 
