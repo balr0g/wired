@@ -76,8 +76,9 @@ wi_array_t								*wd_transfers;
 
 static wi_timer_t						*wd_transfers_timer;
 
-static wi_lock_t						*wd_transfers_status_lock;
 static wi_integer_t						wd_transfers_total_download_speed, wd_transfers_total_upload_speed;
+
+static wi_lock_t						*wd_transfers_status_lock;
 static wi_dictionary_t					*wd_transfers_user_downloads, *wd_transfers_user_uploads;
 static wi_uinteger_t					wd_transfers_active_downloads, wd_transfers_active_uploads;
 
@@ -240,17 +241,13 @@ void wd_transfers_queue_download(wi_string_t *path, wi_file_offset_t offset, wd_
 	if(!wi_p7_message_get_uint32_for_name(message, &transfer->transaction, WI_STR("wired.transaction")))
 		transfer->transaction = 0;
 	
-	wi_lock_lock(wd_transfers_update_queue_lock);
+	wd_user_set_transfer(user, transfer);
 	
 	wi_array_wrlock(wd_transfers);
 	wi_array_add_data(wd_transfers, transfer);
 	wi_array_unlock(wd_transfers);
 	
-	wd_user_set_transfer(user, transfer);
-	
 	wd_transfers_update_queue();
-
-	wi_lock_unlock(wd_transfers_update_queue_lock);
 }
 
 
@@ -295,56 +292,57 @@ void wd_transfers_queue_upload(wi_string_t *path, wi_file_offset_t size, wi_bool
 	if(!wi_p7_message_get_uint32_for_name(message, &transfer->transaction, WI_STR("wired.transaction")))
 		transfer->transaction = 0;
 
-	wi_lock_lock(wd_transfers_update_queue_lock);
-
+	wd_user_set_transfer(user, transfer);
+	
 	wi_array_wrlock(wd_transfers);
 	wi_array_add_data(wd_transfers, transfer);
 	wi_array_unlock(wd_transfers);
 	
-	wd_user_set_transfer(user, transfer);
-	
 	wd_transfers_update_queue();
-
-	wi_lock_unlock(wd_transfers_update_queue_lock);
 }
 
 
 
 void wd_transfers_remove_user(wd_user_t *user) {
+	wi_string_t		*key;
 	wd_transfer_t	*transfer;
+	wi_uinteger_t	i, count;
 	wi_boolean_t	update = false;
-
-	transfer = wd_user_transfer(user);
 	
-	if(transfer) {
-		wi_lock_lock(wd_transfers_update_queue_lock);
-		wi_array_wrlock(wd_transfers);
+	key = wd_transfers_transfer_key_for_user(user);
 	
-		if(transfer->state == WD_TRANSFER_RUNNING) {
-			wi_array_unlock(wd_transfers);
-			
-			wd_transfer_set_state(transfer, WD_TRANSFER_STOP);
-			
-			wi_condition_lock_lock_when_condition(transfer->state_lock, WD_TRANSFER_STOPPED, 1.0);
-			wi_condition_lock_unlock(transfer->state_lock);
-			
-			wi_array_wrlock(wd_transfers);
-		}
-		else if(transfer->state != WD_TRANSFER_STOP) {
-			wi_array_remove_data(wd_transfers, transfer);
+	wi_array_wrlock(wd_transfers);
+	
+	count = wi_array_count(wd_transfers);
+	
+	for(i = 0; i < count; i++) {
+		transfer = wi_autorelease(wi_retain(WI_ARRAY(wd_transfers, i)));
+		
+		if(wi_is_equal(key, transfer->key)) {
+			if(transfer->state == WD_TRANSFER_RUNNING || transfer->state == WD_TRANSFER_STOP) {
+				wi_array_unlock(wd_transfers);
+				
+				wd_transfer_set_state(transfer, WD_TRANSFER_STOP);
+				
+				transfer->disconnected = true;
+				
+				wi_condition_lock_lock_when_condition(transfer->state_lock, WD_TRANSFER_STOPPED, 1.0);
+				wi_condition_lock_unlock(transfer->state_lock);
+				
+				wi_array_wrlock(wd_transfers);
+			} else {
+				wi_array_remove_data(wd_transfers, transfer);
+				wd_user_set_state(transfer->user, WD_USER_DISCONNECTED);
 
-			update = true;
+				update = true;
+			}
 		}
-		
-		wi_array_unlock(wd_transfers);
-		
-		if(update)
-			wd_transfers_update_queue();
-		
-		wi_lock_unlock(wd_transfers_update_queue_lock);
 	}
-
-	wd_user_set_transfer(user, NULL);
+	
+	wi_array_unlock(wd_transfers);
+	
+	if(update)
+		wd_transfers_update_queue();
 }
 
 
@@ -391,6 +389,7 @@ static void wd_transfers_update_queue(void) {
 	
 	wi_array_rdlock(wd_transfers);
 	wi_lock_lock(wd_transfers_status_lock);
+	wi_lock_lock(wd_transfers_update_queue_lock);
 	
 	total_downloads	= wi_config_integer_for_name(wd_config, WI_STR("total downloads"));
 	total_uploads	= wi_config_integer_for_name(wd_config, WI_STR("total uploads"));
@@ -493,6 +492,7 @@ static void wd_transfers_update_queue(void) {
 	
 	wi_release(users);
 	
+	wi_lock_unlock(wd_transfers_update_queue_lock);
 	wi_lock_unlock(wd_transfers_status_lock);
 	wi_array_unlock(wd_transfers);
 }
@@ -653,16 +653,15 @@ static void wd_transfer_thread(wi_runtime_instance_t *argument) {
 
 	wd_user_set_transfer(transfer->user, NULL);
 	wd_user_set_state(transfer->user, WD_USER_LOGGED_IN);
-
-	wi_lock_lock(wd_transfers_update_queue_lock);
+	
+	if(transfer->disconnected)
+		wd_user_set_state(transfer->user, WD_USER_DISCONNECTED);
 
 	wi_array_wrlock(wd_transfers);
 	wi_array_remove_data(wd_transfers, transfer);
 	wi_array_unlock(wd_transfers);
 
 	wd_transfers_update_queue();
-
-	wi_lock_unlock(wd_transfers_update_queue_lock);
 	
 	wi_release(pool);
 }
