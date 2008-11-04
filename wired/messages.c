@@ -31,6 +31,7 @@
 #include <wired/wired.h>
 
 #include "banlist.h"
+#include "board.h"
 #include "chats.h"
 #include "files.h"
 #include "main.h"
@@ -68,6 +69,8 @@ static void							wd_message_message_send_broadcast(wd_user_t *, wi_p7_message_t
 static void							wd_message_news_get_news(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_news_post_news(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_news_clear_news(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_get_boards(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_get_posts(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_list_directory(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_get_info(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_move(wd_user_t *, wi_p7_message_t *);
@@ -143,6 +146,8 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.news.get_news"), wd_message_news_get_news);
 	WD_MESSAGE_HANDLER(WI_STR("wired.news.post_news"), wd_message_news_post_news);
 	WD_MESSAGE_HANDLER(WI_STR("wired.news.clear_news"), wd_message_news_clear_news);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_boards"), wd_message_board_get_boards);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_posts"), wd_message_board_get_posts);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.list_directory"), wd_message_file_list_directory);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.get_info"), wd_message_file_get_info);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.move"), wd_message_file_move);
@@ -816,6 +821,8 @@ static void wd_message_message_send_message(wd_user_t *user, wi_p7_message_t *me
 	
 	peer = wd_users_user_with_id(uid);
 	
+	wi_log_info(WI_STR("message from %@ to %@"), user, peer);
+	
 	if(!peer) {
 		wd_user_reply_error(user, WI_STR("wired.error.user_not_found"), message);
 		
@@ -887,6 +894,18 @@ static void wd_message_news_clear_news(wd_user_t *user, wi_p7_message_t *message
 	}
 	
 	wd_news_clear_news();
+}
+
+
+
+static void wd_message_board_get_boards(wd_user_t *user, wi_p7_message_t *message) {
+	wd_board_reply_boards(user, message);
+}
+
+
+
+static void wd_message_board_get_posts(wd_user_t *user, wi_p7_message_t *message) {
+	wd_board_reply_posts(user, message);
 }
 
 

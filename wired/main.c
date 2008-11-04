@@ -40,6 +40,7 @@
 
 #include "accounts.h"
 #include "banlist.h"
+#include "board.h"
 #include "files.h"
 #include "main.h"
 #include "messages.h"
@@ -239,7 +240,9 @@ int main(int argc, const char **argv) {
 	wi_log_open();
 	
 	wd_server_init();
+
 	wd_accounts_init();
+	wd_board_init();
 	wd_chats_init();
 	wd_users_init();
 	wd_files_init();
@@ -250,7 +253,7 @@ int main(int argc, const char **argv) {
 	wd_settings_init();
 	wd_trackers_init();
 	wd_transfers_init();
-	
+
 	if(!wd_settings_read_config())
 		exit(1);
 
