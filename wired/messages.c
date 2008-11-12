@@ -656,8 +656,8 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 		return;
 	}
 	
-	wi_log_info(WI_STR("Login from %@ succeeded"),
-	   wd_user_identifier(user));
+	wi_log_info(WI_STR("Login from %@ using %@ succeeded"),
+	   wd_user_identifier(user), wd_client_info_string(wd_user_client_info(user)));
 	
 	wd_user_set_admin(user, (account->user_kick_users || account->user_ban_users));
 	wd_user_set_state(user, WD_USER_LOGGED_IN);

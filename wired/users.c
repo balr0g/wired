@@ -904,3 +904,18 @@ static wi_string_t * wd_client_info_description(wi_runtime_instance_t *instance)
 		client_info->os_version,
 		client_info->arch);
 }
+
+
+
+
+#pragma mark -
+
+wi_string_t * wd_client_info_string(wd_client_info_t *client_info) {
+	return wi_string_with_format(WI_STR("%@ %@ (%u) on %@ %@ (%@)"),
+								 client_info->application_name,
+								 client_info->application_version,
+								 client_info->application_build,
+								 client_info->os_name,
+								 client_info->os_version,
+								 client_info->arch);
+}
