@@ -834,7 +834,7 @@ static void wd_files_index_thread(wi_runtime_instance_t *argument) {
 static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_string_t *pathprefix) {
 	wi_pool_t					*pool;
 	wi_fsenumerator_t			*fsenumerator;
-	wi_string_t					*filepath, *virtualpath, *resolvedpath;
+	wi_string_t					*filepath, *virtualpath, *resolvedpath, *newpathprefix;
 	wi_set_t					*set;
 	wi_number_t					*number;
 	wi_file_offset_t			size;
@@ -943,10 +943,17 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 					wd_files_size += size;
 				}
 				
-				if(type == WD_FILE_TYPE_DROPBOX)
+				if(type == WD_FILE_TYPE_DROPBOX) {
 					wi_fsenumerator_skip_descendents(fsenumerator);
-				else if(recurse)
-					wd_files_index_path_to_file(resolvedpath, file, wi_string_substring_from_index(filepath, pathlength));
+				}
+				else if(recurse) {
+					if(pathprefix)
+						newpathprefix = wi_string_by_appending_path_component(pathprefix, wi_string_substring_from_index(filepath, pathlength + 1));
+					else
+						newpathprefix = wi_string_substring_from_index(filepath, pathlength);
+					
+					wd_files_index_path_to_file(resolvedpath, file, newpathprefix);
+				}
 			}
 		
 			wi_release(number);
