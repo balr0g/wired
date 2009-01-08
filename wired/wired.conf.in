@@ -97,4 +97,4 @@ enable tracker = no
 # Path to an image file that will be sent to clients as the banner.
 # PNG file format is recommended. Maximum image size is 200x32 pixels.
 # (default "banner.png")
-#banner = banner.png
+banner = banner.png
