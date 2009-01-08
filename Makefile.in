@@ -133,10 +133,6 @@ install-wired:
 	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/wired $(installdir)/
 	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/wiredctl $(installdir)/
 
-	if [ -f /etc/resolv.conf ]; then \
-		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) /etc/resolv.conf $(installdir)/etc/; \
-	fi
-
 	@if [ -f .update ]; then \
 		echo ""; \
 		echo "Update complete!"; \
