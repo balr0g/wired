@@ -182,7 +182,7 @@ void wd_trackers_register(void) {
 		wi_log_info(WI_STR("Registering with trackers..."));
 
 		if(!wi_thread_create_thread(wd_trackers_register_thread, NULL))
-			wi_log_err(WI_STR("Could not create a thread: %m"));
+			wi_log_err(WI_STR("Could not create a register thread: %m"));
 	}
 }
 

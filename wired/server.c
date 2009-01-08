@@ -219,7 +219,7 @@ void wd_server_listen(void) {
 	
 	if(!wi_thread_create_thread(wd_server_listen_thread, NULL) ||
 	   !wi_thread_create_thread(wd_server_receive_thread, NULL))
-		wi_log_err(WI_STR("Could not create a thread: %m"));
+		wi_log_err(WI_STR("Could not create a listen thread: %m"));
 }
 
 
@@ -365,7 +365,7 @@ static void wd_server_listen_thread(wi_runtime_instance_t *argument) {
 		}
 		
 		if(!wi_thread_create_thread(wd_server_accept_thread, socket))
-			wi_log_err(WI_STR("Could not create a thread for %@: %m"), ip);
+			wi_log_err(WI_STR("Could not create a client thread for %@: %m"), ip);
 	}
 	
 	wi_release(pool);

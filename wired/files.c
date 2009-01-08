@@ -145,7 +145,7 @@ void wd_files_schedule(void) {
 	
 	if(wd_files_fsevents) {
 		if(!wi_thread_create_thread(wd_files_fsevents_thread, NULL))
-			wi_log_err(WI_STR("Could not create a thread: %m"));
+			wi_log_err(WI_STR("Could not create an fsevents thread: %m"));
 	}
 }
 
@@ -512,7 +512,7 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 			result = wi_thread_create_thread(wd_files_move_thread, array);
 			
 			if(!result) {
-				wi_log_err(WI_STR("Could not create a thread for copy: %m"));
+				wi_log_err(WI_STR("Could not create a copy thread: %m"));
 				wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 			}
 			
@@ -706,7 +706,7 @@ void wd_files_index(wi_boolean_t startup, wi_boolean_t force) {
 
 	if(index) {
 		if(!wi_thread_create_thread_with_priority(wd_files_index_thread, wi_number_with_bool(startup), 0.0))
-			wi_log_warn(WI_STR("Could not create a thread for index: %m"));
+			wi_log_warn(WI_STR("Could not create an index thread: %m"));
 	}
 }
 
