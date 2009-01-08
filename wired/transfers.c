@@ -261,7 +261,7 @@ void wd_transfers_queue_upload(wi_string_t *path, wi_file_offset_t size, wi_bool
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	
 	if(wi_fs_stat_path(realpath, &sb)) {
-		wd_user_reply_file_errno(user, message);
+		wd_user_reply_error(user, WI_STR("wired.error.file_exists"), message);
 
 		return;
 	}
