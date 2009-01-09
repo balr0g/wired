@@ -66,15 +66,12 @@ void wd_settings_init(void) {
 	
 	defaults = wi_dictionary_with_data_and_keys(
 		wi_array(),								WI_STR("address"),
-		WI_STR("banner.png"),					WI_STR("banner"),
 		wi_array(),								WI_STR("category"),
 		WI_STR("Wired Server"),					WI_STR("description"),
 		wi_number_with_bool(false),				WI_STR("enable tracker"),
 		WI_STR("files"),						WI_STR("files"),
 		WI_STR("daemon"),						WI_STR("group"),
-		WI_INT32(0),							WI_STR("index time"),
 		WI_STR("Wired Server"),					WI_STR("name"),
-		WI_INT32(0),							WI_STR("news limit"),
 		WI_INT32(4871),							WI_STR("port"),
 		wi_number_with_bool(false),				WI_STR("register"),
 		WI_INT32(0),							WI_STR("total download speed"),
