@@ -997,7 +997,8 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	pathlength			= wi_string_length(path) + 1;
 	creationlength		= wi_string_length(creationstring) + 1;
 	modificationlength	= wi_string_length(modificationstring) + 1;
-	entrylength			= sizeof(namelength) + namelength +
+	entrylength			= sizeof(entrylength) +
+						  sizeof(namelength) + namelength +
 						  sizeof(searchlistid) + 
 						  sizeof(pathid) + sizeof(pathlength) + pathlength +
 						  sizeof(typeid) + sizeof(type) + 
