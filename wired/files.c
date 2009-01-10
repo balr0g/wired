@@ -870,8 +870,8 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 
 	while((status = wi_fsenumerator_get_next_path(fsenumerator, &filepath)) != WI_FSENUMERATOR_EOF) {
 		if(status == WI_FSENUMERATOR_ERROR) {
-			wi_log_warn(WI_STR("Skipping index of %@: %m"), path);
-				
+			wi_log_warn(WI_STR("Skipping index of %@: %m"), filepath);
+			
 			continue;
 		}
 
