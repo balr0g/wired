@@ -28,6 +28,10 @@
 
 #include "config.h"
 
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+#include <CoreFoundation/CoreFoundation.h>
+#endif
+
 #ifdef HAVE_DNS_SD_H
 #include <dns_sd.h>
 #endif
@@ -51,9 +55,17 @@
 #define WD_SERVER_PING_INTERVAL		60.0
 
 
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+static void							wd_server_cf_thread(wi_runtime_instance_t *);
+#endif
+
 #ifdef HAVE_DNS_SD_H
-static void							wd_server_register_dnssd(void);
-static void							wd_server_register_dnssd_reply(DNSServiceRef, DNSServiceFlags, DNSServiceErrorType, const char *, const char *, const char *, void *);
+static void							wd_server_dnssd_register(void);
+static void							wd_server_dnssd_register_reply(DNSServiceRef, DNSServiceFlags, DNSServiceErrorType, const char *, const char *, const char *, void *);
+
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+static void							wd_server_dnssd_register_socket_callback(CFSocketRef, CFSocketCallBackType, CFDataRef, const void *, void *);
+#endif
 #endif
 
 static void							wd_server_listen_thread(wi_runtime_instance_t *);
@@ -63,8 +75,17 @@ static void							wd_server_log_callback(wi_log_level_t, wi_string_t *);
 static void							wd_server_ping_users(wi_timer_t *);
 
 
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+static CFRunLoopRef					wd_cf_runloop;
+#endif
+
 #ifdef HAVE_DNS_SD_H
-static DNSServiceRef				wd_dnssd_service;
+static DNSServiceRef				wd_dnssd_register_service;
+
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+static CFSocketRef					wd_dnssd_register_socket;
+static CFRunLoopSourceRef			wd_dnssd_register_source;
+#endif
 #endif
 
 static wi_timer_t					*wd_ping_timer;
@@ -213,8 +234,13 @@ void wd_server_listen(void) {
 	if(wi_array_count(wd_tcp_sockets) == 0 || wi_array_count(wd_udp_sockets) == 0)
 		wi_log_err(WI_STR("No addresses available for listening"));
 	
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	if(!wi_thread_create_thread(wd_server_cf_thread, NULL))
+		wi_log_err(WI_STR("Could not create a CoreFoundation thread: %m"));
+#endif
+	
 #ifdef HAVE_DNS_SD_H
-	wd_server_register_dnssd();
+	wd_server_dnssd_register();
 #endif
 	
 	if(!wi_thread_create_thread(wd_server_listen_thread, NULL) ||
@@ -247,7 +273,8 @@ void wd_server_apply_settings(wi_set_t *changes) {
 		wd_chat_broadcast_message(wd_public_chat, wd_server_info_message());
 		
 #ifdef HAVE_DNS_SD_H
-		wd_server_register_dnssd();
+		if(wd_tcp_sockets && wd_udp_sockets)
+			wd_server_dnssd_register();
 #endif
 	}
 }
@@ -300,15 +327,58 @@ wi_p7_message_t * wd_server_info_message(void) {
 
 #pragma mark -
 
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+
+static void wd_server_cf_thread(wi_runtime_instance_t *argument) {
+	wi_pool_t		*pool;
+	
+	pool = wi_pool_init(wi_pool_alloc());
+	
+	wd_cf_runloop = CFRunLoopGetCurrent();
+	
+	while(true) {
+		if(CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true) == kCFRunLoopRunFinished)
+			wi_thread_sleep(1.0);
+		else
+			wi_pool_drain(pool);
+	}
+	
+	wi_release(pool);
+}
+
+#endif
+
+
+
+#pragma mark -
+
 #ifdef HAVE_DNS_SD_H
 
-static void wd_server_register_dnssd(void) {
+static void wd_server_dnssd_register(void) {
 	DNSServiceErrorType		err;
 	
-	if(wd_dnssd_service)
-		DNSServiceRefDeallocate(wd_dnssd_service);
+	if(wd_dnssd_register_service) {
+		DNSServiceRefDeallocate(wd_dnssd_register_service);
+		wd_dnssd_register_service = NULL;
+	}
 	
-	err = DNSServiceRegister(&wd_dnssd_service,
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	if(wd_dnssd_register_source) {
+		CFRunLoopRemoveSource(wd_cf_runloop, wd_dnssd_register_source, kCFRunLoopCommonModes);
+
+		CFRelease(wd_dnssd_register_source);
+		wd_dnssd_register_source = NULL;
+	}
+	
+	if(wd_dnssd_register_socket) {
+		CFSocketInvalidate(wd_dnssd_register_socket);
+
+		CFRelease(wd_dnssd_register_socket);
+		wd_dnssd_register_socket = NULL;
+	}
+#endif
+	
+	err = DNSServiceRegister(&wd_dnssd_register_service,
 							 0,
 							 kDNSServiceInterfaceIndexAny,
 							 wi_string_cstring(wi_config_string_for_name(wd_config, WI_STR("name"))),
@@ -318,18 +388,63 @@ static void wd_server_register_dnssd(void) {
 							 htons(wd_port),
 							 0,
 							 NULL,
-							 wd_server_register_dnssd_reply,
+							 wd_server_dnssd_register_reply,
 							 NULL);
 	
-	if(err != kDNSServiceErr_NoError)
+	if(err != kDNSServiceErr_NoError) {
 		wi_log_warn(WI_STR("Could not register for DNS service discovery: %d"), err);
+		
+		return;
+	}
+	
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+    wd_dnssd_register_socket = CFSocketCreateWithNative(NULL,
+														DNSServiceRefSockFD(wd_dnssd_register_service),
+														kCFSocketReadCallBack,
+														&wd_server_dnssd_register_socket_callback,
+														NULL);
+	
+	if(!wd_dnssd_register_socket) {
+		wi_log_warn(WI_STR("Could not create socket for DNS service discovery"));
+
+		return;
+	}
+	
+	wd_dnssd_register_source = CFSocketCreateRunLoopSource(NULL, wd_dnssd_register_socket, 0);
+
+	if(!wd_dnssd_register_source) {
+		wi_log_warn(WI_STR("Could not create runloop source for DNS service discovery"));
+		
+		return;
+	}
+	
+	CFRunLoopAddSource(wd_cf_runloop, wd_dnssd_register_source, kCFRunLoopCommonModes);
+#endif
 }
 
 
 
-static void wd_server_register_dnssd_reply(DNSServiceRef client, DNSServiceFlags flags, DNSServiceErrorType error, const char *name, const char *regtype, const char *domain, void *context) {
-	wi_log_info(WI_STR("DNS service discovery reply for %s.%s%s: %d"), name, regtype, domain, error);
+static void wd_server_dnssd_register_reply(DNSServiceRef client, DNSServiceFlags flags, DNSServiceErrorType error, const char *name, const char *regtype, const char *domain, void *context) {
+	if(error == kDNSServiceErr_NoError)
+		wi_log_info(WI_STR("Registered using DNS service discovery as %s.%s%s"), name, regtype, domain);
+	else
+		wi_log_warn(WI_STR("Could not register using DNS service discovery: %d"), error);
 }
+
+
+
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+
+static void wd_server_dnssd_register_socket_callback(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, const void *data, void *context) {
+    DNSServiceErrorType		error;
+	
+	error = DNSServiceProcessResult(wd_dnssd_register_service);
+	
+	if(error != kDNSServiceErr_NoError)
+		wi_log_warn(WI_STR("Could not process result for DNS service discovery: %d"), error);
+}
+
+#endif
 
 #endif
 
