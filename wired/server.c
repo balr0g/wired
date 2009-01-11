@@ -54,6 +54,9 @@
 
 #define WD_SERVER_PING_INTERVAL		60.0
 
+#if defined(HAVE_DNS_SD_H) && defined(MAC_OS_X_VERSION_MIN_REQUIRED) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
+extern DNSServiceErrorType			DNSServiceNATPortMappingCreate(DNSServiceRef *, DNSServiceFlags, uint32_t, uint32_t, uint16_t, uint16_t, uint32_t, void *, void *) __attribute__((weak_import));
+#endif
 
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 static void							wd_server_cf_thread(wi_runtime_instance_t *);
@@ -61,10 +64,17 @@ static void							wd_server_cf_thread(wi_runtime_instance_t *);
 
 #ifdef HAVE_DNS_SD_H
 static void							wd_server_dnssd_register(void);
-static void							wd_server_dnssd_register_reply(DNSServiceRef, DNSServiceFlags, DNSServiceErrorType, const char *, const char *, const char *, void *);
+static void							wd_server_dnssd_register_service_callback(DNSServiceRef, DNSServiceFlags, DNSServiceErrorType, const char *, const char *, const char *, void *);
 
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 static void							wd_server_dnssd_register_socket_callback(CFSocketRef, CFSocketCallBackType, CFDataRef, const void *, void *);
+#endif
+
+static void							wd_server_dnssd_portmap(void);
+static void							wd_server_dnssd_portmap_service_callback(DNSServiceRef, DNSServiceFlags, uint32_t, DNSServiceErrorType, uint32_t, uint32_t, uint16_t, uint16_t, uint32_t, void *);
+
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+static void							wd_server_dnssd_portmap_socket_callback(CFSocketRef, CFSocketCallBackType, CFDataRef, const void *, void *);
 #endif
 #endif
 
@@ -77,6 +87,7 @@ static void							wd_server_ping_users(wi_timer_t *);
 
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 static CFRunLoopRef					wd_cf_runloop;
+static wi_lock_t					*wd_cf_lock;
 #endif
 
 #ifdef HAVE_DNS_SD_H
@@ -85,6 +96,13 @@ static DNSServiceRef				wd_dnssd_register_service;
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 static CFSocketRef					wd_dnssd_register_socket;
 static CFRunLoopSourceRef			wd_dnssd_register_source;
+#endif
+
+static DNSServiceRef				wd_dnssd_portmap_service;
+
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+static CFSocketRef					wd_dnssd_portmap_socket;
+static CFRunLoopSourceRef			wd_dnssd_portmap_source;
 #endif
 #endif
 
@@ -102,7 +120,7 @@ wi_p7_spec_t						*wd_p7_spec;
 
 void wd_server_init(void) {
 	wi_string_t		*path;
-
+	
 	wd_ping_timer = wi_timer_init_with_function(wi_timer_alloc(),
 												 wd_server_ping_users,
 												 WD_SERVER_PING_INTERVAL,
@@ -144,6 +162,8 @@ void wd_server_init(void) {
 	wd_ping_message = wi_retain(wi_p7_message_with_name(WI_STR("wired.send_ping"), wd_p7_spec));
 	
 	wi_log_callback = wd_server_log_callback;
+	
+	wd_cf_lock = wi_lock_init(wi_lock_alloc());
 }
 
 
@@ -241,6 +261,9 @@ void wd_server_listen(void) {
 	
 #ifdef HAVE_DNS_SD_H
 	wd_server_dnssd_register();
+	
+	if(wi_config_bool_for_name(wd_config, WI_STR("map port")))
+		wd_server_dnssd_portmap();
 #endif
 	
 	if(!wi_thread_create_thread(wd_server_listen_thread, NULL) ||
@@ -334,8 +357,10 @@ static void wd_server_cf_thread(wi_runtime_instance_t *argument) {
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
+	wi_lock_lock(wd_cf_lock);
 	wd_cf_runloop = CFRunLoopGetCurrent();
-	
+	wi_lock_unlock(wd_cf_lock);
+
 	while(true) {
 		if(CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true) == kCFRunLoopRunFinished)
 			wi_thread_sleep(1.0);
@@ -355,7 +380,7 @@ static void wd_server_cf_thread(wi_runtime_instance_t *argument) {
 #ifdef HAVE_DNS_SD_H
 
 static void wd_server_dnssd_register(void) {
-	DNSServiceErrorType		err;
+	DNSServiceErrorType		error;
 	
 	if(wd_dnssd_register_service) {
 		DNSServiceRefDeallocate(wd_dnssd_register_service);
@@ -364,7 +389,9 @@ static void wd_server_dnssd_register(void) {
 	
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	if(wd_dnssd_register_source) {
+		wi_lock_lock(wd_cf_lock);
 		CFRunLoopRemoveSource(wd_cf_runloop, wd_dnssd_register_source, kCFRunLoopCommonModes);
+		wi_lock_unlock(wd_cf_lock);
 
 		CFRelease(wd_dnssd_register_source);
 		wd_dnssd_register_source = NULL;
@@ -378,21 +405,21 @@ static void wd_server_dnssd_register(void) {
 	}
 #endif
 	
-	err = DNSServiceRegister(&wd_dnssd_register_service,
-							 0,
-							 kDNSServiceInterfaceIndexAny,
-							 wi_string_cstring(wi_config_string_for_name(wd_config, WI_STR("name"))),
-							 WD_DNSSD_NAME,
-							 NULL,
-							 NULL,
-							 htons(wd_port),
-							 0,
-							 NULL,
-							 wd_server_dnssd_register_reply,
-							 NULL);
+	error = DNSServiceRegister(&wd_dnssd_register_service,
+							   0,
+							   kDNSServiceInterfaceIndexAny,
+							   wi_string_cstring(wi_config_string_for_name(wd_config, WI_STR("name"))),
+							   WD_DNSSD_NAME,
+							   NULL,
+							   NULL,
+							   htons(wd_port),
+							   0,
+							   NULL,
+							   wd_server_dnssd_register_service_callback,
+							   NULL);
 	
-	if(err != kDNSServiceErr_NoError) {
-		wi_log_warn(WI_STR("Could not register for DNS service discovery: %d"), err);
+	if(error != kDNSServiceErr_NoError) {
+		wi_log_warn(WI_STR("Could not register for DNS service discovery: %d"), error);
 		
 		return;
 	}
@@ -418,13 +445,15 @@ static void wd_server_dnssd_register(void) {
 		return;
 	}
 	
+	wi_lock_lock(wd_cf_lock);
 	CFRunLoopAddSource(wd_cf_runloop, wd_dnssd_register_source, kCFRunLoopCommonModes);
+	wi_lock_unlock(wd_cf_lock);
 #endif
 }
 
 
 
-static void wd_server_dnssd_register_reply(DNSServiceRef client, DNSServiceFlags flags, DNSServiceErrorType error, const char *name, const char *regtype, const char *domain, void *context) {
+static void wd_server_dnssd_register_service_callback(DNSServiceRef client, DNSServiceFlags flags, DNSServiceErrorType error, const char *name, const char *regtype, const char *domain, void *context) {
 	if(error == kDNSServiceErr_NoError)
 		wi_log_info(WI_STR("Registered using DNS service discovery as %s.%s%s"), name, regtype, domain);
 	else
@@ -442,6 +471,90 @@ static void wd_server_dnssd_register_socket_callback(CFSocketRef socket, CFSocke
 	
 	if(error != kDNSServiceErr_NoError)
 		wi_log_warn(WI_STR("Could not process result for DNS service discovery: %d"), error);
+}
+
+#endif
+
+
+
+static void wd_server_dnssd_portmap(void) {
+    DNSServiceErrorType		error;
+	
+	if(DNSServiceNATPortMappingCreate == NULL)
+		return;
+	
+	error = DNSServiceNATPortMappingCreate(&wd_dnssd_portmap_service,
+										   0,
+										   0,
+										   0x10 | 0x20,
+										   htons(wd_port),
+										   htons(wd_port),
+										   0,
+										   wd_server_dnssd_portmap_service_callback,
+										   NULL);
+	
+	if(error != kDNSServiceErr_NoError) {
+		wi_log_warn(WI_STR("Could not create port mapping: %d"), error);
+		
+		return;
+	}
+	
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+    wd_dnssd_portmap_socket = CFSocketCreateWithNative(NULL,
+													   DNSServiceRefSockFD(wd_dnssd_portmap_service),
+													   kCFSocketReadCallBack,
+													   &wd_server_dnssd_portmap_socket_callback,
+													   NULL);
+	
+	if(!wd_dnssd_portmap_socket) {
+		wi_log_warn(WI_STR("Could not create socket for port mapping"));
+
+		return;
+	}
+	
+	wd_dnssd_portmap_source = CFSocketCreateRunLoopSource(NULL, wd_dnssd_portmap_socket, 0);
+
+	if(!wd_dnssd_portmap_source) {
+		wi_log_warn(WI_STR("Could not create runloop source for port mapping"));
+		
+		return;
+	}
+	
+	wi_lock_lock(wd_cf_lock);
+	CFRunLoopAddSource(wd_cf_runloop, wd_dnssd_portmap_source, kCFRunLoopCommonModes);
+	wi_lock_unlock(wd_cf_lock);
+#endif
+}
+
+
+
+static void wd_server_dnssd_portmap_service_callback(DNSServiceRef service, DNSServiceFlags flags, uint32_t interface, DNSServiceErrorType error, uint32_t public_address, uint32_t protocol, uint16_t private_port, uint16_t public_port, uint32_t ttl, void *context) {
+	wi_address_t		*address;
+	
+	address = wi_address_init_with_ipv4_address(wi_address_alloc(), public_address);
+	
+	if(error == kDNSServiceErr_NoError) {
+		wi_log_info(WI_STR("Mapped internal port %u to external port %u on %@"),
+			ntohs(private_port), ntohs(public_port), wi_address_string(address));
+	} else {
+		wi_log_warn(WI_STR("Could not create port mapping on %@: %d"),
+			error, wi_address_string(address));
+	}
+	
+	wi_release(address);
+}
+
+
+
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+
+static void wd_server_dnssd_portmap_socket_callback(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, const void *data, void *context) {
+    DNSServiceErrorType		error;
+	
+	error = DNSServiceProcessResult(wd_dnssd_portmap_service);
+	
+	if(error != kDNSServiceErr_NoError)
+		wi_log_warn(WI_STR("Could not process result for port mapping: %d"), error);
 }
 
 #endif
