@@ -75,7 +75,7 @@ wi_boolean_t							wd_files_link_path(wi_string_t *, wi_string_t *, wd_user_t *,
 
 void									wd_files_search(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
-void									wd_files_index(wi_boolean_t, wi_boolean_t);
+void									wd_files_index(wi_boolean_t);
 
 wd_file_type_t							wd_files_type(wi_string_t *);
 void									wd_files_set_type(wi_string_t *, wd_file_type_t, wd_user_t *, wi_p7_message_t *);
@@ -94,6 +94,8 @@ wi_boolean_t							wd_files_drop_box_path_is_writable(wi_string_t *, wd_user_t *
 wi_boolean_t							wd_files_drop_box_path_is_readable(wi_string_t *, wd_user_t *);
 wi_string_t *							wd_files_virtual_path(wi_string_t *, wd_user_t *);
 wi_string_t *							wd_files_real_path(wi_string_t *, wd_user_t *);
+
+wi_string_t *							wd_files_string_for_bytes(wi_file_offset_t);
 
 
 extern wi_fsevents_t					*wd_files_fsevents;

@@ -108,23 +108,23 @@ case $CMD in
 		fi
 		;;
 
-	index)
-		checkrunning
-
-		if kill -USR1 $PID; then
-			echo "$PROG: $CMD: wired indexing"
-		else
-			echo "$PROG: $CMD: wired could not be indexed"
-		fi
-		;;
-
 	register)
 		checkrunning
 
-		if kill -USR2 $PID; then
+		if kill -USR1 $PID; then
 			echo "$PROG: $CMD: wired registering with trackers"
 		else
 			echo "$PROG: $CMD: wired could not register with trackers"
+		fi
+		;;
+
+	index)
+		checkrunning
+
+		if kill -USR2 $PID; then
+			echo "$PROG: $CMD: wired indexing"
+		else
+			echo "$PROG: $CMD: wired could not be indexed"
 		fi
 		;;
 

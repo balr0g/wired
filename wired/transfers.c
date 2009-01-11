@@ -847,7 +847,9 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 
 	wi_release(pool);
 
-	wi_log_l(WI_STR("Sent %llu/%llu bytes of \"%@\" to %@"),
+	wi_log_l(WI_STR("Sent %@/%@ (%llu/%llu bytes) of \"%@\" to %@"),
+		wd_files_string_for_bytes(transfer->transferred - transfer->offset),
+		wd_files_string_for_bytes(transfer->size - transfer->offset),
 		transfer->transferred - transfer->offset,
 		transfer->size - transfer->offset,
 		wd_files_virtual_path(transfer->path, transfer->user),
@@ -996,7 +998,9 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 	
 	wi_release(pool);
 	
-	wi_log_l(WI_STR("Received %llu/%llu bytes of \"%@\" from %@"),
+	wi_log_l(WI_STR("Received %@/%@ (%llu/%llu bytes) of \"%@\" from %@"),
+		wd_files_string_for_bytes(transfer->transferred - transfer->offset),
+		wd_files_string_for_bytes(transfer->size - transfer->offset),
 		transfer->transferred - transfer->offset,
 		transfer->size - transfer->offset,
 		wd_files_virtual_path(transfer->path, transfer->user),

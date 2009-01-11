@@ -674,36 +674,43 @@ end:
 #pragma mark -
 
 static void wd_files_index_update(wi_timer_t *timer) {
-	wd_files_index(false, true);
+	wd_files_index(false);
 }
 
 
 
-void wd_files_index(wi_boolean_t startup, wi_boolean_t force) {
+void wd_files_index(wi_boolean_t startup) {
 	wi_fs_stat_t		sb;
 	wi_time_interval_t	interval, index_time;
 	wi_boolean_t		index = true;
 	
-	if(!force) {
+	if(startup) {
 		if(wi_fs_stat_path(wd_files_index_path, &sb)) {
 			interval = wi_date_time_interval_since_now(wi_date_with_time(sb.mtime));
 			index_time  = (wd_files_index_time > 0.0) ? wd_files_index_time : 3600.0;
 			
-			if(interval < index_time) {
-				wi_log_info(WI_STR("Reusing existing index created %.2f seconds ago"), interval);
+			if(interval < index_time && wd_files_index_update_size()) {
+				wi_log_info(WI_STR("Found %u %s and %u %s for a total of %@ (%llu bytes) in %@ created %.2f seconds ago"),
+					wd_files_count,
+					wd_files_count == 1
+						? "file"
+						: "files",
+					wd_directories_count,
+					wd_directories_count == 1
+						? "directory"
+						: "directories",
+					wd_files_string_for_bytes(wd_files_size),
+					wd_files_size,
+					wd_files_index_path,
+					interval);
+				
+				wd_trackers_register();
 				
 				index = false;
 			}
 		}
 	}
 	
-	if(startup) {
-		if(!wd_files_index_update_size())
-			index = true;
-		
-		wd_trackers_register();
-	}
-
 	if(index) {
 		if(!wi_thread_create_thread_with_priority(wd_files_index_thread, wi_number_with_bool(startup), 0.0))
 			wi_log_warn(WI_STR("Could not create an index thread: %m"));
@@ -728,21 +735,6 @@ static wi_boolean_t wd_files_index_update_size(void) {
 		wd_files_count			= header.files_count;
 		wd_directories_count	= header.directories_count;
 		wd_files_size			= header.files_size;
-
-		wi_log_info(WI_STR("Found %u %s and %u %s for a total of %llu %s in %@"),
-			wd_files_count,
-			wd_files_count == 1
-				? "file"
-				: "files",
-			wd_directories_count,
-			wd_directories_count == 1
-				? "directory"
-				: "directories",
-			wd_files_size,
-			wd_files_size == 1
-				? "byte"
-				: "bytes",
-			wd_files_index_path);
 		
 		return true;
 	} else {
@@ -796,7 +788,7 @@ static void wd_files_index_thread(wi_runtime_instance_t *argument) {
 			wi_rwlock_wrlock(wd_files_index_lock);
 			
 			if(wi_fs_rename_path(path, wd_files_index_path)) {
-				wi_log_info(WI_STR("Indexed %u %s and %u %s for a total of %llu %s in %.2f seconds"),
+				wi_log_info(WI_STR("Indexed %u %s and %u %s for a total of %@ (%llu bytes) in %.2f seconds"),
 					wd_files_count,
 					wd_files_count == 1
 						? "file"
@@ -805,10 +797,8 @@ static void wd_files_index_thread(wi_runtime_instance_t *argument) {
 					wd_directories_count == 1
 						? "directory"
 						: "directories",
+					wd_files_string_for_bytes(wd_files_size),
 					wd_files_size,
-					wd_files_size == 1
-						? "byte"
-						: "bytes",
 					wi_time_interval() - interval);
 			} else {
 				wi_log_warn(WI_STR("Could not rename %@ to %@: %m"),
@@ -1576,6 +1566,8 @@ wi_string_t * wd_files_real_path(wi_string_t *path, wd_user_t *user) {
 
 
 
+#pragma mark -
+
 static wi_boolean_t wd_files_name_matches_query(wi_string_t *name, wi_string_t *query) {
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	CFMutableStringRef		nameString;
@@ -1597,4 +1589,42 @@ static wi_boolean_t wd_files_name_matches_query(wi_string_t *name, wi_string_t *
 #else
 	return (wi_string_index_of_string(name, query, WI_STRING_CASE_INSENSITIVE) != WI_NOT_FOUND);
 #endif
+}
+
+
+
+#pragma mark -
+
+wi_string_t * wd_files_string_for_bytes(wi_file_offset_t bytes) {
+	double						kb, mb, gb, tb, pb;
+
+	if(bytes < 1024)
+		return wi_string_with_format(WI_STR("%llu bytes"), bytes);
+
+	kb = (double) bytes / 1024.0;
+
+	if(kb < 1024.0)
+		return wi_string_with_format(WI_STR("%.1f KB"), kb);
+
+	mb = (double) kb / 1024.0;
+
+	if(mb < 1024.0)
+		return wi_string_with_format(WI_STR("%.1f MB"), mb);
+
+	gb = (double) mb / 1024.0;
+
+	if(gb < 1024.0)
+		return wi_string_with_format(WI_STR("%.1f GB"), gb);
+
+	tb = (double) gb / 1024.0;
+
+	if(tb < 1024.0)
+		return wi_string_with_format(WI_STR("%.1f TB"), tb);
+
+	pb = (double) tb / 1024.0;
+
+	if(pb < 1024.0)
+		return wi_string_with_format(WI_STR("%.1f PB"), pb);
+
+	return NULL;
 }

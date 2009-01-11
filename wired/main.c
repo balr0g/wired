@@ -295,7 +295,7 @@ int main(int argc, const char **argv) {
 	wd_write_status(true);
 	wi_log_startup = false;
 	
-	wd_files_index(true, false);
+	wd_files_index(true);
 	
 	wi_pool_drain(pool);
 
@@ -478,13 +478,13 @@ void wd_signal_thread(wi_runtime_instance_t *arg) {
 				break;
 				
 			case SIGUSR1:
-				wi_log_info(WI_STR("Signal USR1 received, indexing files"));
-				wd_files_index(false, true);
+				wi_log_info(WI_STR("Signal USR1 received, registering with trackers"));
+				wd_trackers_register();
 				break;
 
 			case SIGUSR2:
-				wi_log_info(WI_STR("Signal USR2 received, registering with trackers"));
-				wd_trackers_register();
+				wi_log_info(WI_STR("Signal USR2 received, indexing files"));
+				wd_files_index(false);
 				break;
 
 			case SIGINT:
