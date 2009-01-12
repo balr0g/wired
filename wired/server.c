@@ -163,7 +163,9 @@ void wd_server_init(void) {
 	
 	wi_log_callback = wd_server_log_callback;
 	
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
 	wd_cf_lock = wi_lock_init(wi_lock_alloc());
+#endif
 }
 
 
