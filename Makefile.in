@@ -113,6 +113,10 @@ install-wired:
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/banlist $(installdir)/; \
 	fi
 
+	if [ ! -f $(installdir)/banner.png ]; then \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/banner.png $(installdir)/; \
+	fi
+
 	if [ ! -f $(installdir)/groups ]; then \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/groups $(installdir)/; \
 	fi
