@@ -161,6 +161,12 @@ void wd_settings_set_settings(wi_p7_message_t *message) {
 	banner = wi_p7_message_data_for_name(message, WI_STR("wired.info.banner"));
 	path = wi_config_path_for_name(wd_config, WI_STR("banner"));
 	
+	if(!path) {
+		path = WI_STR("banner.png");
+		
+		wi_config_set_instance_for_name(wd_config, path, WI_STR("banner"));
+	}
+	
 	if(wi_data_write_to_file(banner, path))
 		wi_config_note_change(wd_config, WI_STR("banner"));
 	else
