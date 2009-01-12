@@ -384,11 +384,6 @@ static void wd_server_cf_thread(wi_runtime_instance_t *argument) {
 static void wd_server_dnssd_register(void) {
 	DNSServiceErrorType		error;
 	
-	if(wd_dnssd_register_service) {
-		DNSServiceRefDeallocate(wd_dnssd_register_service);
-		wd_dnssd_register_service = NULL;
-	}
-	
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	if(wd_dnssd_register_source) {
 		wi_lock_lock(wd_cf_lock);
@@ -406,6 +401,11 @@ static void wd_server_dnssd_register(void) {
 		wd_dnssd_register_socket = NULL;
 	}
 #endif
+	
+	if(wd_dnssd_register_service) {
+		DNSServiceRefDeallocate(wd_dnssd_register_service);
+		wd_dnssd_register_service = NULL;
+	}
 	
 	error = DNSServiceRegister(&wd_dnssd_register_service,
 							   0,
@@ -438,6 +438,9 @@ static void wd_server_dnssd_register(void) {
 
 		return;
 	}
+	
+	CFSocketSetSocketFlags(wd_dnssd_register_socket,
+		CFSocketGetSocketFlags(wd_dnssd_register_socket) & ~kCFSocketCloseOnInvalidate);
 	
 	wd_dnssd_register_source = CFSocketCreateRunLoopSource(NULL, wd_dnssd_register_socket, 0);
 
@@ -514,6 +517,9 @@ static void wd_server_dnssd_portmap(void) {
 		return;
 	}
 	
+	CFSocketSetSocketFlags(wd_dnssd_portmap_socket,
+		CFSocketGetSocketFlags(wd_dnssd_portmap_socket) & ~kCFSocketCloseOnInvalidate);
+
 	wd_dnssd_portmap_source = CFSocketCreateRunLoopSource(NULL, wd_dnssd_portmap_socket, 0);
 
 	if(!wd_dnssd_portmap_source) {

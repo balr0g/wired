@@ -503,8 +503,7 @@ void wd_signal_thread(wi_runtime_instance_t *arg) {
 				break;
 		}
 		
-		if(++i % 10 == 0)
-			wi_pool_drain(pool);
+		wi_pool_drain(pool);
 	}
 	
 	wi_release(pool);
