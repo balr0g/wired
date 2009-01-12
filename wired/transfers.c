@@ -166,7 +166,15 @@ static void wd_transfers_update_waiting(wi_timer_t *timer) {
 
 
 static wi_string_t * wd_transfers_transfer_key_for_user(wd_user_t *user) {
-	return wi_string_by_appending_string(wd_user_login(user), wd_user_ip(user));
+	wi_string_t		*login, *ip;
+	
+	login	= wd_user_login(user);
+	ip		= wd_user_ip(user);
+	
+	if(login && ip)
+		return wi_string_by_appending_string(login, ip);
+	
+	return NULL;
 }
 
 
@@ -311,6 +319,9 @@ void wd_transfers_remove_user(wd_user_t *user) {
 	
 	key = wd_transfers_transfer_key_for_user(user);
 	
+	if(!key)
+		return;
+	
 	wi_array_wrlock(wd_transfers);
 	
 	count = wi_array_count(wd_transfers);
@@ -379,6 +390,7 @@ static void wd_transfers_update_queue(void) {
 	wi_set_t			*users;
 	wi_dictionary_t		*user_queues;
 	wi_array_t			*sorted_users, *user_queue, *user_transfers;
+	wi_string_t			*key;
 	wd_transfer_t		*transfer;
 	wd_user_t			*user;
 	wd_account_t		*account;
@@ -425,62 +437,68 @@ static void wd_transfers_update_queue(void) {
 			for(i = 0; i < count; i++) {
 				user		= WI_ARRAY(sorted_users, i);
 				account		= wd_user_account(user);
-				user_queue	= wi_dictionary_data_for_key(user_queues, wd_transfers_transfer_key_for_user(user));
-				transfer	= WI_ARRAY(user_queue, 0);
+				key			= wd_transfers_transfer_key_for_user(user);
 				
-				if(transfer->type == WD_TRANSFER_DOWNLOAD) {
-					user_downloads = account->transfer_download_limit;
-					user_transfers = wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key);
+				if(key) {
+					user_queue	= wi_dictionary_data_for_key(user_queues, wd_transfers_transfer_key_for_user(user));
+					transfer	= WI_ARRAY(user_queue, 0);
 					
-					queue = ((total_downloads > 0 && wd_transfers_active_downloads >= total_downloads) ||
-							 (user_downloads > 0 && user_transfers && wi_array_count(user_transfers) >= user_downloads));
-				} else {
-					user_uploads = account->transfer_upload_limit;
-					user_transfers = wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key);
-					
-					queue = ((total_uploads > 0 && wd_transfers_active_uploads >= total_uploads) ||
-							 (user_uploads > 0 && user_transfers && wi_array_count(user_transfers) >= user_uploads));
-				}
-				
-				if(queue) {
-					if(transfer->queue != position) {
-						transfer->queue = position;
+					if(transfer->type == WD_TRANSFER_DOWNLOAD) {
+						user_downloads = account->transfer_download_limit;
+						user_transfers = wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key);
 						
-						message = wi_p7_message_with_name(WI_STR("wired.transfer.queue"), wd_p7_spec);
-						wi_p7_message_set_string_for_name(message, transfer->path, WI_STR("wired.transfer.path"));
-						wi_p7_message_set_uint32_for_name(message, transfer->queue, WI_STR("wired.transfer.queue_position"));
+						queue = ((total_downloads > 0 && wd_transfers_active_downloads >= total_downloads) ||
+								 (user_downloads > 0 && user_transfers && wi_array_count(user_transfers) >= user_downloads));
+					} else {
+						user_uploads = account->transfer_upload_limit;
+						user_transfers = wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key);
 						
-						if(transfer->transaction > 0)
-							wi_p7_message_set_uint32_for_name(message, transfer->transaction, WI_STR("wired.transaction"));
-						
-						wd_user_send_message(transfer->user, message);
+						queue = ((total_uploads > 0 && wd_transfers_active_uploads >= total_uploads) ||
+								 (user_uploads > 0 && user_transfers && wi_array_count(user_transfers) >= user_uploads));
 					}
-
-					position++;
-				} else {
-					transfer->queue = 0;
-					transfer->state = WD_TRANSFER_WAITING;
-					transfer->waiting_time = wi_time_interval();
 					
-					if(wd_transfer_open(transfer)) {
-						if(transfer->type == WD_TRANSFER_DOWNLOAD) {
-							wd_transfer_start(transfer);
-						} else {
-							message = wi_p7_message_with_name(WI_STR("wired.transfer.upload_ready"), wd_p7_spec);
-							wi_p7_message_set_string_for_name(message, transfer->path, WI_STR("wired.file.path"));
-							wi_p7_message_set_uint64_for_name(message, transfer->offset, WI_STR("wired.transfer.offset"));
+					if(queue) {
+						if(transfer->queue != position) {
+							transfer->queue = position;
+							
+							message = wi_p7_message_with_name(WI_STR("wired.transfer.queue"), wd_p7_spec);
+							wi_p7_message_set_string_for_name(message, transfer->path, WI_STR("wired.transfer.path"));
+							wi_p7_message_set_uint32_for_name(message, transfer->queue, WI_STR("wired.transfer.queue_position"));
 							
 							if(transfer->transaction > 0)
 								wi_p7_message_set_uint32_for_name(message, transfer->transaction, WI_STR("wired.transaction"));
 							
 							wd_user_send_message(transfer->user, message);
 						}
+
+						position++;
+					} else {
+						transfer->queue = 0;
+						transfer->state = WD_TRANSFER_WAITING;
+						transfer->waiting_time = wi_time_interval();
+						
+						if(wd_transfer_open(transfer)) {
+							if(transfer->type == WD_TRANSFER_DOWNLOAD) {
+								wd_transfer_start(transfer);
+							} else {
+								message = wi_p7_message_with_name(WI_STR("wired.transfer.upload_ready"), wd_p7_spec);
+								wi_p7_message_set_string_for_name(message, transfer->path, WI_STR("wired.file.path"));
+								wi_p7_message_set_uint64_for_name(message, transfer->offset, WI_STR("wired.transfer.offset"));
+								
+								if(transfer->transaction > 0)
+									wi_p7_message_set_uint32_for_name(message, transfer->transaction, WI_STR("wired.transaction"));
+								
+								wd_user_send_message(transfer->user, message);
+							}
+						}
 					}
+					
+					wi_array_remove_data_at_index(user_queue, 0);
+				} else {
+					user_queue = NULL;
 				}
 				
-				wi_array_remove_data_at_index(user_queue, 0);
-				
-				if(wi_array_count(user_queue) == 0) {
+				if(!user_queue || wi_array_count(user_queue) == 0) {
 					wi_array_remove_data_at_index(sorted_users, i);
 				
 					count--;
