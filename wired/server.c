@@ -87,7 +87,7 @@ static void							wd_server_ping_users(wi_timer_t *);
 
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 static CFRunLoopRef					wd_cf_runloop;
-static wi_lock_t					*wd_cf_lock;
+static wi_condition_lock_t			*wd_cf_lock;
 #endif
 
 #ifdef HAVE_DNS_SD_H
@@ -164,7 +164,7 @@ void wd_server_init(void) {
 	wi_log_callback = wd_server_log_callback;
 	
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
-	wd_cf_lock = wi_lock_init(wi_lock_alloc());
+	wd_cf_lock = wi_condition_lock_init_with_condition(wi_condition_lock_alloc(), 0);
 #endif
 }
 
@@ -359,9 +359,9 @@ static void wd_server_cf_thread(wi_runtime_instance_t *argument) {
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
-	wi_lock_lock(wd_cf_lock);
+	wi_condition_lock_lock(wd_cf_lock);
 	wd_cf_runloop = CFRunLoopGetCurrent();
-	wi_lock_unlock(wd_cf_lock);
+	wi_condition_lock_unlock_with_condition(wd_cf_lock, 1);
 
 	while(true) {
 		if(CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true) == kCFRunLoopRunFinished)
@@ -386,9 +386,9 @@ static void wd_server_dnssd_register(void) {
 	
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	if(wd_dnssd_register_source) {
-		wi_lock_lock(wd_cf_lock);
+		wi_condition_lock_lock_when_condition(wd_cf_lock, 1, 0.0);
 		CFRunLoopRemoveSource(wd_cf_runloop, wd_dnssd_register_source, kCFRunLoopCommonModes);
-		wi_lock_unlock(wd_cf_lock);
+		wi_condition_lock_unlock(wd_cf_lock);
 
 		CFRelease(wd_dnssd_register_source);
 		wd_dnssd_register_source = NULL;
@@ -450,9 +450,9 @@ static void wd_server_dnssd_register(void) {
 		return;
 	}
 	
-	wi_lock_lock(wd_cf_lock);
+	wi_condition_lock_lock_when_condition(wd_cf_lock, 1, 0.0);
 	CFRunLoopAddSource(wd_cf_runloop, wd_dnssd_register_source, kCFRunLoopCommonModes);
-	wi_lock_unlock(wd_cf_lock);
+	wi_condition_lock_unlock(wd_cf_lock);
 #endif
 }
 
@@ -528,9 +528,9 @@ static void wd_server_dnssd_portmap(void) {
 		return;
 	}
 	
-	wi_lock_lock(wd_cf_lock);
+	wi_condition_lock_lock_when_condition(wd_cf_lock, 1, 0.0);
 	CFRunLoopAddSource(wd_cf_runloop, wd_dnssd_portmap_source, kCFRunLoopCommonModes);
-	wi_lock_unlock(wd_cf_lock);
+	wi_condition_lock_unlock(wd_cf_lock);
 #endif
 }
 
