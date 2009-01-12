@@ -356,6 +356,7 @@ wi_p7_message_t * wd_server_info_message(void) {
 
 static void wd_server_cf_thread(wi_runtime_instance_t *argument) {
 	wi_pool_t		*pool;
+	SInt32			status;
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
@@ -364,7 +365,9 @@ static void wd_server_cf_thread(wi_runtime_instance_t *argument) {
 	wi_condition_lock_unlock_with_condition(wd_cf_lock, 1);
 
 	while(true) {
-		if(CFRunLoopRunInMode(kCFRunLoopDefaultMode, 0, true) == kCFRunLoopRunFinished)
+		status = CFRunLoopRunInMode(kCFRunLoopDefaultMode, 60, true);
+		
+		if(status == kCFRunLoopRunFinished || status == kCFRunLoopRunTimedOut)
 			wi_thread_sleep(1.0);
 		else
 			wi_pool_drain(pool);
