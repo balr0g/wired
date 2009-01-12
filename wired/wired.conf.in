@@ -81,6 +81,13 @@ register = no
 # (default "wiredtracker://wired.zankasoftware.com/")
 tracker = wiredtracker://wired.zankasoftware.com/
 
+# IP address to send to the tracker. If this is not set, the tracker
+# will automatically register the server as the originating IP address.
+# Set this to your external address if you're on the same subnet as the
+# tracker, and you're using private addresses behind a firewall.
+# (no default)
+#ip = 127.0.0.1
+
 # If set, enables the tracker.
 # (default "no")
 enable tracker = no

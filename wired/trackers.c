@@ -242,7 +242,7 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 	wi_p7_message_t		*message;
 	wi_address_t		*address;
 	wi_socket_t			*socket;
-	wi_string_t			*ip, *error;
+	wi_string_t			*string, *ip, *error;
 	
 	if(!wi_lock_trylock(tracker->register_lock))
 		return;
@@ -368,6 +368,11 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 		wi_p7_message_set_string_for_name(message, wi_config_string_for_name(wd_config, WI_STR("description")), WI_STR("wired.info.description"));
 		wi_p7_message_set_uint64_for_name(message, wd_files_count, WI_STR("wired.info.files.count"));
 		wi_p7_message_set_uint64_for_name(message, wd_files_size, WI_STR("wired.info.files.size"));
+		
+		string = wi_config_string_for_name(wd_config, WI_STR("ip"));
+		
+		if(string)
+			wi_p7_message_set_uint32_for_name(message, string, WI_STR("wired.tracker.ip"));
 		
 		if(!wd_tracker_write_message(tracker, p7_socket, message))
 			continue;

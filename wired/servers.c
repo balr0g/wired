@@ -252,9 +252,11 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 	
 	address					= wi_socket_address(wd_user_socket(user));
 	server					= wi_autorelease(wd_server_init_with_message(wd_server_alloc(), message));
-	server->ip				= wi_retain(wi_address_string(address));
 	server->url				= wi_string_init_with_format(wi_string_alloc(), WI_STR("wired://"));
 	server->register_time	= wi_time_interval();
+	
+	if(!server->ip)
+		server->ip = wi_retain(wi_address_string(address));
 	
 	if(wi_address_family(address) == WI_ADDRESS_IPV6)
 		wi_string_append_format(server->url, WI_STR("[%@]"), server->ip);
@@ -375,6 +377,7 @@ static wd_server_t * wd_server_alloc(void) {
 
 static wd_server_t * wd_server_init_with_message(wd_server_t *server, wi_p7_message_t *message) {
 	server->token			= wi_uuid_init(wi_uuid_alloc());
+	server->ip				= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.tracker.ip")));
 	server->category		= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.tracker.category")));
 	server->name			= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.info.name")));
 	server->description		= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.info.description")));

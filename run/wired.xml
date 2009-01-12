@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b5">
+			 version="2.0b6">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -204,10 +204,11 @@
 		<p7:field name="wired.tracker.tracker" type="bool" id="11000" />
 		<p7:field name="wired.tracker.categories" type="list" listtype="string" id="11001" />
 		<p7:field name="wired.tracker.category" type="string" id="11002" />
-		<p7:field name="wired.tracker.port" type="uint32" id="11003" />
-		<p7:field name="wired.tracker.token" type="uuid" id="11004" />
-		<p7:field name="wired.tracker.url" type="string" id="11005" />
-		<p7:field name="wired.tracker.users" type="uint32" id="11006" />
+		<p7:field name="wired.tracker.ip" type="string" id="11003" />
+		<p7:field name="wired.tracker.port" type="uint32" id="11004" />
+		<p7:field name="wired.tracker.token" type="uuid" id="11005" />
+		<p7:field name="wired.tracker.url" type="string" id="11006" />
+		<p7:field name="wired.tracker.users" type="uint32" id="11007" />
 	</p7:fields>
 	
 	<p7:collections>
@@ -1087,6 +1088,7 @@
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.tracker.tracker" use="required" />
 			<p7:parameter field="wired.tracker.category" use="required" />
+			<p7:parameter field="wired.tracker.ip" />
 			<p7:parameter field="wired.tracker.port" use="required" />
 			<p7:parameter field="wired.tracker.users" use="required" />
 			<p7:parameter field="wired.info.name" use="required" />
