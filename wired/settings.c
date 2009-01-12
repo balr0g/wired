@@ -67,6 +67,7 @@ void wd_settings_init(void) {
 	
 	defaults = wi_dictionary_with_data_and_keys(
 		wi_array(),								WI_STR("address"),
+		WI_STR("banner.png"),						WI_STR("banner"),
 		wi_array(),								WI_STR("category"),
 		WI_STR("Wired Server"),					WI_STR("description"),
 		wi_number_with_bool(false),				WI_STR("enable tracker"),
