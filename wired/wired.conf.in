@@ -21,8 +21,8 @@ description = Wired Server
 port = 4871
 
 # Automatically map port using NAT-PMP. Only available on Mac OS X 10.5.
-# (default "yes")
-map port = yes
+# (default "no")
+map port = no
 
 # Name or id of the user that the server should operate as.
 # (default "@WD_USER@")
