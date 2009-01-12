@@ -535,12 +535,12 @@ static void wd_server_dnssd_portmap_service_callback(DNSServiceRef service, DNSS
 	
 	address = wi_address_init_with_ipv4_address(wi_address_alloc(), public_address);
 	
-	if(error == kDNSServiceErr_NoError) {
+	if(error == kDNSServiceErr_NoError && public_port != 0) {
 		wi_log_info(WI_STR("Mapped internal port %u to external port %u on %@"),
-			ntohs(private_port), ntohs(public_port), wi_address_string(address));
+			ntohs(private_port), ntohs(public_port), wi_address_string(address), error);
 	} else {
 		wi_log_warn(WI_STR("Could not create port mapping on %@: %d"),
-			error, wi_address_string(address));
+			wi_address_string(address), error);
 	}
 	
 	wi_release(address);
