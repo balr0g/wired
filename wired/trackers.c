@@ -372,7 +372,7 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 		string = wi_config_string_for_name(wd_config, WI_STR("ip"));
 		
 		if(string)
-			wi_p7_message_set_uint32_for_name(message, string, WI_STR("wired.tracker.ip"));
+			wi_p7_message_set_string_for_name(message, string, WI_STR("wired.tracker.ip"));
 		
 		if(!wd_tracker_write_message(tracker, p7_socket, message))
 			continue;

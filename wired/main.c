@@ -454,7 +454,6 @@ static int wd_wait_signals(void) {
 
 void wd_signal_thread(wi_runtime_instance_t *arg) {
 	wi_pool_t		*pool;
-	wi_uinteger_t	i = 0;
 	int				signal;
 
 	pool = wi_pool_init(wi_pool_alloc());
