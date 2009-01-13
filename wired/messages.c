@@ -71,6 +71,8 @@ static void							wd_message_news_post_news(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_news_clear_news(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_get_boards(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_get_posts(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_add_board(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_delete_board(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_list_directory(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_get_info(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_move(wd_user_t *, wi_p7_message_t *);
@@ -148,6 +150,8 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.news.clear_news"), wd_message_news_clear_news);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_boards"), wd_message_board_get_boards);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_posts"), wd_message_board_get_posts);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.add_board"), wd_message_board_add_board);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.delete_board"), wd_message_board_delete_board);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.list_directory"), wd_message_file_list_directory);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.get_info"), wd_message_file_get_info);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.move"), wd_message_file_move);
@@ -906,6 +910,26 @@ static void wd_message_board_get_boards(wd_user_t *user, wi_p7_message_t *messag
 
 static void wd_message_board_get_posts(wd_user_t *user, wi_p7_message_t *message) {
 	wd_board_reply_posts(user, message);
+}
+
+
+
+static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*board;
+	
+	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
+	
+	wd_board_add_board(board, user, message);
+}
+
+
+
+static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*board;
+	
+	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
+	
+	wd_board_delete_board(board, user, message);
 }
 
 
