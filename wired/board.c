@@ -40,7 +40,8 @@ static wi_p7_message_t *			_wd_board_message_with_post(wi_string_t *, wi_string_
 static wi_string_t *				_wd_board_board_path(wi_string_t *);
 static wi_string_t *				_wd_board_thread_path(wi_string_t *board, wi_uuid_t *);
 static wi_string_t *				_wd_board_post_path(wi_string_t *, wi_uuid_t *, wi_uuid_t *);
-	
+static wi_boolean_t					_wd_board_rename_board(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+
 
 static wi_string_t					*wd_board_path;
 static wi_rwlock_t					*wd_board_lock;
@@ -191,33 +192,22 @@ void wd_board_add_board(wi_string_t *board, wd_user_t *user, wi_p7_message_t *me
 
 void wd_board_rename_board(wi_string_t *oldboard, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t		*broadcast;
-	wi_string_t			*oldpath, *newpath;
-	wi_boolean_t		renamed = false;
 	
-	oldpath = _wd_board_board_path(oldboard);
-	newpath = _wd_board_board_path(newboard);
-	
-	wi_rwlock_wrlock(wd_board_lock);
-	
-	if(wi_fs_path_exists(oldpath, NULL)) {
-		if(!wi_fs_path_exists(oldpath, NULL)) {
-			if(wi_fs_rename_path(oldpath, newpath)) {
-				renamed = true;
-			} else {
-				wi_log_err(WI_STR("Could not rename %@ to %@: %m"), oldpath, newpath);
-				wd_user_reply_internal_error(user, message);
-			}
-		} else {
-			wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
-		}
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
-	}
-	
-	wi_rwlock_unlock(wd_board_lock);
-	
-	if(renamed) {
+	if(_wd_board_rename_board(oldboard, newboard, user, message)) {
 		broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_renamed"), wd_p7_spec);
+		wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
+		wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
+		wd_chat_broadcast_message(wd_public_chat, broadcast);
+	}
+}
+
+
+
+void wd_board_move_board(wi_string_t *oldboard, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
+	wi_p7_message_t		*broadcast;
+	
+	if(_wd_board_rename_board(oldboard, newboard, user, message)) {
+		broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_moved"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
 		wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
 		wd_chat_broadcast_message(wd_public_chat, broadcast);
@@ -253,6 +243,23 @@ void wd_board_delete_board(wi_string_t *board, wd_user_t *user, wi_p7_message_t 
 		wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
 		wd_chat_broadcast_message(wd_public_chat, broadcast);
 	}
+}
+
+
+
+#pragma mark -
+
+wi_boolean_t wd_board_name_is_valid(wi_string_t *board) {
+	if(wi_string_length(board) == 0)
+		return false;
+	
+	if(wi_string_contains_string(board, WI_STR(".."), 0))
+		return false;
+	
+	if(wi_string_has_prefix(board, WI_STR("/")))
+		return false;
+	
+	return true;
 }
 
 
@@ -331,6 +338,37 @@ static wi_string_t * _wd_board_post_path(wi_string_t *board, wi_uuid_t *thread, 
 	wi_string_append_path_extension(path, WI_STR("WiredPost"));
 	
 	return path;
+}
+
+
+
+static wi_boolean_t _wd_board_rename_board(wi_string_t *oldboard, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t			*oldpath, *newpath;
+	wi_boolean_t		renamed = false;
+	
+	oldpath = _wd_board_board_path(oldboard);
+	newpath = _wd_board_board_path(newboard);
+	
+	wi_rwlock_wrlock(wd_board_lock);
+	
+	if(wi_fs_path_exists(oldpath, NULL)) {
+		if(!wi_fs_path_exists(newpath, NULL)) {
+			if(wi_fs_rename_path(oldpath, newpath)) {
+				renamed = true;
+			} else {
+				wi_log_err(WI_STR("Could not rename %@ to %@: %m"), oldpath, newpath);
+				wd_user_reply_internal_error(user, message);
+			}
+		} else {
+			wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
+		}
+	} else {
+		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+	}
+	
+	wi_rwlock_unlock(wd_board_lock);
+	
+	return renamed;
 }
 
 
