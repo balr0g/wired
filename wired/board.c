@@ -268,12 +268,6 @@ wi_boolean_t wd_board_name_is_valid(wi_string_t *board) {
 
 static wi_dictionary_t * _wd_board_dictionary_with_post(wd_user_t *user, wi_string_t *subject, wi_string_t *text) {
 	return wi_dictionary_with_data_and_keys(
-		wi_date(),				WI_STR("wired.board.date"),
-		subject,				WI_STR("wired.board.subject"),
-		text,					WI_STR("wired.board.text"),
-		NULL);
-
-	return wi_dictionary_with_data_and_keys(
 		wd_user_nick(user),		WI_STR("wired.user.nick"),
 		wd_user_login(user),	WI_STR("wired.user.login"),
 		wi_date(),				WI_STR("wired.board.post_date"),
@@ -299,7 +293,8 @@ static wi_p7_message_t * _wd_board_message_with_post(wi_string_t *name, wi_strin
 	if(edit_date)
 		wi_p7_message_set_date_for_name(message, edit_date, WI_STR("wired.board.edit_date"));
 	
-	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.nick")), WI_STR("wired.board.nick"));
+	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.nick")), WI_STR("wired.user.nick"));
+	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.login")), WI_STR("wired.user.login"));
 	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.subject")), WI_STR("wired.board.subject"));
 	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.text")), WI_STR("wired.board.text"));
 
