@@ -76,6 +76,8 @@ static void							wd_message_board_delete_board(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_rename_board(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_move_board(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_add_post(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_edit_post(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_delete_post(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_list_directory(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_get_info(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_move(wd_user_t *, wi_p7_message_t *);
@@ -158,6 +160,8 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.rename_board"), wd_message_board_rename_board);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.move_board"), wd_message_board_move_board);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.add_post"), wd_message_board_add_post);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.edit_post"), wd_message_board_edit_post);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.delete_post"), wd_message_board_delete_post);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.list_directory"), wd_message_file_list_directory);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.get_info"), wd_message_file_get_info);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.move"), wd_message_file_move);
@@ -1018,14 +1022,56 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 		return;
 	}
 	
+	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
-	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 
 	if(thread)
 		wd_board_add_post(board, thread, subject, text, user, message);
 	else
 		wd_board_add_thread(board, subject, text, user, message);
+}
+
+
+
+static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*board, *subject, *text;
+	wi_uuid_t		*post, *thread;
+	
+	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
+	
+	if(!wd_board_name_is_valid(board)) {
+		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+		
+		return;
+	}
+	
+	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
+	post		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.post"));
+	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
+	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
+	
+	wd_board_edit_post(board, thread, post, subject, text, user, message);
+}
+
+
+
+static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*board;
+	wi_uuid_t		*post, *thread;
+	
+	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
+	
+	if(!wd_board_name_is_valid(board)) {
+		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+		
+		return;
+	}
+	
+	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
+	post		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.post"));
+	
+	wd_board_delete_post(board, thread, post, user, message);
 }
 
 

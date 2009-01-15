@@ -474,7 +474,7 @@ void wd_board_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, 
 			account = wd_user_account(user);
 			
 //			if(!account->board_edit_all_posts && account->board_edit_own_posts) {
-				login = wi_dictionary_data_for_key(instance, WI_STR("wired.board.login"));
+				login = wi_dictionary_data_for_key(instance, WI_STR("wired.user.login"));
 				
 				if(!wi_is_equal(login, wd_user_login(user))) {
 					wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
