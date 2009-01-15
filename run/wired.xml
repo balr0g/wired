@@ -721,8 +721,8 @@
 		<p7:message name="wired.board.move_thread" id="6120">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
-			<p7:parameter field="wired.board.new_board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
+			<p7:parameter field="wired.board.new_board" use="required" />
 		</p7:message>
 
 		<p7:message name="wired.board.thread_moved" id="6121">

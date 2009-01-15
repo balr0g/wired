@@ -78,6 +78,7 @@ static void							wd_message_board_move_board(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_add_post(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_edit_post(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_delete_post(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_move_thread(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_list_directory(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_get_info(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_move(wd_user_t *, wi_p7_message_t *);
@@ -162,6 +163,7 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.add_post"), wd_message_board_add_post);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.edit_post"), wd_message_board_edit_post);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.delete_post"), wd_message_board_delete_post);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.move_thread"), wd_message_board_move_thread);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.list_directory"), wd_message_file_list_directory);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.get_info"), wd_message_file_get_info);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.move"), wd_message_file_move);
@@ -1072,6 +1074,35 @@ static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *messa
 	post		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.post"));
 	
 	wd_board_delete_post(board, thread, post, user, message);
+}
+
+
+
+static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*oldboard, *newboard;
+	wi_uuid_t		*thread;
+	
+	oldboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
+	
+	if(!wd_board_name_is_valid(oldboard)) {
+		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+		
+		return;
+	}
+	
+	newboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.new_board"));
+	
+	if(!wd_board_name_is_valid(newboard)) {
+		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+		
+		return;
+	}
+	
+
+	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
+	
+	wd_board_move_thread(oldboard, thread, newboard, user, message);
+
 }
 
 
