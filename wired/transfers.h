@@ -34,9 +34,6 @@
 #include "files.h"
 #include "main.h"
 
-#define WD_TRANSFERS_PARTIAL_EXTENSION	".WiredTransfer"
-
-
 enum _wd_transfer_type {
 	WD_TRANSFER_DOWNLOAD				= 0,
 	WD_TRANSFER_UPLOAD
