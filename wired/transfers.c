@@ -42,6 +42,8 @@
 #include "settings.h"
 #include "transfers.h"
 
+#define WD_TRANSFERS_PARTIAL_EXTENSION	".WiredTransfer"
+
 #define WD_TRANSFERS_TIMER_INTERVAL		60.0
 #define WD_TRANSFERS_WAITING_INTERVAL	20.0
 
