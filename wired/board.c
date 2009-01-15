@@ -282,7 +282,7 @@ static wi_p7_message_t * _wd_board_message_with_post(wi_string_t *name, wi_strin
 	wi_p7_message_t		*message;
 	wi_date_t			*edit_date;
 	
-	message = wi_p7_message_with_name(WI_STR("wired.board.post_list"), wd_p7_spec);
+	message = wi_p7_message_with_name(name, wd_p7_spec);
 	wi_p7_message_set_string_for_name(message, board, WI_STR("wired.board.board"));
 	wi_p7_message_set_uuid_for_name(message, thread, WI_STR("wired.board.thread"));
 	wi_p7_message_set_uuid_for_name(message, post, WI_STR("wired.board.post"));
@@ -420,6 +420,29 @@ void wd_board_move_thread(wi_string_t *oldboard, wi_uuid_t *thread, wi_string_t 
 		wd_chat_broadcast_message(wd_public_chat, broadcast);
 	} else {
 		wi_log_err(WI_STR("Could not move %@ to %@: %m"), oldpath, newpath);
+		wd_user_reply_internal_error(user, message);
+	}
+	
+	wi_rwlock_unlock(wd_board_lock);
+}
+
+
+
+void wd_board_delete_thread(wi_string_t *board, wi_uuid_t *thread, wd_user_t *user, wi_p7_message_t *message) {
+	wi_p7_message_t		*broadcast;
+	wi_string_t			*path;
+	
+	path = _wd_board_thread_path(board, thread);
+	
+	wi_rwlock_wrlock(wd_board_lock);
+	
+	if(wi_fs_delete_path(path)) {
+		broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_deleted"), wd_p7_spec);
+		wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+		wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+		wd_chat_broadcast_message(wd_public_chat, broadcast);
+	} else {
+		wi_log_err(WI_STR("Could not delete %@: %m"), path);
 		wd_user_reply_internal_error(user, message);
 	}
 	
