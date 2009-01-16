@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b10">
+			 version="2.0b11">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -90,6 +90,14 @@
 		<p7:field name="wired.board.edit_date" type="date" id="6105" />
 		<p7:field name="wired.board.subject" type="string" id="6106" />
 		<p7:field name="wired.board.text" type="string" id="6107" />
+		<p7:field name="wired.board.owner" type="string" id="6108" />
+		<p7:field name="wired.board.owner.read" type="bool" id="6109" />
+		<p7:field name="wired.board.owner.write" type="bool" id="6110" />
+		<p7:field name="wired.board.group" type="string" id="6111" />
+		<p7:field name="wired.board.group.read" type="bool" id="6112" />
+		<p7:field name="wired.board.group.write" type="bool" id="6113" />
+		<p7:field name="wired.board.everyone.read" type="bool" id="6114" />
+		<p7:field name="wired.board.everyone.write" type="bool" id="6115" />
 
 		<p7:field name="wired.file.path" type="string" id="7000" />
 		<p7:field name="wired.file.type" type="enum" id="7001">
@@ -600,6 +608,14 @@
 		<p7:message name="wired.board.board_list" id="6101">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
+			<p7:parameter field="wired.board.owner" use="required" />
+			<p7:parameter field="wired.board.owner.read" use="required" />
+			<p7:parameter field="wired.board.owner.write" use="required" />
+			<p7:parameter field="wired.board.group" use="required" />
+			<p7:parameter field="wired.board.group.read" use="required" />
+			<p7:parameter field="wired.board.group.write" use="required" />
+			<p7:parameter field="wired.board.everyone.read" use="required" />
+			<p7:parameter field="wired.board.everyone.write" use="required" />
 		</p7:message>
 
 		<p7:message name="wired.board.board_list.done" id="6102">
@@ -630,10 +646,26 @@
 		<p7:message name="wired.board.add_board" id="6106">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
+			<p7:parameter field="wired.board.owner" use="required" />
+			<p7:parameter field="wired.board.owner.read" use="required" />
+			<p7:parameter field="wired.board.owner.write" use="required" />
+			<p7:parameter field="wired.board.group" use="required" />
+			<p7:parameter field="wired.board.group.read" use="required" />
+			<p7:parameter field="wired.board.group.write" use="required" />
+			<p7:parameter field="wired.board.everyone.read" use="required" />
+			<p7:parameter field="wired.board.everyone.write" use="required" />
 		</p7:message>
 
 		<p7:message name="wired.board.board_added" id="6107">
 			<p7:parameter field="wired.board.board" use="required" />
+			<p7:parameter field="wired.board.owner" use="required" />
+			<p7:parameter field="wired.board.owner.read" use="required" />
+			<p7:parameter field="wired.board.owner.write" use="required" />
+			<p7:parameter field="wired.board.group" use="required" />
+			<p7:parameter field="wired.board.group.read" use="required" />
+			<p7:parameter field="wired.board.group.write" use="required" />
+			<p7:parameter field="wired.board.everyone.read" use="required" />
+			<p7:parameter field="wired.board.everyone.write" use="required" />
 		</p7:message>
 
 		<p7:message name="wired.board.rename_board" id="6108">

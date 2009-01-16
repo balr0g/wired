@@ -31,24 +31,35 @@
 
 #include "users.h"
 
-void						wd_board_init(void);
+enum _wd_board_permissions {
+	WD_BOARD_OWNER_WRITE				= (2 << 6),
+	WD_BOARD_OWNER_READ					= (4 << 6),
+	WD_BOARD_GROUP_WRITE				= (2 << 3),
+	WD_BOARD_GROUP_READ					= (4 << 3),
+	WD_BOARD_EVERYONE_WRITE				= (2 << 0),
+	WD_BOARD_EVERYONE_READ				= (4 << 0)
+};
+typedef enum _wd_board_permissions		wd_board_permissions_t;
 
-void						wd_board_reply_boards(wd_user_t *, wi_p7_message_t *);
-void						wd_board_reply_posts(wd_user_t *, wi_p7_message_t *);
 
-void						wd_board_add_board(wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void						wd_board_rename_board(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void						wd_board_move_board(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void						wd_board_delete_board(wi_string_t *, wd_user_t *, wi_p7_message_t *);
+void									wd_board_init(void);
 
-wi_boolean_t				wd_board_name_is_valid(wi_string_t *);
+void									wd_board_reply_boards(wd_user_t *, wi_p7_message_t *);
+void									wd_board_reply_posts(wd_user_t *, wi_p7_message_t *);
 
-void						wd_board_add_thread(wi_string_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void						wd_board_move_thread(wi_string_t *, wi_uuid_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void						wd_board_delete_thread(wi_string_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
+void									wd_board_add_board(wi_string_t *, wi_string_t *, wi_string_t *, wi_uinteger_t, wd_user_t *, wi_p7_message_t *);
+void									wd_board_rename_board(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+void									wd_board_move_board(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+void									wd_board_delete_board(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
-void						wd_board_add_post(wi_string_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void						wd_board_edit_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void						wd_board_delete_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_board_name_is_valid(wi_string_t *);
+
+void									wd_board_add_thread(wi_string_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+void									wd_board_move_thread(wi_string_t *, wi_uuid_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+void									wd_board_delete_thread(wi_string_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
+
+void									wd_board_add_post(wi_string_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+void									wd_board_edit_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+void									wd_board_delete_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
 
 #endif /* WD_BOARD_H */

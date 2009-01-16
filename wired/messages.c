@@ -931,7 +931,9 @@ static void wd_message_board_get_posts(wd_user_t *user, wi_p7_message_t *message
 
 
 static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*board;
+	wi_string_t			*board, *owner, *group;
+	wi_p7_boolean_t		value;
+	wi_uinteger_t		mode;
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
@@ -941,7 +943,30 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 		return;
 	}
 	
-	wd_board_add_board(board, user, message);
+	owner = wi_p7_message_string_for_name(message, WI_STR("wired.board.owner"));
+	group = wi_p7_message_string_for_name(message, WI_STR("wired.board.group"));
+	
+	mode = 0;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.owner.read")) && value)
+		mode |= WD_BOARD_OWNER_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.owner.write")) && value)
+		mode |= WD_BOARD_OWNER_WRITE;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.group.read")) && value)
+		mode |= WD_BOARD_GROUP_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.group.write")) && value)
+		mode |= WD_BOARD_GROUP_WRITE;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.everyone.read")) && value)
+		mode |= WD_BOARD_EVERYONE_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.everyone.write")) && value)
+		mode |= WD_BOARD_EVERYONE_WRITE;
+
+	wd_board_add_board(board, owner, group, mode, user, message);
 }
 
 

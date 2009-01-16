@@ -88,6 +88,14 @@ void wd_board_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 
 			reply = wi_p7_message_with_name(WI_STR("wired.board.board_list"), wd_p7_spec);
 			wi_p7_message_set_string_for_name(reply, board, WI_STR("wired.board.board"));
+			wi_p7_message_set_string_for_name(reply, WI_STR("owner"), WI_STR("wired.board.owner"));
+			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.owner.read"));
+			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.owner.write"));
+			wi_p7_message_set_string_for_name(reply, WI_STR("group"), WI_STR("wired.board.group"));
+			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.group.read"));
+			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.group.write"));
+			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.everyone.read"));
+			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.everyone.write"));
 			wd_user_reply_message(user, reply, message);
 		}
 
@@ -159,7 +167,7 @@ void wd_board_reply_posts(wd_user_t *user, wi_p7_message_t *message) {
 
 #pragma mark -
 
-void wd_board_add_board(wi_string_t *board, wd_user_t *user, wi_p7_message_t *message) {
+void wd_board_add_board(wi_string_t *board, wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t		*broadcast;
 	wi_string_t			*path;
 	wi_boolean_t		added = false;
@@ -184,6 +192,14 @@ void wd_board_add_board(wi_string_t *board, wd_user_t *user, wi_p7_message_t *me
 	if(added) {
 		broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_added"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+		wi_p7_message_set_string_for_name(broadcast, owner, WI_STR("wired.board.owner"));
+		wi_p7_message_set_bool_for_name(broadcast, (mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
+		wi_p7_message_set_bool_for_name(broadcast, (mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
+		wi_p7_message_set_string_for_name(broadcast, group, WI_STR("wired.board.group"));
+		wi_p7_message_set_bool_for_name(broadcast, (mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
+		wi_p7_message_set_bool_for_name(broadcast, (mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
+		wi_p7_message_set_bool_for_name(broadcast, (mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
+		wi_p7_message_set_bool_for_name(broadcast, (mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
 		wd_chat_broadcast_message(wd_public_chat, broadcast);
 	}
 }
