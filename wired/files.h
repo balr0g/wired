@@ -33,16 +33,6 @@
 
 #include "users.h"
 
-#define WD_FILES_MAX_LEVEL				20
-
-#define WD_FILES_CHECKSUM_SIZE			1048576
-
-#define WD_FILES_META_PATH				".wired"
-#define WD_FILES_META_TYPE_PATH			".wired/type"
-#define WD_FILES_META_COMMENTS_PATH		".wired/comments"
-#define WD_FILES_META_PERMISSIONS_PATH	".wired/permissions"
-
-
 enum _wd_file_type {
 	WD_FILE_TYPE_FILE					= 0,
 	WD_FILE_TYPE_DIR,

@@ -48,9 +48,16 @@
 #include "transfers.h"
 #include "users.h"
 
+#define WD_FILES_META_PATH						".wired"
+#define WD_FILES_META_TYPE_PATH					".wired/type"
+#define WD_FILES_META_COMMENTS_PATH				".wired/comments"
+#define WD_FILES_META_PERMISSIONS_PATH			".wired/permissions"
+
 #define WD_FILES_COMMENT_FIELD_SEPARATOR		"\34"
 #define WD_FILES_COMMENT_SEPARATOR				"\35"
 #define WD_FILES_PERMISSIONS_FIELD_SEPARATOR	"\34"
+
+#define WD_FILES_MAX_LEVEL						20
 
 #define WD_FILES_INDEX_MAGIC					"WDIX"
 #define WD_FILES_INDEX_VERSION					1

@@ -35,16 +35,26 @@
 #include "server.h"
 #include "settings.h"
 
-static wi_dictionary_t *			_wd_board_dictionary_with_post(wd_user_t *, wi_string_t *, wi_string_t *);
-static wi_p7_message_t *			_wd_board_message_with_post(wi_string_t *, wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_dictionary_t *);
-static wi_string_t *				_wd_board_board_path(wi_string_t *);
-static wi_string_t *				_wd_board_thread_path(wi_string_t *board, wi_uuid_t *);
-static wi_string_t *				_wd_board_post_path(wi_string_t *, wi_uuid_t *, wi_uuid_t *);
-static wi_boolean_t					_wd_board_rename_board(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+#define WD_BOARD_META_PATH						".wired"
+#define WD_BOARD_META_PERMISSIONS_PATH			".wired/permissions"
+
+#define WD_BOARD_PERMISSIONS_FIELD_SEPARATOR	"\34"
 
 
-static wi_string_t					*wd_board_path;
-static wi_rwlock_t					*wd_board_lock;
+static wi_boolean_t								_wd_board_is_readable(wi_string_t *, wi_string_t *, wi_string_t *, wi_uinteger_t, wd_user_t *);
+static wi_boolean_t								_wd_board_is_writable(wi_string_t *, wi_string_t *, wi_string_t *, wi_uinteger_t, wd_user_t *);
+static wi_boolean_t								_wd_board_is_xable(wi_string_t *, wi_string_t *, wi_string_t *, wi_uinteger_t , wd_user_t *, wi_uinteger_t);
+static wi_boolean_t								_wd_board_get_permissions(wi_string_t *, wi_string_t **, wi_string_t **, wi_uinteger_t *);
+static wi_dictionary_t *						_wd_board_dictionary_with_post(wd_user_t *, wi_string_t *, wi_string_t *);
+static wi_p7_message_t *						_wd_board_message_with_post(wi_string_t *, wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_dictionary_t *);
+static wi_string_t *							_wd_board_board_path(wi_string_t *);
+static wi_string_t *							_wd_board_thread_path(wi_string_t *board, wi_uuid_t *);
+static wi_string_t *							_wd_board_post_path(wi_string_t *, wi_uuid_t *, wi_uuid_t *);
+static wi_boolean_t								_wd_board_rename_board(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+
+
+static wi_string_t								*wd_board_path;
+static wi_rwlock_t								*wd_board_lock;
 
 
 
@@ -60,9 +70,9 @@ void wd_board_init(void) {
 void wd_board_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 	wi_fsenumerator_t			*fsenumerator;
 	wi_p7_message_t				*reply;
-	wi_string_t					*path, *board;
+	wi_string_t					*path, *board, *owner, *group;
 	wi_fsenumerator_status_t	status;
-	wi_uinteger_t				pathlength;
+	wi_uinteger_t				mode, pathlength;
 	
 	pathlength = wi_string_length(wd_board_path);
 
@@ -85,18 +95,22 @@ void wd_board_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 			}
 			
 			board = wi_string_substring_from_index(path, pathlength + 1);
-
-			reply = wi_p7_message_with_name(WI_STR("wired.board.board_list"), wd_p7_spec);
-			wi_p7_message_set_string_for_name(reply, board, WI_STR("wired.board.board"));
-			wi_p7_message_set_string_for_name(reply, WI_STR("owner"), WI_STR("wired.board.owner"));
-			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.owner.read"));
-			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.owner.write"));
-			wi_p7_message_set_string_for_name(reply, WI_STR("group"), WI_STR("wired.board.group"));
-			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.group.read"));
-			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.group.write"));
-			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.everyone.read"));
-			wi_p7_message_set_bool_for_name(reply, true, WI_STR("wired.board.everyone.write"));
-			wd_user_reply_message(user, reply, message);
+			
+			if(_wd_board_get_permissions(board, &owner, &group, &mode)) {
+				if(_wd_board_is_readable(board, owner, group, mode, user)) {
+					reply = wi_p7_message_with_name(WI_STR("wired.board.board_list"), wd_p7_spec);
+					wi_p7_message_set_string_for_name(reply, board, WI_STR("wired.board.board"));
+					wi_p7_message_set_string_for_name(reply, owner, WI_STR("wired.board.owner"));
+					wi_p7_message_set_bool_for_name(reply, (mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
+					wi_p7_message_set_bool_for_name(reply, (mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
+					wi_p7_message_set_string_for_name(reply, group, WI_STR("wired.board.group"));
+					wi_p7_message_set_bool_for_name(reply, (mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.group.read"));
+					wi_p7_message_set_bool_for_name(reply, (mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.group.write"));
+					wi_p7_message_set_bool_for_name(reply, (mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.everyone.read"));
+					wi_p7_message_set_bool_for_name(reply, (mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
+					wd_user_reply_message(user, reply, message);
+				}
+			}
 		}
 
 		reply = wi_p7_message_with_name(WI_STR("wired.board.board_list.done"), wd_p7_spec);
@@ -117,9 +131,9 @@ void wd_board_reply_posts(wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t				*reply;
 	wi_array_t					*components;
 	wi_uuid_t					*thread, *post;
-	wi_string_t					*path, *board;
+	wi_string_t					*path, *board, *owner, *group;
 	wi_fsenumerator_status_t	status;
-	wi_uinteger_t				pathlength, count;
+	wi_uinteger_t				pathlength, count, mode;
 	
 	pathlength = wi_string_length(wd_board_path);
 	
@@ -148,8 +162,12 @@ void wd_board_reply_posts(wd_user_t *user, wi_p7_message_t *message) {
 				thread		= wi_uuid_with_string(wi_string_by_deleting_path_extension(WI_ARRAY(components, count - 2)));
 				board		= wi_array_components_joined_by_string(wi_array_subarray_with_range(components, wi_make_range(0, count - 2)), WI_STR("/"));
 				
-				reply = _wd_board_message_with_post(WI_STR("wired.board.post_list"), board, thread, post, instance);
-				wd_user_reply_message(user, reply, message);
+				if(_wd_board_get_permissions(board, &owner, &group, &mode)) {
+					if(_wd_board_is_readable(board, owner, group, mode, user)) {
+						reply = _wd_board_message_with_post(WI_STR("wired.board.post_list"), board, thread, post, instance);
+						wd_user_reply_message(user, reply, message);
+					}
+				}
 			}
 		}
 
@@ -179,6 +197,8 @@ void wd_board_add_board(wi_string_t *board, wi_string_t *owner, wi_string_t *gro
 	if(!wi_fs_path_exists(path, NULL)) {
 		if(wi_fs_create_directory(path, 0755)) {
 			added = true;
+			
+			wd_board_set_permissions(board, owner, group, mode, user, message);
 		} else {
 			wi_log_err(WI_STR("Could not create %@: %m"), path);
 			wd_user_reply_internal_error(user, message);
@@ -227,6 +247,41 @@ void wd_board_move_board(wi_string_t *oldboard, wi_string_t *newboard, wd_user_t
 		wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
 		wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
 		wd_chat_broadcast_message(wd_public_chat, broadcast);
+	}
+}
+
+
+
+void wd_board_set_permissions(wi_string_t *board, wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode, wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*path, *metapath, *permissionspath;
+	wi_string_t		*string;
+	
+	path = _wd_board_board_path(board);
+	metapath = wi_string_by_appending_path_component(path, WI_STR(WD_BOARD_META_PATH));
+	permissionspath = wi_string_by_appending_path_component(path, WI_STR(WD_BOARD_META_PERMISSIONS_PATH));
+	
+	if(wi_string_length(owner) > 0 || wi_string_length(group) > 0 || mode != 0) {
+		if(!wi_fs_create_directory(metapath, 0777)) {
+			if(wi_error_code() != EEXIST) {
+				wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
+				wd_user_reply_file_errno(user, message);
+				
+				return;
+			}
+		}
+		
+		string = wi_string_with_format(WI_STR("%#@%s%#@%s%u\n"),
+			owner,			WD_BOARD_PERMISSIONS_FIELD_SEPARATOR,
+			group,			WD_BOARD_PERMISSIONS_FIELD_SEPARATOR,
+			mode);
+		
+		if(!wi_string_write_to_file(string, permissionspath)) {
+			wi_log_warn(WI_STR("Could not write to %@: %m"), permissionspath);
+			wd_user_reply_file_errno(user, message);
+		}
+	} else {
+		if(wi_fs_delete_path(permissionspath))
+			(void) rmdir(wi_string_cstring(metapath));
 	}
 }
 
@@ -281,6 +336,73 @@ wi_boolean_t wd_board_name_is_valid(wi_string_t *board) {
 
 
 #pragma mark -
+
+static wi_boolean_t _wd_board_is_readable(wi_string_t *board, wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode, wd_user_t *user) {
+	return _wd_board_is_xable(board, owner, group, mode, user, WD_BOARD_OWNER_READ | WD_BOARD_GROUP_READ | WD_BOARD_EVERYONE_READ);
+}
+
+
+
+static wi_boolean_t _wd_board_is_writable(wi_string_t *board, wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode, wd_user_t *user) {
+	return _wd_board_is_xable(board, owner, group, mode, user, WD_BOARD_OWNER_WRITE | WD_BOARD_GROUP_WRITE | WD_BOARD_EVERYONE_WRITE);
+}
+
+
+
+static wi_boolean_t _wd_board_is_xable(wi_string_t *board, wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode, wd_user_t *user, wi_uinteger_t inmode) {
+	wd_account_t	*account;
+	
+	if(mode & inmode)
+		return true;
+	
+	account = wd_user_account(user);
+	
+	if(mode & inmode && wi_string_length(group) > 0) {
+		if(wi_is_equal(group, account->group) || wi_array_contains_data(account->groups, group))
+			return true;
+	}
+	
+	if(mode & inmode && wi_string_length(owner) > 0) {
+		if(wi_is_equal(owner, account->name))
+			return true;
+	}
+	
+	return false;
+}
+
+
+
+static wi_boolean_t _wd_board_get_permissions(wi_string_t *board, wi_string_t **owner, wi_string_t **group, wi_uinteger_t *mode) {
+	wi_string_t		*path, *permissionspath, *string;
+	wi_array_t		*array;
+	wi_fs_stat_t	sb;
+
+	path = _wd_board_board_path(board);
+	permissionspath = wi_string_by_appending_path_component(path, WI_STR(WD_BOARD_META_PERMISSIONS_PATH));
+	
+	if(!wi_fs_stat_path(permissionspath, &sb) || sb.size > 128)
+		return false;
+	
+	string = wi_autorelease(wi_string_init_with_contents_of_file(wi_string_alloc(), permissionspath));
+	
+	if(!string)
+		return false;
+	
+	wi_string_delete_surrounding_whitespace(string);
+	
+	array = wi_string_components_separated_by_string(string, WI_STR(WD_BOARD_PERMISSIONS_FIELD_SEPARATOR));
+	
+	if(wi_array_count(array) != 3)
+		return false;
+	
+	*owner = WI_ARRAY(array, 0);
+	*group = WI_ARRAY(array, 1);
+	*mode = wi_string_uint32(WI_ARRAY(array, 2));
+	
+	return true;
+}
+
+
 
 static wi_dictionary_t * _wd_board_dictionary_with_post(wd_user_t *user, wi_string_t *subject, wi_string_t *text) {
 	return wi_dictionary_with_data_and_keys(
