@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b9">
+			 version="2.0b10">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -812,6 +812,14 @@
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.file.path" use="required" />
 			<p7:parameter field="wired.file.type" />
+			<p7:parameter field="wired.file.owner" />
+			<p7:parameter field="wired.file.owner.read" />
+			<p7:parameter field="wired.file.owner.write" />
+			<p7:parameter field="wired.file.group" />
+			<p7:parameter field="wired.file.group.read" />
+			<p7:parameter field="wired.file.group.write" />
+			<p7:parameter field="wired.file.everyone.read" />
+			<p7:parameter field="wired.file.everyone.write" />
 		</p7:message>
 
 		<p7:message name="wired.file.search" id="7010">

@@ -1479,10 +1479,15 @@ static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
 
 
 static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t			*path, *properpath;
+	wi_string_t			*path, *owner, *group, *properpath;
+	wd_account_t		*account;
 	wd_file_type_t		type;
+	wi_p7_boolean_t		value;
+	wi_uinteger_t		mode;
 	
-	if(!wd_user_account(user)->file_create_directories) {
+	account = wd_user_account(user);
+	
+	if(!account->file_create_directories) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1505,9 +1510,42 @@ static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *m
 	if(!wi_p7_message_get_enum_for_name(message, &type, WI_STR("wired.file.type")))
 		type = WD_FILE_TYPE_DIR;
 
+	owner = wi_p7_message_string_for_name(message, WI_STR("wired.file.owner"));
+	
+	if(!owner)
+		owner = WI_STR("");
+	
+	group = wi_p7_message_string_for_name(message, WI_STR("wired.file.group"));
+	
+	if(!group)
+		group = WI_STR("");
+	
+	mode = 0;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.owner.read")) && value)
+		mode |= WD_FILE_OWNER_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.owner.write")) && value)
+		mode |= WD_FILE_OWNER_WRITE;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.group.read")) && value)
+		mode |= WD_FILE_GROUP_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.group.write")) && value)
+		mode |= WD_FILE_GROUP_WRITE;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.everyone.read")) && value)
+		mode |= WD_FILE_EVERYONE_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.everyone.write")) && value)
+		mode |= WD_FILE_EVERYONE_WRITE;
+	
 	properpath = wi_string_by_normalizing_path(path);
 
 	if(wd_files_create_path(properpath, type, user, message)) {
+		if(type == WD_FILE_TYPE_DROPBOX && account->file_set_permissions)
+			wd_files_set_permissions(properpath, owner, group, mode, user, message);
+		
 		wi_log_ll(WI_STR("%@ created \"%@\""),
 			wd_user_identifier(user),
 			wd_files_virtual_path(properpath, user));
