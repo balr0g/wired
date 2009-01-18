@@ -321,18 +321,6 @@ wi_boolean_t wd_board_name_is_valid(wi_string_t *board) {
 
 
 
-wi_boolean_t wd_board_is_writable(wi_string_t *board, wd_user_t *user) {
-	wi_string_t		*owner, *group;
-	wi_uinteger_t	mode;
-	
-	if(_wd_board_get_permissions(board, &owner, &group, &mode))
-		return _wd_board_is_writable(board, owner, group, mode, user);
-	
-	return false;
-}
-
-
-
 #pragma mark -
 
 static wi_boolean_t _wd_board_is_readable(wi_string_t *board, wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode, wd_user_t *user) {
@@ -375,27 +363,42 @@ static wi_boolean_t _wd_board_get_permissions(wi_string_t *board, wi_string_t **
 	wi_array_t		*array;
 	wi_fs_stat_t	sb;
 
-	path = _wd_board_board_path(board);
-	permissionspath = wi_string_by_appending_path_component(path, WI_STR(WD_BOARD_META_PERMISSIONS_PATH));
+	path				= _wd_board_board_path(board);
+	permissionspath		= wi_string_by_appending_path_component(path, WI_STR(WD_BOARD_META_PERMISSIONS_PATH));
 	
-	if(!wi_fs_stat_path(permissionspath, &sb) || sb.size > 128)
+	if(!wi_fs_stat_path(permissionspath, &sb)) {
+		wi_log_warn(WI_STR("Could not open %@: %m"), permissionspath);
+		
 		return false;
+	}
+	
+	if(sb.size > 128) {
+		wi_log_warn(WI_STR("Size of %@ is too large (%u"), permissionspath, sb.size);
+		
+		return false;
+	}
 	
 	string = wi_autorelease(wi_string_init_with_contents_of_file(wi_string_alloc(), permissionspath));
 	
-	if(!string)
+	if(!string) {
+		wi_log_warn(WI_STR("Could not read %@: %m"), permissionspath);
+		
 		return false;
+	}
 	
 	wi_string_delete_surrounding_whitespace(string);
 	
 	array = wi_string_components_separated_by_string(string, WI_STR(WD_BOARD_PERMISSIONS_FIELD_SEPARATOR));
 	
-	if(wi_array_count(array) != 3)
+	if(wi_array_count(array) != 3) {
+		wi_log_info(WI_STR("Contents of %@ is malformed (%@)"), permissionspath, string);
+		
 		return false;
+	}
 	
-	*owner = WI_ARRAY(array, 0);
-	*group = WI_ARRAY(array, 1);
-	*mode = wi_string_uint32(WI_ARRAY(array, 2));
+	*owner		= WI_ARRAY(array, 0);
+	*group		= WI_ARRAY(array, 1);
+	*mode		= wi_string_uint32(WI_ARRAY(array, 2));
 	
 	return true;
 }
@@ -406,9 +409,9 @@ static wi_boolean_t _wd_board_set_permissions(wi_string_t *board, wi_string_t *o
 	wi_string_t		*path, *metapath, *permissionspath;
 	wi_string_t		*string;
 	
-	path = _wd_board_board_path(board);
-	metapath = wi_string_by_appending_path_component(path, WI_STR(WD_BOARD_META_PATH));
-	permissionspath = wi_string_by_appending_path_component(path, WI_STR(WD_BOARD_META_PERMISSIONS_PATH));
+	path				= _wd_board_board_path(board);
+	metapath			= wi_string_by_appending_path_component(path, WI_STR(WD_BOARD_META_PATH));
+	permissionspath		= wi_string_by_appending_path_component(path, WI_STR(WD_BOARD_META_PERMISSIONS_PATH));
 	
 	if(!wi_fs_create_directory(metapath, 0777)) {
 		if(wi_error_code() != EEXIST) {
@@ -544,28 +547,37 @@ void wd_board_add_thread(wi_string_t *board, wi_string_t *subject, wi_string_t *
 	wi_p7_message_t		*broadcast;
 	wi_dictionary_t		*dictionary;
 	wi_uuid_t			*thread, *post;
-	wi_string_t			*path;
+	wi_string_t			*path, *owner, *group;
+	wi_uinteger_t		mode;
+	
+	wi_rwlock_wrlock(_wd_board_lock);
 	
 	thread	= wi_uuid();
 	path	= _wd_board_thread_path(board, thread);
 	
-	wi_rwlock_wrlock(_wd_board_lock);
-	
-	if(wi_fs_create_directory(path, 0755)) {
-		dictionary	= _wd_board_dictionary_with_post(user, subject, text);
-		post		= wi_uuid();
-		path		= _wd_board_post_path(board, thread, post);
-		
-		if(wi_plist_write_instance_to_file(dictionary, path)) {
-			broadcast = _wd_board_message_with_post(WI_STR("wired.board.post_added"), board, thread, post, dictionary);
-			wd_chat_broadcast_message(wd_public_chat, broadcast);
+	if(_wd_board_get_permissions(board, &owner, &group, &mode)) {
+		if(_wd_board_is_writable(board, owner, group, mode, user)) {
+			if(wi_fs_create_directory(path, 0755)) {
+				dictionary	= _wd_board_dictionary_with_post(user, subject, text);
+				post		= wi_uuid();
+				path		= _wd_board_post_path(board, thread, post);
+				
+				if(wi_plist_write_instance_to_file(dictionary, path)) {
+					broadcast = _wd_board_message_with_post(WI_STR("wired.board.post_added"), board, thread, post, dictionary);
+					wd_chat_broadcast_message(wd_public_chat, broadcast);
+				} else {
+					wi_log_err(WI_STR("Could not create %@: %m"), path);
+					wd_user_reply_internal_error(user, message);
+				}
+			} else {
+				wi_log_err(WI_STR("Could not create %@: %m"), path);
+				wd_user_reply_internal_error(user, message);
+			}
 		} else {
-			wi_log_err(WI_STR("Could not create %@: %m"), path);
-			wd_user_reply_internal_error(user, message);
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		}
 	} else {
-		wi_log_err(WI_STR("Could not create %@: %m"), path);
-		wd_user_reply_internal_error(user, message);
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 	
 	wi_rwlock_unlock(_wd_board_lock);
@@ -575,22 +587,33 @@ void wd_board_add_thread(wi_string_t *board, wi_string_t *subject, wi_string_t *
 
 void wd_board_move_thread(wi_string_t *oldboard, wi_uuid_t *thread, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t		*broadcast;
-	wi_string_t			*oldpath, *newpath;
+	wi_string_t			*oldpath, *newpath, *oldowner, *oldgroup, *newowner, *newgroup;
+	wi_uinteger_t		oldmode, newmode;
+	
+	wi_rwlock_wrlock(_wd_board_lock);
 	
 	oldpath = _wd_board_thread_path(oldboard, thread);
 	newpath = _wd_board_thread_path(newboard, thread);
 
-	wi_rwlock_wrlock(_wd_board_lock);
-	
-	if(wi_fs_rename_path(oldpath, newpath)) {
-		broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_moved"), wd_p7_spec);
-		wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
-		wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
-		wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
-		wd_chat_broadcast_message(wd_public_chat, broadcast);
+	if(_wd_board_get_permissions(oldboard, &oldowner, &oldgroup, &oldmode) &&
+	   _wd_board_get_permissions(newboard, &newowner, &newgroup, &newmode)) {
+		if(_wd_board_is_writable(oldboard, oldowner, oldgroup, oldmode, user) &&
+		   _wd_board_is_writable(newboard, newowner, newgroup, newmode, user)) {
+			if(wi_fs_rename_path(oldpath, newpath)) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_moved"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
+				wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
+				wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+				wd_chat_broadcast_message(wd_public_chat, broadcast);
+			} else {
+				wi_log_err(WI_STR("Could not move %@ to %@: %m"), oldpath, newpath);
+				wd_user_reply_internal_error(user, message);
+			}
+		} else {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		}
 	} else {
-		wi_log_err(WI_STR("Could not move %@ to %@: %m"), oldpath, newpath);
-		wd_user_reply_internal_error(user, message);
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 	
 	wi_rwlock_unlock(_wd_board_lock);
@@ -600,20 +623,29 @@ void wd_board_move_thread(wi_string_t *oldboard, wi_uuid_t *thread, wi_string_t 
 
 void wd_board_delete_thread(wi_string_t *board, wi_uuid_t *thread, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t		*broadcast;
-	wi_string_t			*path;
-	
-	path = _wd_board_thread_path(board, thread);
+	wi_string_t			*path, *owner, *group;
+	wi_uinteger_t		mode;
 	
 	wi_rwlock_wrlock(_wd_board_lock);
 	
-	if(wi_fs_delete_path(path)) {
-		broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_deleted"), wd_p7_spec);
-		wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-		wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
-		wd_chat_broadcast_message(wd_public_chat, broadcast);
+	path = _wd_board_thread_path(board, thread);
+	
+	if(_wd_board_get_permissions(board, &owner, &group, &mode)) {
+		if(_wd_board_is_writable(board, owner, group, mode, user)) {
+			if(wi_fs_delete_path(path)) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_deleted"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+				wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+				wd_chat_broadcast_message(wd_public_chat, broadcast);
+			} else {
+				wi_log_err(WI_STR("Could not delete %@: %m"), path);
+				wd_user_reply_internal_error(user, message);
+			}
+		} else {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		}
 	} else {
-		wi_log_err(WI_STR("Could not delete %@: %m"), path);
-		wd_user_reply_internal_error(user, message);
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 	
 	wi_rwlock_unlock(_wd_board_lock);
@@ -629,11 +661,11 @@ void wd_board_add_post(wi_string_t *board, wi_uuid_t *thread, wi_string_t *subje
 	wi_uuid_t			*post;
 	wi_string_t			*path;
 	
+	wi_rwlock_wrlock(_wd_board_lock);
+	
 	post		= wi_uuid();
 	path		= _wd_board_post_path(board, thread, post);
 	dictionary	= _wd_board_dictionary_with_post(user, subject, text);
-		
-	wi_rwlock_wrlock(_wd_board_lock);
 	
 	if(wi_plist_write_instance_to_file(dictionary, path)) {
 		broadcast = _wd_board_message_with_post(WI_STR("wired.board.post_added"), board, thread, post, dictionary);
@@ -652,58 +684,67 @@ void wd_board_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, 
 	wi_runtime_instance_t	*instance;
 	wi_p7_message_t			*broadcast;
 	wi_date_t				*edit_date;
-	wi_string_t				*path, *login;
+	wi_string_t				*path, *login, *owner, *group;
 	wd_account_t			*account;
+	wi_uinteger_t			mode;
 	wi_boolean_t			edit = true;
+	
+	wi_rwlock_wrlock(_wd_board_lock);
 	
 	path = _wd_board_post_path(board, thread, post);
 
-	wi_rwlock_wrlock(_wd_board_lock);
-	
-	instance = wi_plist_read_instance_from_file(path);
+	if(_wd_board_get_permissions(board, &owner, &group, &mode)) {
+		if(_wd_board_is_writable(board, owner, group, mode, user)) {
+			instance = wi_plist_read_instance_from_file(path);
 
-	if(instance) {
-		if(wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
-			account = wd_user_account(user);
-			
-//			if(!account->board_edit_all_posts && account->board_edit_own_posts) {
-				login = wi_dictionary_data_for_key(instance, WI_STR("wired.user.login"));
-				
-				if(!wi_is_equal(login, wd_user_login(user))) {
-					wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+			if(instance) {
+				if(wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
+					account = wd_user_account(user);
 					
-					edit = false;
-				}
-//			}
-			
-			if(edit) {
-				edit_date = wi_date();
-				
-				wi_dictionary_set_data_for_key(instance, edit_date, WI_STR("wired.board.edit_date"));
-				wi_dictionary_set_data_for_key(instance, subject, WI_STR("wired.board.subject"));
-				wi_dictionary_set_data_for_key(instance, text, WI_STR("wired.board.text"));
-				
-				if(wi_plist_write_instance_to_file(instance, path)) {
-					broadcast = wi_p7_message_with_name(WI_STR("wired.board.post_edited"), wd_p7_spec);
-					wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-					wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
-					wi_p7_message_set_uuid_for_name(broadcast, post, WI_STR("wired.board.post"));
-					wi_p7_message_set_date_for_name(broadcast, edit_date, WI_STR("wired.board.edit_date"));
-					wi_p7_message_set_string_for_name(broadcast, subject, WI_STR("wired.board.subject"));
-					wi_p7_message_set_string_for_name(broadcast, text, WI_STR("wired.board.text"));
-					wd_chat_broadcast_message(wd_public_chat, broadcast);
+		//			if(!account->board_edit_all_posts && account->board_edit_own_posts) {
+						login = wi_dictionary_data_for_key(instance, WI_STR("wired.user.login"));
+						
+						if(!wi_is_equal(login, wd_user_login(user))) {
+							wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+							
+							edit = false;
+						}
+		//			}
+					
+					if(edit) {
+						edit_date = wi_date();
+						
+						wi_dictionary_set_data_for_key(instance, edit_date, WI_STR("wired.board.edit_date"));
+						wi_dictionary_set_data_for_key(instance, subject, WI_STR("wired.board.subject"));
+						wi_dictionary_set_data_for_key(instance, text, WI_STR("wired.board.text"));
+						
+						if(wi_plist_write_instance_to_file(instance, path)) {
+							broadcast = wi_p7_message_with_name(WI_STR("wired.board.post_edited"), wd_p7_spec);
+							wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+							wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+							wi_p7_message_set_uuid_for_name(broadcast, post, WI_STR("wired.board.post"));
+							wi_p7_message_set_date_for_name(broadcast, edit_date, WI_STR("wired.board.edit_date"));
+							wi_p7_message_set_string_for_name(broadcast, subject, WI_STR("wired.board.subject"));
+							wi_p7_message_set_string_for_name(broadcast, text, WI_STR("wired.board.text"));
+							wd_chat_broadcast_message(wd_public_chat, broadcast);
+						} else {
+							wi_log_err(WI_STR("Could not edit %@: %m"), path);
+							wd_user_reply_internal_error(user, message);
+						}
+					}
 				} else {
-					wi_log_err(WI_STR("Could not edit %@: %m"), path);
+					wi_log_err(WI_STR("Could not edit %@: File is not a dictionary"), path);
 					wd_user_reply_internal_error(user, message);
 				}
+			} else {
+				wi_log_err(WI_STR("Could not open %@: %m"), path);
+				wd_user_reply_internal_error(user, message);
 			}
 		} else {
-			wi_log_err(WI_STR("Could not edit %@: File is not a dictionary"), path);
-			wd_user_reply_internal_error(user, message);
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		}
 	} else {
-		wi_log_err(WI_STR("Could not open %@: %m"), path);
-		wd_user_reply_internal_error(user, message);
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 	
 	wi_rwlock_unlock(_wd_board_lock);
@@ -713,23 +754,32 @@ void wd_board_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, 
 
 void wd_board_delete_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t		*broadcast;
-	wi_string_t			*path;
-	
-	path = _wd_board_post_path(board, thread, post);
+	wi_string_t			*path, *owner, *group;
+	wi_uinteger_t		mode;
 	
 	wi_rwlock_wrlock(_wd_board_lock);
 	
-	if(wi_fs_delete_path(path)) {
-		(void) rmdir(wi_string_cstring(wi_string_by_deleting_last_path_component(path)));
+	path = _wd_board_post_path(board, thread, post);
+	
+	if(_wd_board_get_permissions(board, &owner, &group, &mode)) {
+		if(_wd_board_is_writable(board, owner, group, mode, user)) {
+			if(wi_fs_delete_path(path)) {
+				(void) rmdir(wi_string_cstring(wi_string_by_deleting_last_path_component(path)));
 
-		broadcast = wi_p7_message_with_name(WI_STR("wired.board.post_deleted"), wd_p7_spec);
-		wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-		wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
-		wi_p7_message_set_uuid_for_name(broadcast, post, WI_STR("wired.board.post"));
-		wd_chat_broadcast_message(wd_public_chat, broadcast);
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.post_deleted"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+				wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+				wi_p7_message_set_uuid_for_name(broadcast, post, WI_STR("wired.board.post"));
+				wd_chat_broadcast_message(wd_public_chat, broadcast);
+			} else {
+				wi_log_err(WI_STR("Could not delete %@: %m"), path);
+				wd_user_reply_internal_error(user, message);
+			}
+		} else {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		}
 	} else {
-		wi_log_err(WI_STR("Could not delete %@: %m"), path);
-		wd_user_reply_internal_error(user, message);
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 	
 	wi_rwlock_unlock(_wd_board_lock);
