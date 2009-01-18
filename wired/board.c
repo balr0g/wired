@@ -373,7 +373,7 @@ static wi_boolean_t _wd_board_get_permissions(wi_string_t *board, wi_string_t **
 	}
 	
 	if(sb.size > 128) {
-		wi_log_warn(WI_STR("Size of %@ is too large (%u"), permissionspath, sb.size);
+		wi_log_warn(WI_STR("Could not read %@: Size is too large (%u"), permissionspath, sb.size);
 		
 		return false;
 	}
@@ -391,7 +391,7 @@ static wi_boolean_t _wd_board_get_permissions(wi_string_t *board, wi_string_t **
 	array = wi_string_components_separated_by_string(string, WI_STR(WD_BOARD_PERMISSIONS_FIELD_SEPARATOR));
 	
 	if(wi_array_count(array) != 3) {
-		wi_log_info(WI_STR("Contents of %@ is malformed (%@)"), permissionspath, string);
+		wi_log_info(WI_STR("Could not read %@: Contents is malformed (%@)"), permissionspath, string);
 		
 		return false;
 	}
