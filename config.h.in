@@ -90,6 +90,9 @@
 /* Subversion revision */
 #undef WI_REVISION
 
+/* 64-bit ino_t on Darwin */
+#undef _DARWIN_USE_64_BIT_INODE
+
 /* Number of bits in a file offset, on hosts where this is settable. */
 #undef _FILE_OFFSET_BITS
 

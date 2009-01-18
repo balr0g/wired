@@ -189,6 +189,7 @@ AC_CHECK_HEADERS([dns_sd.h], [
 # Checks for typedefs, structures, and compiler characteristics
 
 AC_SYS_LARGEFILE
+AC_DEFINE([_DARWIN_USE_64_BIT_INODE], [1], [64-bit ino_t on Darwin])
 
 
 #######################################################################

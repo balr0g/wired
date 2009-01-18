@@ -8657,6 +8657,11 @@ rm -f conftest*
 fi
 
 
+cat >>confdefs.h <<\_ACEOF
+#define _DARWIN_USE_64_BIT_INODE 1
+_ACEOF
+
+
 
 #######################################################################
 # Output
