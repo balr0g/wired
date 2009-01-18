@@ -46,6 +46,7 @@ static wi_boolean_t								_wd_board_is_writable(wi_string_t *, wi_string_t *, w
 static wi_boolean_t								_wd_board_is_xable(wi_string_t *, wi_string_t *, wi_string_t *, wi_uinteger_t , wd_user_t *, wi_uinteger_t);
 static wi_boolean_t								_wd_board_get_permissions(wi_string_t *, wi_string_t **, wi_string_t **, wi_uinteger_t *);
 static wi_boolean_t								_wd_board_set_permissions(wi_string_t *, wi_string_t *, wi_string_t *, wi_uinteger_t, wd_user_t *, wi_p7_message_t *);
+static void										_wd_board_broadcast_message(wi_string_t *, wi_p7_message_t *, wi_string_t *, wi_string_t *, wi_uinteger_t);
 static wi_dictionary_t *						_wd_board_dictionary_with_post(wd_user_t *, wi_string_t *, wi_string_t *);
 static wi_p7_message_t *						_wd_board_message_with_post(wi_string_t *, wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_dictionary_t *);
 static wi_string_t *							_wd_board_board_path(wi_string_t *);
@@ -221,7 +222,7 @@ void wd_board_add_board(wi_string_t *board, wi_string_t *owner, wi_string_t *gro
 		wi_p7_message_set_bool_for_name(broadcast, (mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
 		wi_p7_message_set_bool_for_name(broadcast, (mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
 		wi_p7_message_set_bool_for_name(broadcast, (mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
-		wd_chat_broadcast_message(wd_public_chat, broadcast);
+		_wd_board_broadcast_message(board, broadcast, owner, group, mode);
 	}
 }
 
@@ -435,6 +436,27 @@ static wi_boolean_t _wd_board_set_permissions(wi_string_t *board, wi_string_t *o
 	}
 	
 	return true;
+}
+
+
+
+static void _wd_board_broadcast_message(wi_string_t *board, wi_p7_message_t *message, wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode) {
+	wi_enumerator_t		*enumerator;
+	wi_array_t			*users;
+	wd_user_t			*user;
+	
+	users = wd_chat_users(wd_public_chat);
+	
+	wi_array_rdlock(users);
+
+	enumerator = wi_array_data_enumerator(users);
+	
+	while((user = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(user) == WD_USER_LOGGED_IN && _wd_board_is_readable(board, owner, group, mode, user))
+			wd_user_send_message(user, message);
+	}
+	
+	wi_array_unlock(users);
 }
 
 
