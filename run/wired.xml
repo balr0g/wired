@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b11">
+			 version="2.0b13">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -145,45 +145,54 @@
 		<p7:field name="wired.account.chat.create_chats" type="bool" id="8017" />
 		<p7:field name="wired.account.message.send_messages" type="bool" id="8018" />
 		<p7:field name="wired.account.message.broadcast" type="bool" id="8019" />
-		<p7:field name="wired.account.news.read_news" type="bool" id="8020" />
-		<p7:field name="wired.account.news.post_news" type="bool" id="8021" />
-		<p7:field name="wired.account.news.clear_news" type="bool" id="8022" />
-		<p7:field name="wired.account.file.list_files" type="bool" id="8023" />
-		<p7:field name="wired.account.file.get_info" type="bool" id="8024" />
-		<p7:field name="wired.account.file.create_directories" type="bool" id="8025" />
-		<p7:field name="wired.account.file.create_links" type="bool" id="8026" />
-		<p7:field name="wired.account.file.move_files" type="bool" id="8027" />
-		<p7:field name="wired.account.file.rename_files" type="bool" id="8028" />
-		<p7:field name="wired.account.file.set_type" type="bool" id="8029" />
-		<p7:field name="wired.account.file.set_comment" type="bool" id="8030" />
-		<p7:field name="wired.account.file.set_permissions" type="bool" id="8031" />
-		<p7:field name="wired.account.file.set_executable" type="bool" id="8032" />
-		<p7:field name="wired.account.file.delete_files" type="bool" id="8033" />
-		<p7:field name="wired.account.file.access_all_dropboxes" type="bool" id="8034" />
-		<p7:field name="wired.account.file.recursive_list_depth_limit" type="uint32" id="8035" />
-		<p7:field name="wired.account.transfer.download_files" type="bool" id="8036" />
-		<p7:field name="wired.account.transfer.upload_files" type="bool" id="8037" />
-		<p7:field name="wired.account.transfer.upload_directories" type="bool" id="8038" />
-		<p7:field name="wired.account.transfer.upload_anywhere" type="bool" id="8039" />
-		<p7:field name="wired.account.transfer.download_limit" type="uint32" id="8040" />
-		<p7:field name="wired.account.transfer.upload_limit" type="uint32" id="8041" />
-		<p7:field name="wired.account.transfer.download_speed_limit" type="uint32" id="8042" />
-		<p7:field name="wired.account.transfer.upload_speed_limit" type="uint32" id="8043" />
-		<p7:field name="wired.account.account.change_password" type="bool" id="8044" />
-		<p7:field name="wired.account.account.list_accounts" type="bool" id="8045" />
-		<p7:field name="wired.account.account.read_accounts" type="bool" id="8046" />
-		<p7:field name="wired.account.account.create_accounts" type="bool" id="8047" />
-		<p7:field name="wired.account.account.edit_accounts" type="bool" id="8048" />
-		<p7:field name="wired.account.account.delete_accounts" type="bool" id="8049" />
-		<p7:field name="wired.account.account.raise_account_privileges" type="bool" id="8050" />
-		<p7:field name="wired.account.log.view_log" type="bool" id="8051" />
-		<p7:field name="wired.account.settings.get_settings" type="bool" id="8052" />
-		<p7:field name="wired.account.settings.set_settings" type="bool" id="8053" />
-		<p7:field name="wired.account.banlist.get_bans" type="bool" id="8054" />
-		<p7:field name="wired.account.banlist.add_bans" type="bool" id="8055" />
-		<p7:field name="wired.account.banlist.delete_bans" type="bool" id="8056" />
-		<p7:field name="wired.account.tracker.list_servers" type="bool" id="8057" />
-		<p7:field name="wired.account.tracker.register_servers" type="bool" id="8058" />
+		<p7:field name="wired.account.board.read_boards" type="bool" id="8020" />
+		<p7:field name="wired.account.board.add_boards" type="bool" id="8021" />
+		<p7:field name="wired.account.board.move_boards" type="bool" id="8022" />
+		<p7:field name="wired.account.board.rename_boards" type="bool" id="8023" />
+		<p7:field name="wired.account.board.delete_boards" type="bool" id="8024" />
+		<p7:field name="wired.account.board.add_threads" type="bool" id="8025" />
+		<p7:field name="wired.account.board.move_threads" type="bool" id="8026" />
+		<p7:field name="wired.account.board.delete_threads" type="bool" id="8027" />
+		<p7:field name="wired.account.board.add_posts" type="bool" id="8028" />
+		<p7:field name="wired.account.board.edit_own_posts" type="bool" id="8029" />
+		<p7:field name="wired.account.board.edit_all_posts" type="bool" id="8030" />
+		<p7:field name="wired.account.board.delete_posts" type="bool" id="8031" />
+		<p7:field name="wired.account.file.list_files" type="bool" id="8032" />
+		<p7:field name="wired.account.file.get_info" type="bool" id="8033" />
+		<p7:field name="wired.account.file.create_directories" type="bool" id="8034" />
+		<p7:field name="wired.account.file.create_links" type="bool" id="8035" />
+		<p7:field name="wired.account.file.move_files" type="bool" id="8036" />
+		<p7:field name="wired.account.file.rename_files" type="bool" id="8037" />
+		<p7:field name="wired.account.file.set_type" type="bool" id="8038" />
+		<p7:field name="wired.account.file.set_comment" type="bool" id="8039" />
+		<p7:field name="wired.account.file.set_permissions" type="bool" id="8040" />
+		<p7:field name="wired.account.file.set_executable" type="bool" id="8041" />
+		<p7:field name="wired.account.file.delete_files" type="bool" id="8042" />
+		<p7:field name="wired.account.file.access_all_dropboxes" type="bool" id="8043" />
+		<p7:field name="wired.account.file.recursive_list_depth_limit" type="uint32" id="8044" />
+		<p7:field name="wired.account.transfer.download_files" type="bool" id="8045" />
+		<p7:field name="wired.account.transfer.upload_files" type="bool" id="8046" />
+		<p7:field name="wired.account.transfer.upload_directories" type="bool" id="8047" />
+		<p7:field name="wired.account.transfer.upload_anywhere" type="bool" id="8048" />
+		<p7:field name="wired.account.transfer.download_limit" type="uint32" id="8049" />
+		<p7:field name="wired.account.transfer.upload_limit" type="uint32" id="8050" />
+		<p7:field name="wired.account.transfer.download_speed_limit" type="uint32" id="8051" />
+		<p7:field name="wired.account.transfer.upload_speed_limit" type="uint32" id="8052" />
+		<p7:field name="wired.account.account.change_password" type="bool" id="8053" />
+		<p7:field name="wired.account.account.list_accounts" type="bool" id="8054" />
+		<p7:field name="wired.account.account.read_accounts" type="bool" id="8055" />
+		<p7:field name="wired.account.account.create_accounts" type="bool" id="8056" />
+		<p7:field name="wired.account.account.edit_accounts" type="bool" id="8057" />
+		<p7:field name="wired.account.account.delete_accounts" type="bool" id="8058" />
+		<p7:field name="wired.account.account.raise_account_privileges" type="bool" id="8059" />
+		<p7:field name="wired.account.log.view_log" type="bool" id="8060" />
+		<p7:field name="wired.account.settings.get_settings" type="bool" id="8061" />
+		<p7:field name="wired.account.settings.set_settings" type="bool" id="8062" />
+		<p7:field name="wired.account.banlist.get_bans" type="bool" id="8063" />
+		<p7:field name="wired.account.banlist.add_bans" type="bool" id="8064" />
+		<p7:field name="wired.account.banlist.delete_bans" type="bool" id="8065" />
+		<p7:field name="wired.account.tracker.list_servers" type="bool" id="8066" />
+		<p7:field name="wired.account.tracker.register_servers" type="bool" id="8067" />
 
 		<p7:field name="wired.transfer.type" type="enum" id="9000">
 			<p7:enum name="wired.transfer.type.download" value="0" />
@@ -269,9 +278,18 @@
 			<p7:member field="wired.account.chat.create_chats" />
 			<p7:member field="wired.account.message.send_messages" />
 			<p7:member field="wired.account.message.broadcast" />
-			<p7:member field="wired.account.news.read_news" />
-			<p7:member field="wired.account.news.post_news" />
-			<p7:member field="wired.account.news.clear_news" />
+			<p7:member field="wired.account.board.read_boards" />
+			<p7:member field="wired.account.board.add_boards" />
+			<p7:member field="wired.account.board.move_boards" />
+			<p7:member field="wired.account.board.rename_boards" />
+			<p7:member field="wired.account.board.delete_boards" />
+			<p7:member field="wired.account.board.add_threads" />
+			<p7:member field="wired.account.board.move_threads" />
+			<p7:member field="wired.account.board.delete_threads" />
+			<p7:member field="wired.account.board.add_posts" />
+			<p7:member field="wired.account.board.edit_own_posts" />
+			<p7:member field="wired.account.board.edit_all_posts" />
+			<p7:member field="wired.account.board.delete_posts" />
 			<p7:member field="wired.account.file.list_files" />
 			<p7:member field="wired.account.file.get_info" />
 			<p7:member field="wired.account.file.create_directories" />
@@ -699,38 +717,63 @@
 			<p7:parameter field="wired.board.board" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.board.add_thread" id="6114">
+		<p7:message name="wired.board.set_permissions" id="6114">
+			<p7:parameter field="wired.transaction" />
+			<p7:parameter field="wired.board.board" use="required" />
+			<p7:parameter field="wired.board.owner" use="required" />
+			<p7:parameter field="wired.board.owner.read" use="required" />
+			<p7:parameter field="wired.board.owner.write" use="required" />
+			<p7:parameter field="wired.board.group" use="required" />
+			<p7:parameter field="wired.board.group.read" use="required" />
+			<p7:parameter field="wired.board.group.write" use="required" />
+			<p7:parameter field="wired.board.everyone.read" use="required" />
+			<p7:parameter field="wired.board.everyone.write" use="required" />
+		</p7:message>
+
+		<p7:message name="wired.board.permissions_changed" id="6115">
+			<p7:parameter field="wired.board.board" use="required" />
+			<p7:parameter field="wired.board.owner" use="required" />
+			<p7:parameter field="wired.board.owner.read" use="required" />
+			<p7:parameter field="wired.board.owner.write" use="required" />
+			<p7:parameter field="wired.board.group" use="required" />
+			<p7:parameter field="wired.board.group.read" use="required" />
+			<p7:parameter field="wired.board.group.write" use="required" />
+			<p7:parameter field="wired.board.everyone.read" use="required" />
+			<p7:parameter field="wired.board.everyone.write" use="required" />
+		</p7:message>
+
+		<p7:message name="wired.board.add_thread" id="6116">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.subject" use="required" />
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.move_thread" id="6115">
+		<p7:message name="wired.board.move_thread" id="6117">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.new_board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.thread_moved" id="6116">
+		<p7:message name="wired.board.thread_moved" id="6118">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.new_board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.delete_thread" id="6117">
+		<p7:message name="wired.board.delete_thread" id="6119">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.thread_deleted" id="6118">
+		<p7:message name="wired.board.thread_deleted" id="6120">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.add_post" id="6119">
+		<p7:message name="wired.board.add_post" id="6121">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
@@ -738,7 +781,7 @@
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.post_added" id="6120">
+		<p7:message name="wired.board.post_added" id="6122">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 			<p7:parameter field="wired.board.post" use="required" />
@@ -749,7 +792,7 @@
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.edit_post" id="6121">
+		<p7:message name="wired.board.edit_post" id="6123">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
@@ -758,7 +801,7 @@
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.post_edited" id="6122">
+		<p7:message name="wired.board.post_edited" id="6124">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 			<p7:parameter field="wired.board.post" use="required" />
@@ -767,14 +810,14 @@
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.delete_post" id="6123">
+		<p7:message name="wired.board.delete_post" id="6125">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 			<p7:parameter field="wired.board.post" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.post_deleted" id="6124">
+		<p7:message name="wired.board.post_deleted" id="6126">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />

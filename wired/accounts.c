@@ -672,12 +672,12 @@ wd_account_t * wd_account_init_user_with_array(wd_account_t *account, wi_array_t
 	account->name								= wi_retain(wd_account_next_string(array, &i));
 	account->password							= wi_retain(wd_account_next_string(array, &i));
 	account->group								= wi_retain(wd_account_next_string(array, &i));
-	account->user_get_info						= wd_account_next_bool(array, false, &i);
+	account->user_get_info						= wd_account_next_bool(array, true, &i);
 	account->message_broadcast					= wd_account_next_bool(array, false, &i);
-	account->news_post_news						= wd_account_next_bool(array, false, &i);
-	account->news_clear_news					= wd_account_next_bool(array, false, &i);
-	account->transfer_download_files			= wd_account_next_bool(array, false, &i);
-	account->transfer_upload_files				= wd_account_next_bool(array, false, &i);
+	account->board_add_posts					= wd_account_next_bool(array, true, &i);
+	account->board_delete_posts					= wd_account_next_bool(array, true, &i);
+	account->transfer_download_files			= wd_account_next_bool(array, true, &i);
+	account->transfer_upload_files				= wd_account_next_bool(array, true, &i);
 	account->transfer_upload_anywhere			= wd_account_next_bool(array, false, &i);
 	account->file_create_directories			= wd_account_next_bool(array, false, &i);
 	account->file_move_files					= wd_account_next_bool(array, false, &i);
@@ -704,7 +704,7 @@ wd_account_t * wd_account_init_user_with_array(wd_account_t *account, wi_array_t
 	account->groups								= wi_retain(wd_account_next_array(array, &i));
 	account->chat_create_chats					= wd_account_next_bool(array, true, &i);
 	account->message_send_messages				= wd_account_next_bool(array, true, &i);
-	account->news_read_news						= wd_account_next_bool(array, true, &i);
+	account->board_read_boards					= wd_account_next_bool(array, true, &i);
 	account->file_list_files					= wd_account_next_bool(array, true, &i);
 	account->file_get_info						= wd_account_next_bool(array, true, &i);
 	account->file_create_links					= wd_account_next_bool(array, false, &i);
@@ -728,7 +728,16 @@ wd_account_t * wd_account_init_user_with_array(wd_account_t *account, wi_array_t
 	account->banlist_delete_bans				= wd_account_next_bool(array, false, &i);
 	account->tracker_list_servers				= wd_account_next_bool(array, false, &i);
 	account->tracker_register_servers			= wd_account_next_bool(array, false, &i);
-	
+	account->board_add_boards					= wd_account_next_bool(array, false, &i);
+	account->board_move_boards					= wd_account_next_bool(array, false, &i);
+	account->board_rename_boards				= wd_account_next_bool(array, false, &i);
+	account->board_delete_boards				= wd_account_next_bool(array, false, &i);
+	account->board_add_threads					= wd_account_next_bool(array, true, &i);
+	account->board_move_threads					= wd_account_next_bool(array, false, &i);
+	account->board_delete_threads				= wd_account_next_bool(array, false, &i);
+	account->board_edit_own_posts				= wd_account_next_bool(array, true, &i);
+	account->board_edit_all_posts				= wd_account_next_bool(array, false, &i);
+
 	if(wi_string_length(account->password) == 0) {
 		wi_release(account->password);
 		account->password = wi_retain(wi_string_sha1(account->password));
@@ -748,8 +757,8 @@ wd_account_t * wd_account_init_group_with_array(wd_account_t *account, wi_array_
 	account->name								= wi_retain(wd_account_next_string(array, &i));
 	account->user_get_info						= wd_account_next_bool(array, false, &i);
 	account->message_broadcast					= wd_account_next_bool(array, false, &i);
-	account->news_post_news						= wd_account_next_bool(array, false, &i);
-	account->news_clear_news					= wd_account_next_bool(array, false, &i);
+	account->board_add_posts					= wd_account_next_bool(array, false, &i);
+	account->board_delete_posts					= wd_account_next_bool(array, false, &i);
 	account->transfer_download_files			= wd_account_next_bool(array, false, &i);
 	account->transfer_upload_files				= wd_account_next_bool(array, false, &i);
 	account->transfer_upload_anywhere			= wd_account_next_bool(array, false, &i);
@@ -775,7 +784,7 @@ wd_account_t * wd_account_init_group_with_array(wd_account_t *account, wi_array_
 	account->edited_by							= wi_retain(wd_account_next_string(array, &i));
 	account->chat_create_chats					= wd_account_next_bool(array, true, &i);
 	account->message_send_messages				= wd_account_next_bool(array, true, &i);
-	account->news_read_news						= wd_account_next_bool(array, true, &i);
+	account->board_read_boards					= wd_account_next_bool(array, true, &i);
 	account->file_list_files					= wd_account_next_bool(array, true, &i);
 	account->file_get_info						= wd_account_next_bool(array, true, &i);
 	account->file_create_links					= wd_account_next_bool(array, false, &i);
@@ -799,7 +808,16 @@ wd_account_t * wd_account_init_group_with_array(wd_account_t *account, wi_array_
 	account->banlist_delete_bans				= wd_account_next_bool(array, false, &i);
 	account->tracker_list_servers				= wd_account_next_bool(array, false, &i);
 	account->tracker_register_servers			= wd_account_next_bool(array, false, &i);
-
+	account->board_add_boards					= wd_account_next_bool(array, false, &i);
+	account->board_move_boards					= wd_account_next_bool(array, false, &i);
+	account->board_rename_boards				= wd_account_next_bool(array, false, &i);
+	account->board_delete_boards				= wd_account_next_bool(array, false, &i);
+	account->board_add_threads					= wd_account_next_bool(array, true, &i);
+	account->board_move_threads					= wd_account_next_bool(array, false, &i);
+	account->board_delete_threads				= wd_account_next_bool(array, false, &i);
+	account->board_edit_own_posts				= wd_account_next_bool(array, true, &i);
+	account->board_edit_all_posts				= wd_account_next_bool(array, false, &i);
+	
 	return account;
 }
 
@@ -901,9 +919,18 @@ static void wd_account_read_privileges_from_message(wd_account_t *account, wi_p7
 	WD_ACCOUNT_GET_BOOL(&account->message_send_messages, WI_STR("wired.account.message.send_messages"));
 	WD_ACCOUNT_GET_BOOL(&account->message_broadcast, WI_STR("wired.account.message.broadcast"));
 
-	WD_ACCOUNT_GET_BOOL(&account->news_read_news, WI_STR("wired.account.news.read_news"));
-	WD_ACCOUNT_GET_BOOL(&account->news_post_news, WI_STR("wired.account.news.post_news"));
-	WD_ACCOUNT_GET_BOOL(&account->news_clear_news, WI_STR("wired.account.news.clear_news"));
+	WD_ACCOUNT_GET_BOOL(&account->board_read_boards, WI_STR("wired.account.board.read_boards"));
+	WD_ACCOUNT_GET_BOOL(&account->board_add_boards, WI_STR("wired.account.board.add_boards"));
+	WD_ACCOUNT_GET_BOOL(&account->board_move_boards, WI_STR("wired.account.board.move_boards"));
+	WD_ACCOUNT_GET_BOOL(&account->board_rename_boards, WI_STR("wired.account.board.rename_boards"));
+	WD_ACCOUNT_GET_BOOL(&account->board_delete_boards, WI_STR("wired.account.board.delete_boards"));
+	WD_ACCOUNT_GET_BOOL(&account->board_add_threads, WI_STR("wired.account.board.add_threads"));
+	WD_ACCOUNT_GET_BOOL(&account->board_move_threads, WI_STR("wired.account.board.move_threads"));
+	WD_ACCOUNT_GET_BOOL(&account->board_delete_threads, WI_STR("wired.account.board.delete_threads"));
+	WD_ACCOUNT_GET_BOOL(&account->board_add_posts, WI_STR("wired.account.board.add_posts"));
+	WD_ACCOUNT_GET_BOOL(&account->board_edit_own_posts, WI_STR("wired.account.board.edit_own_posts"));
+	WD_ACCOUNT_GET_BOOL(&account->board_edit_all_posts, WI_STR("wired.account.board.edit_all_posts"));
+	WD_ACCOUNT_GET_BOOL(&account->board_delete_posts, WI_STR("wired.account.board.delete_posts"));
 	
 	WD_ACCOUNT_GET_BOOL(&account->file_list_files, WI_STR("wired.account.file.list_files"));
 	WD_ACCOUNT_GET_BOOL(&account->file_get_info, WI_STR("wired.account.file.get_info"));
@@ -969,9 +996,18 @@ static void wd_account_write_privileges_to_message(wd_account_t *account, wi_p7_
 	WD_ACCOUNT_SET_BOOL(account->message_send_messages, WI_STR("wired.account.message.send_messages"));
 	WD_ACCOUNT_SET_BOOL(account->message_broadcast, WI_STR("wired.account.message.broadcast"));
 
-	WD_ACCOUNT_SET_BOOL(account->news_read_news, WI_STR("wired.account.news.read_news"));
-	WD_ACCOUNT_SET_BOOL(account->news_post_news, WI_STR("wired.account.news.post_news"));
-	WD_ACCOUNT_SET_BOOL(account->news_clear_news, WI_STR("wired.account.news.clear_news"));
+	WD_ACCOUNT_SET_BOOL(account->board_read_boards, WI_STR("wired.account.board.read_boards"));
+	WD_ACCOUNT_SET_BOOL(account->board_add_boards, WI_STR("wired.account.board.add_boards"));
+	WD_ACCOUNT_SET_BOOL(account->board_move_boards, WI_STR("wired.account.board.move_boards"));
+	WD_ACCOUNT_SET_BOOL(account->board_rename_boards, WI_STR("wired.account.board.rename_boards"));
+	WD_ACCOUNT_SET_BOOL(account->board_delete_boards, WI_STR("wired.account.board.delete_boards"));
+	WD_ACCOUNT_SET_BOOL(account->board_add_threads, WI_STR("wired.account.board.add_threads"));
+	WD_ACCOUNT_SET_BOOL(account->board_move_threads, WI_STR("wired.account.board.move_threads"));
+	WD_ACCOUNT_SET_BOOL(account->board_delete_threads, WI_STR("wired.account.board.delete_threads"));
+	WD_ACCOUNT_SET_BOOL(account->board_add_posts, WI_STR("wired.account.board.add_posts"));
+	WD_ACCOUNT_SET_BOOL(account->board_edit_own_posts, WI_STR("wired.account.board.edit_own_posts"));
+	WD_ACCOUNT_SET_BOOL(account->board_edit_all_posts, WI_STR("wired.account.board.edit_all_posts"));
+	WD_ACCOUNT_SET_BOOL(account->board_delete_posts, WI_STR("wired.account.board.delete_posts"));
 	
 	WD_ACCOUNT_SET_BOOL(account->file_list_files, WI_STR("wired.account.file.list_files"));
 	WD_ACCOUNT_SET_BOOL(account->file_get_info, WI_STR("wired.account.file.get_info"));
@@ -1028,8 +1064,8 @@ static wi_array_t * wd_account_user_array(wd_account_t *account) {
 	wi_array_add_data(array, account->group);
 	WD_ACCOUNT_ADD_BOOL(account->user_get_info);
 	WD_ACCOUNT_ADD_BOOL(account->message_broadcast);
-	WD_ACCOUNT_ADD_BOOL(account->news_post_news);
-	WD_ACCOUNT_ADD_BOOL(account->news_clear_news);
+	WD_ACCOUNT_ADD_BOOL(account->board_add_posts);
+	WD_ACCOUNT_ADD_BOOL(account->board_delete_posts);
 	WD_ACCOUNT_ADD_BOOL(account->transfer_download_files);
 	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_files);
 	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_anywhere);
@@ -1061,7 +1097,7 @@ static wi_array_t * wd_account_user_array(wd_account_t *account) {
 	wi_array_add_data(array, wi_array_components_joined_by_string(account->groups, WI_STR(",")));
 	WD_ACCOUNT_ADD_BOOL(account->chat_create_chats);
 	WD_ACCOUNT_ADD_BOOL(account->message_send_messages);
-	WD_ACCOUNT_ADD_BOOL(account->news_read_news);
+	WD_ACCOUNT_ADD_BOOL(account->board_read_boards);
 	WD_ACCOUNT_ADD_BOOL(account->file_list_files);
 	WD_ACCOUNT_ADD_BOOL(account->file_get_info);
 	WD_ACCOUNT_ADD_BOOL(account->file_create_links);
@@ -1085,6 +1121,15 @@ static wi_array_t * wd_account_user_array(wd_account_t *account) {
 	WD_ACCOUNT_ADD_BOOL(account->banlist_delete_bans);
 	WD_ACCOUNT_ADD_BOOL(account->tracker_list_servers);
 	WD_ACCOUNT_ADD_BOOL(account->tracker_register_servers);
+	WD_ACCOUNT_ADD_BOOL(account->board_add_boards);
+	WD_ACCOUNT_ADD_BOOL(account->board_move_boards);
+	WD_ACCOUNT_ADD_BOOL(account->board_rename_boards);
+	WD_ACCOUNT_ADD_BOOL(account->board_delete_boards);
+	WD_ACCOUNT_ADD_BOOL(account->board_add_threads);
+	WD_ACCOUNT_ADD_BOOL(account->board_move_threads);
+	WD_ACCOUNT_ADD_BOOL(account->board_delete_threads);
+	WD_ACCOUNT_ADD_BOOL(account->board_edit_own_posts);
+	WD_ACCOUNT_ADD_BOOL(account->board_edit_all_posts);
 
 	return array;
 }
@@ -1099,8 +1144,8 @@ static wi_array_t * wd_account_group_array(wd_account_t *account) {
 	wi_array_add_data(array, account->name);
 	WD_ACCOUNT_ADD_BOOL(account->user_get_info);
 	WD_ACCOUNT_ADD_BOOL(account->message_broadcast);
-	WD_ACCOUNT_ADD_BOOL(account->news_post_news);
-	WD_ACCOUNT_ADD_BOOL(account->news_clear_news);
+	WD_ACCOUNT_ADD_BOOL(account->board_add_posts);
+	WD_ACCOUNT_ADD_BOOL(account->board_delete_posts);
 	WD_ACCOUNT_ADD_BOOL(account->transfer_download_files);
 	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_files);
 	WD_ACCOUNT_ADD_BOOL(account->transfer_upload_anywhere);
@@ -1128,7 +1173,7 @@ static wi_array_t * wd_account_group_array(wd_account_t *account) {
 	wi_array_add_data(array, account->edited_by);
 	WD_ACCOUNT_ADD_BOOL(account->chat_create_chats);
 	WD_ACCOUNT_ADD_BOOL(account->message_send_messages);
-	WD_ACCOUNT_ADD_BOOL(account->news_read_news);
+	WD_ACCOUNT_ADD_BOOL(account->board_read_boards);
 	WD_ACCOUNT_ADD_BOOL(account->file_list_files);
 	WD_ACCOUNT_ADD_BOOL(account->file_get_info);
 	WD_ACCOUNT_ADD_BOOL(account->file_create_links);
@@ -1152,6 +1197,15 @@ static wi_array_t * wd_account_group_array(wd_account_t *account) {
 	WD_ACCOUNT_ADD_BOOL(account->banlist_delete_bans);
 	WD_ACCOUNT_ADD_BOOL(account->tracker_list_servers);
 	WD_ACCOUNT_ADD_BOOL(account->tracker_register_servers);
+	WD_ACCOUNT_ADD_BOOL(account->board_add_boards);
+	WD_ACCOUNT_ADD_BOOL(account->board_move_boards);
+	WD_ACCOUNT_ADD_BOOL(account->board_rename_boards);
+	WD_ACCOUNT_ADD_BOOL(account->board_delete_boards);
+	WD_ACCOUNT_ADD_BOOL(account->board_add_threads);
+	WD_ACCOUNT_ADD_BOOL(account->board_move_threads);
+	WD_ACCOUNT_ADD_BOOL(account->board_delete_threads);
+	WD_ACCOUNT_ADD_BOOL(account->board_edit_own_posts);
+	WD_ACCOUNT_ADD_BOOL(account->board_edit_all_posts);
 	
 	return array;
 }
@@ -1227,9 +1281,18 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 		if(account->chat_create_chats && !user_account->chat_create_chats) return false;
 		if(account->message_send_messages && !user_account->message_send_messages) return false;
 		if(account->message_broadcast && !user_account->message_broadcast) return false;
-		if(account->news_read_news && !user_account->news_read_news) return false;
-		if(account->news_post_news && !user_account->news_post_news) return false;
-		if(account->news_clear_news && !user_account->news_clear_news) return false;
+		if(account->board_read_boards && !user_account->board_read_boards) return false;
+		if(account->board_add_boards && !user_account->board_add_boards) return false;
+		if(account->board_move_boards && !user_account->board_move_boards) return false;
+		if(account->board_rename_boards && !user_account->board_rename_boards) return false;
+		if(account->board_delete_boards && !user_account->board_delete_boards) return false;
+		if(account->board_add_threads && !user_account->board_add_threads) return false;
+		if(account->board_move_threads && !user_account->board_move_threads) return false;
+		if(account->board_delete_threads && !user_account->board_delete_threads) return false;
+		if(account->board_add_posts && !user_account->board_add_posts) return false;
+		if(account->board_edit_own_posts && !user_account->board_edit_own_posts) return false;
+		if(account->board_edit_all_posts && !user_account->board_edit_all_posts) return false;
+		if(account->board_delete_posts && !user_account->board_delete_posts) return false;
 		if(account->file_list_files && !user_account->file_list_files) return false;
 		if(account->file_get_info && !user_account->file_get_info) return false;
 		if(account->file_create_directories && !user_account->file_create_directories) return false;

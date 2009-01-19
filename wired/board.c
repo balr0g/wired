@@ -140,9 +140,9 @@ void wd_board_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
 				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
 				wi_p7_message_set_string_for_name(reply, privileges->group, WI_STR("wired.board.group"));
-				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.group.read"));
-				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.group.write"));
-				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.everyone.read"));
+				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
+				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
+				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
 				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
 				wd_user_reply_message(user, reply, message);
 			}
@@ -786,6 +786,8 @@ void wd_board_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, 
 	
 	wi_rwlock_wrlock(wd_board_lock);
 	
+	privileges = wd_board_privileges(board);
+	
 	if(privileges && wd_board_privileges_is_writable_by_user(privileges, user)) {
 		path		= wd_board_post_path(board, thread, post);
 		instance	= wi_plist_read_instance_from_file(path);
@@ -794,7 +796,7 @@ void wd_board_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, 
 			if(wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
 				account = wd_user_account(user);
 				
-//				if(!account->board_edit_all_posts && account->board_edit_own_posts) {
+				if(!account->board_edit_all_posts) {
 					login = wi_dictionary_data_for_key(instance, WI_STR("wired.user.login"));
 					
 					if(!wi_is_equal(login, wd_user_login(user))) {
@@ -802,7 +804,7 @@ void wd_board_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, 
 						
 						edit = false;
 					}
-//				}
+				}
 				
 				if(edit) {
 					edit_date = wi_date();
