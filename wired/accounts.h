@@ -60,6 +60,7 @@ struct _wd_account {
 	wi_boolean_t					board_move_boards;
 	wi_boolean_t					board_rename_boards;
 	wi_boolean_t					board_delete_boards;
+	wi_boolean_t					board_set_permissions;
 	wi_boolean_t					board_add_threads;
 	wi_boolean_t					board_move_threads;
 	wi_boolean_t					board_delete_threads;

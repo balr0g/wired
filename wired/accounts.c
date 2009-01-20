@@ -779,6 +779,7 @@ wd_account_t * wd_account_init_user_with_array(wd_account_t *account, wi_array_t
 	account->board_move_boards					= wd_account_next_bool(array, false, &i);
 	account->board_rename_boards				= wd_account_next_bool(array, false, &i);
 	account->board_delete_boards				= wd_account_next_bool(array, false, &i);
+	account->board_set_permissions				= wd_account_next_bool(array, false, &i);
 	account->board_add_threads					= wd_account_next_bool(array, true, &i);
 	account->board_move_threads					= wd_account_next_bool(array, false, &i);
 	account->board_delete_threads				= wd_account_next_bool(array, false, &i);
@@ -859,6 +860,7 @@ wd_account_t * wd_account_init_group_with_array(wd_account_t *account, wi_array_
 	account->board_move_boards					= wd_account_next_bool(array, false, &i);
 	account->board_rename_boards				= wd_account_next_bool(array, false, &i);
 	account->board_delete_boards				= wd_account_next_bool(array, false, &i);
+	account->board_set_permissions				= wd_account_next_bool(array, false, &i);
 	account->board_add_threads					= wd_account_next_bool(array, true, &i);
 	account->board_move_threads					= wd_account_next_bool(array, false, &i);
 	account->board_delete_threads				= wd_account_next_bool(array, false, &i);
@@ -971,6 +973,7 @@ static void wd_account_read_privileges_from_message(wd_account_t *account, wi_p7
 	WD_ACCOUNT_GET_BOOL(&account->board_move_boards, WI_STR("wired.account.board.move_boards"));
 	WD_ACCOUNT_GET_BOOL(&account->board_rename_boards, WI_STR("wired.account.board.rename_boards"));
 	WD_ACCOUNT_GET_BOOL(&account->board_delete_boards, WI_STR("wired.account.board.delete_boards"));
+	WD_ACCOUNT_GET_BOOL(&account->board_set_permissions, WI_STR("wired.account.board.set_permissions"));
 	WD_ACCOUNT_GET_BOOL(&account->board_add_threads, WI_STR("wired.account.board.add_threads"));
 	WD_ACCOUNT_GET_BOOL(&account->board_move_threads, WI_STR("wired.account.board.move_threads"));
 	WD_ACCOUNT_GET_BOOL(&account->board_delete_threads, WI_STR("wired.account.board.delete_threads"));
@@ -1048,6 +1051,7 @@ static void wd_account_write_privileges_to_message(wd_account_t *account, wi_p7_
 	WD_ACCOUNT_SET_BOOL(account->board_move_boards, WI_STR("wired.account.board.move_boards"));
 	WD_ACCOUNT_SET_BOOL(account->board_rename_boards, WI_STR("wired.account.board.rename_boards"));
 	WD_ACCOUNT_SET_BOOL(account->board_delete_boards, WI_STR("wired.account.board.delete_boards"));
+	WD_ACCOUNT_SET_BOOL(account->board_set_permissions, WI_STR("wired.account.board.set_permissions"));
 	WD_ACCOUNT_SET_BOOL(account->board_add_threads, WI_STR("wired.account.board.add_threads"));
 	WD_ACCOUNT_SET_BOOL(account->board_move_threads, WI_STR("wired.account.board.move_threads"));
 	WD_ACCOUNT_SET_BOOL(account->board_delete_threads, WI_STR("wired.account.board.delete_threads"));
@@ -1172,6 +1176,7 @@ static wi_array_t * wd_account_user_array(wd_account_t *account) {
 	WD_ACCOUNT_ADD_BOOL(account->board_move_boards);
 	WD_ACCOUNT_ADD_BOOL(account->board_rename_boards);
 	WD_ACCOUNT_ADD_BOOL(account->board_delete_boards);
+	WD_ACCOUNT_ADD_BOOL(account->board_set_permissions);
 	WD_ACCOUNT_ADD_BOOL(account->board_add_threads);
 	WD_ACCOUNT_ADD_BOOL(account->board_move_threads);
 	WD_ACCOUNT_ADD_BOOL(account->board_delete_threads);
@@ -1248,6 +1253,7 @@ static wi_array_t * wd_account_group_array(wd_account_t *account) {
 	WD_ACCOUNT_ADD_BOOL(account->board_move_boards);
 	WD_ACCOUNT_ADD_BOOL(account->board_rename_boards);
 	WD_ACCOUNT_ADD_BOOL(account->board_delete_boards);
+	WD_ACCOUNT_ADD_BOOL(account->board_set_permissions);
 	WD_ACCOUNT_ADD_BOOL(account->board_add_threads);
 	WD_ACCOUNT_ADD_BOOL(account->board_move_threads);
 	WD_ACCOUNT_ADD_BOOL(account->board_delete_threads);
@@ -1333,6 +1339,7 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 		if(account->board_move_boards && !user_account->board_move_boards) return false;
 		if(account->board_rename_boards && !user_account->board_rename_boards) return false;
 		if(account->board_delete_boards && !user_account->board_delete_boards) return false;
+		if(account->board_set_permissions && !user_account->board_set_permissions) return false;
 		if(account->board_add_threads && !user_account->board_add_threads) return false;
 		if(account->board_move_threads && !user_account->board_move_threads) return false;
 		if(account->board_delete_threads && !user_account->board_delete_threads) return false;
