@@ -116,23 +116,20 @@ wd_account_t * wd_accounts_read_user(wi_string_t *name) {
 	
 	file = wi_file_for_reading(wd_users_path);
 	
-	if(!file) {
-		wi_log_err(WI_STR("Could not open %@: %m"), wd_users_path);
-
-		goto end;
-	}
-	
-	while((string = wi_file_read_config_line(file))) {
-		array = wi_string_components_separated_by_string(string, WI_STR(":"));
-		
-		if(wi_array_count(array) > 0 && wi_is_equal(WI_ARRAY(array, 0), name)) {
-			account = wd_account_init_user_with_array(wd_account_alloc(), array);
+	if(file) {
+		while((string = wi_file_read_config_line(file))) {
+			array = wi_string_components_separated_by_string(string, WI_STR(":"));
 			
-			break;
+			if(wi_array_count(array) > 0 && wi_is_equal(WI_ARRAY(array, 0), name)) {
+				account = wd_account_init_user_with_array(wd_account_alloc(), array);
+				
+				break;
+			}
 		}
+	} else {
+		wi_log_err(WI_STR("Could not open %@: %m"), wd_users_path);
 	}
 	
-end:
 	wi_recursive_lock_unlock(wd_users_lock);
 	
 	return wi_autorelease(account);
@@ -150,23 +147,20 @@ wd_account_t * wd_accounts_read_group(wi_string_t *name) {
 	
 	file = wi_file_for_reading(wd_groups_path);
 	
-	if(!file) {
-		wi_log_err(WI_STR("Could not open %@: %m"), wd_groups_path);
-
-		goto end;
-	}
-	
-	while((string = wi_file_read_config_line(file))) {
-		array = wi_string_components_separated_by_string(string, WI_STR(":"));
-		
-		if(wi_array_count(array) > 0 && wi_is_equal(WI_ARRAY(array, 0), name)) {
-			account = wd_account_init_group_with_array(wd_account_alloc(), array);
+	if(file) {
+		while((string = wi_file_read_config_line(file))) {
+			array = wi_string_components_separated_by_string(string, WI_STR(":"));
 			
-			break;
+			if(wi_array_count(array) > 0 && wi_is_equal(WI_ARRAY(array, 0), name)) {
+				account = wd_account_init_group_with_array(wd_account_alloc(), array);
+				
+				break;
+			}
 		}
+	} else {
+		wi_log_err(WI_STR("Could not open %@: %m"), wd_groups_path);
 	}
 	
-end:
 	wi_recursive_lock_unlock(wd_groups_lock);
 	
 	return wi_autorelease(account);
@@ -195,10 +189,21 @@ wi_string_t * wd_accounts_password_for_user(wi_string_t *name) {
 
 
 wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *password) {
+	wi_boolean_t		result = false;
+	
 	wi_release(account->password);
 	account->password = wi_retain(password);
 	
-	return wd_accounts_edit_user(account);
+	wi_recursive_lock_lock(wd_users_lock);
+	
+	if(wd_accounts_delete_user(account->name)) {
+		if(wd_accounts_create_user(account))
+			result = true;
+	}
+	
+	wi_recursive_lock_unlock(wd_users_lock);
+
+	return result;
 }
 
 
@@ -255,41 +260,78 @@ wi_boolean_t wd_accounts_create_group(wd_account_t *account) {
 
 
 
-wi_boolean_t wd_accounts_edit_user(wd_account_t *account) {
+wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user, wi_p7_message_t *message) {
+	wi_uinteger_t	i, count;
 	wi_boolean_t	result = false;
+	
+	wi_release(account->password);
+	account->password = wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.account.password")));
+	wi_string_replace_string_with_string(account->password, WI_STR(":"), WI_STR(""), 0);
+	
+	wi_release(account->full_name);
+	account->full_name = wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.account.full_name")));
+	wi_string_replace_string_with_string(account->full_name, WI_STR(":"), WI_STR(""), 0);
+	
+	wi_release(account->group);
+	account->group = wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.account.group")));
+	wi_string_replace_string_with_string(account->group, WI_STR(":"), WI_STR(""), 0);
+	
+	wi_release(account->files);
+	account->files = wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.account.files")));
+	wi_string_replace_string_with_string(account->files, WI_STR(":"), WI_STR(""), 0);
+	
+	wi_release(account->groups);
+	account->groups = wi_retain(wi_p7_message_list_for_name(message, WI_STR("wired.account.groups")));
+	
+	count = wi_array_count(account->groups);
+	
+	for(i = 0; i < count; i++)
+		wi_string_replace_string_with_string(WI_ARRAY(account->groups, i), WI_STR(":"), WI_STR(""), 0);
+	
+	wi_release(account->modification_time);
+	account->modification_time = wi_retain(wi_date());
+	
+	wi_release(account->edited_by);
+	account->edited_by = wi_retain(wd_user_nick(user));
+
+	wd_account_read_privileges_from_message(account, message);
 	
 	wi_recursive_lock_lock(wd_users_lock);
 	
-	if(!wd_accounts_delete_user(account->name))
-		goto end;
+	if(wd_accounts_delete_user(account->name)) {
+		if(wd_accounts_create_user(account))
+			result = true;
+	}
 	
-	if(!wd_accounts_create_user(account))
-		goto end;
-	
-	result = true;
-
-end:
 	wi_recursive_lock_unlock(wd_users_lock);
 	
-	return true;
+	return result;
 }
 
 
 
-wi_boolean_t wd_accounts_edit_group(wd_account_t *account) {
+wi_boolean_t wd_accounts_edit_group(wd_account_t *account, wd_user_t *user, wi_p7_message_t *message) {
 	wi_boolean_t	result = false;
+	
+	wi_release(account->files);
+	account->files = wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.account.files")));
+	wi_string_replace_string_with_string(account->files, WI_STR(":"), WI_STR(""), 0);
+	
+	wi_release(account->modification_time);
+	account->modification_time = wi_retain(wi_date());
+	
+	wi_release(account->edited_by);
+	account->edited_by = wi_retain(wd_user_nick(user));
+	
+	wd_account_read_privileges_from_message(account, message);
 	
 	wi_recursive_lock_lock(wd_groups_lock);
 	
-	if(!wd_accounts_delete_group(account->name))
-		goto end;
+	if(wd_accounts_delete_group(account->name)) {
+		if(wd_accounts_create_group(account))
+			result = true;
+	}
 	
-	if(!wd_accounts_create_group(account))
-		goto end;
-	
-	result = true;
-	
-end:
 	wi_recursive_lock_unlock(wd_groups_lock);
 	
 	return result;
@@ -393,7 +435,12 @@ void wd_accounts_update_login_time(wd_account_t *account) {
 	wi_release(account->login_time);
 	account->login_time = wi_retain(wi_date());
 	
-	wd_accounts_edit_user(account);
+	wi_recursive_lock_lock(wd_users_lock);
+	
+	if(wd_accounts_delete_user(account->name))
+		wd_accounts_create_user(account);
+	
+	wi_recursive_lock_unlock(wd_users_lock);
 }
 
 

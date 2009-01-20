@@ -1926,7 +1926,7 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 
 
 static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *message) {
-	wd_account_t	*account, *existing_account;
+	wd_account_t	*account;
 
 	if(!wd_user_account(user)->account_edit_accounts) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1934,28 +1934,15 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 		return;
 	}
 	
-	existing_account = wd_accounts_read_user(wi_p7_message_string_for_name(message, WI_STR("wired.account.name")));
+	account = wd_accounts_read_user(wi_p7_message_string_for_name(message, WI_STR("wired.account.name")));
 	
-	if(!existing_account) {
+	if(!account) {
 		wd_user_reply_error(user, WI_STR("wired.error.account_not_found"), message);
 		
 		return;
 	}
 	
-	account = wi_autorelease(wd_account_init_with_message(wd_account_alloc(), message));
-	
-	if(!wd_account_check_privileges(account, user)) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-		
-		return;
-	}
-	
-	account->creation_time		= wi_retain(existing_account->creation_time);
-	account->login_time			= wi_retain(existing_account->login_time);
-	account->modification_time	= wi_retain(wi_date());
-	account->edited_by			= wi_retain(wd_user_nick(user));
-
-	if(wd_accounts_edit_user(account)) {
+	if(wd_accounts_edit_user(account, user, message)) {
 		wd_accounts_reload_user_account(account->name);
 		
 		wi_log_ll(WI_STR("%@ modified the user \"%@\""),
@@ -1969,7 +1956,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 
 
 static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *message) {
-	wd_account_t	*account, *existing_account;
+	wd_account_t	*account;
 
 	if(!wd_user_account(user)->account_edit_accounts) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1977,28 +1964,15 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 		return;
 	}
 	
-	existing_account = wd_accounts_read_group(wi_p7_message_string_for_name(message, WI_STR("wired.account.name")));
+	account = wd_accounts_read_group(wi_p7_message_string_for_name(message, WI_STR("wired.account.name")));
 	
-	if(!existing_account) {
+	if(!account) {
 		wd_user_reply_error(user, WI_STR("wired.error.account_not_found"), message);
 		
 		return;
 	}
-
-	account = wi_autorelease(wd_account_init_with_message(wd_account_alloc(), message));
 	
-	if(!wd_account_check_privileges(account, user)) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-		
-		return;
-	}
-	
-	account->creation_time		= wi_retain(existing_account->creation_time);
-	account->login_time			= wi_retain(existing_account->login_time);
-	account->modification_time	= wi_retain(wi_date());
-	account->edited_by			= wi_retain(wd_user_nick(user));
-
-	if(wd_accounts_edit_group(account)) {
+	if(wd_accounts_edit_group(account, user, message)) {
 		wd_accounts_reload_group_account(account->name);
 		
 		wi_log_ll(WI_STR("%@ modified the group \"%@\""),
