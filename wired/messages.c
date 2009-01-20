@@ -1121,8 +1121,6 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.everyone.write")) && value)
 		mode |= WD_BOARD_EVERYONE_WRITE;
 	
-	wi_log_info(WI_STR("set mode %u"), mode);
-
 	wd_board_set_permissions(board, owner, group, mode, user, message);
 }
 
