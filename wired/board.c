@@ -40,6 +40,9 @@
 
 #define WD_BOARD_PERMISSIONS_FIELD_SEPARATOR	"\34"
 
+#define WD_BOARD_NEWS_FIELD_SEPARATOR			"\34"
+#define WD_BOARD_NEWS_POST_SEPARATOR			"\35"
+
 
 struct _wd_board_privileges {
 	wi_runtime_base_t							base;
@@ -60,8 +63,9 @@ static wi_string_t *							wd_board_board_path(wi_string_t *);
 static wi_string_t *							wd_board_thread_path(wi_string_t *board, wi_uuid_t *);
 static wi_string_t *							wd_board_post_path(wi_string_t *, wi_uuid_t *, wi_uuid_t *);
 
-static wi_boolean_t								wd_board_set_privileges(wi_string_t *board, wd_board_privileges_t *privileges, wd_user_t *user, wi_p7_message_t *message);
+static wi_boolean_t								wd_board_set_privileges(wi_string_t *board, wd_board_privileges_t *privileges);
 static wd_board_privileges_t *					wd_board_privileges(wi_string_t *board);
+static wi_boolean_t								wd_board_convert_news_to_board(wi_string_t *, wi_string_t *);
 static wi_boolean_t								wd_board_rename_board_path(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
 static wd_board_privileges_t *					wd_board_privileges_alloc(void);
@@ -96,6 +100,13 @@ void wd_board_init(void) {
 	wd_board_lock = wi_rwlock_init(wi_rwlock_alloc());
 
 	wd_board_privileges_runtime_id = wi_runtime_register_class(&wd_board_privileges_runtime_class);
+	
+	if(wi_fs_path_exists(WI_STR("news"), NULL)) {
+		if(wd_board_convert_news_to_board(WI_STR("news"), WI_STR("News"))) {
+			wi_log_info(WI_STR("Migrated news to board \"News\""));
+			wi_fs_delete_path(WI_STR("news"));
+		}
+	}
 }
 
 
@@ -233,19 +244,21 @@ void wd_board_add_board(wi_string_t *board, wi_string_t *owner, wi_string_t *gro
 		if(wi_fs_create_directory(path, 0755)) {
 			privileges = wd_board_privileges_with_owner(owner, group, mode);
 			
-			wd_board_set_privileges(board, privileges, user, message);
-			
-			broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_added"), wd_p7_spec);
-			wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-			wi_p7_message_set_string_for_name(broadcast, privileges->owner, WI_STR("wired.board.owner"));
-			wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
-			wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
-			wi_p7_message_set_string_for_name(broadcast, privileges->group, WI_STR("wired.board.group"));
-			wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
-			wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
-			wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
-			wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
-			wd_board_broadcast_message(broadcast, privileges);
+			if(wd_board_set_privileges(board, privileges)) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_added"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+				wi_p7_message_set_string_for_name(broadcast, privileges->owner, WI_STR("wired.board.owner"));
+				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
+				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
+				wi_p7_message_set_string_for_name(broadcast, privileges->group, WI_STR("wired.board.group"));
+				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
+				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
+				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
+				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
+				wd_board_broadcast_message(broadcast, privileges);
+			} else {
+				wd_user_reply_file_errno(user, message);
+			}
 		} else {
 			wi_log_err(WI_STR("Could not create %@: %m"), path);
 			wd_user_reply_internal_error(user, message);
@@ -305,7 +318,7 @@ void wd_board_set_permissions(wi_string_t *board, wi_string_t *owner, wi_string_
 	
 	privileges = wd_board_privileges_with_owner(owner, group, mode);
 	
-	if(wd_board_set_privileges(board, privileges, user, message)) {
+	if(wd_board_set_privileges(board, privileges)) {
 		broadcast = wi_p7_message_with_name(WI_STR("wired.board.permissions_changed"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
 		wi_p7_message_set_string_for_name(broadcast, privileges->owner, WI_STR("wired.board.owner"));
@@ -317,6 +330,8 @@ void wd_board_set_permissions(wi_string_t *board, wi_string_t *owner, wi_string_
 		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
 		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
 		wd_board_broadcast_message(broadcast, privileges);
+	} else {
+		wd_user_reply_file_errno(user, message);
 	}
 }
 
@@ -507,7 +522,7 @@ static wi_string_t * wd_board_post_path(wi_string_t *board, wi_uuid_t *thread, w
 
 #pragma mark -
 
-static wi_boolean_t wd_board_set_privileges(wi_string_t *board, wd_board_privileges_t *privileges, wd_user_t *user, wi_p7_message_t *message) {
+static wi_boolean_t wd_board_set_privileges(wi_string_t *board, wd_board_privileges_t *privileges) {
 	wi_string_t		*path, *metapath, *permissionspath;
 	wi_string_t		*string;
 	
@@ -518,7 +533,6 @@ static wi_boolean_t wd_board_set_privileges(wi_string_t *board, wd_board_privile
 	if(!wi_fs_create_directory(metapath, 0777)) {
 		if(wi_error_code() != EEXIST) {
 			wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
-			wd_user_reply_file_errno(user, message);
 			
 			return false;
 		}
@@ -530,7 +544,6 @@ static wi_boolean_t wd_board_set_privileges(wi_string_t *board, wd_board_privile
 	
 	if(!wi_string_write_to_file(string, permissionspath)) {
 		wi_log_warn(WI_STR("Could not write to %@: %m"), permissionspath);
-		wd_user_reply_file_errno(user, message);
 		
 		return false;
 	}
@@ -577,6 +590,79 @@ static wd_board_privileges_t * wd_board_privileges(wi_string_t *board) {
 	}
 	
 	return privileges;
+}
+
+
+
+static wi_boolean_t wd_board_convert_news_to_board(wi_string_t *news_path, wi_string_t *board) {
+	wi_array_t				*array;
+	wi_file_t				*file;
+	wi_dictionary_t			*dictionary;
+	wi_uuid_t				*thread, *post;
+	wi_string_t				*string, *subject, *board_path, *thread_path, *post_path;
+	wd_board_privileges_t	*privileges;
+	
+	board_path = wd_board_board_path(board);
+	
+	if(wi_fs_path_exists(board_path, NULL)) {
+		wi_log_warn(WI_STR("Could not convert news to \"%@\": Board already exists"), board);
+
+		return false;
+	}
+	
+	if(!wi_fs_create_directory(board_path, 0755)) {
+		wi_log_warn(WI_STR("Could not open %@: %m"), news_path);
+		
+		return false;
+	}
+	
+	privileges = wd_board_privileges_with_owner(WI_STR("admin"), WI_STR(""),
+		WD_BOARD_OWNER_WRITE | WD_BOARD_OWNER_READ | WD_BOARD_GROUP_WRITE | WD_BOARD_GROUP_READ | WD_BOARD_EVERYONE_WRITE | WD_BOARD_EVERYONE_READ);
+	
+	if(!wd_board_set_privileges(board, privileges))
+		return false;
+
+	file = wi_file_for_reading(news_path);
+	
+	if(!file) {
+		wi_log_warn(WI_STR("Could not open %@: %m"), news_path);
+		
+		return false;
+	}
+	
+	while((string = wi_file_read_to_string(file, WI_STR(WD_BOARD_NEWS_POST_SEPARATOR)))) {
+		array = wi_string_components_separated_by_string(string, WI_STR(WD_BOARD_NEWS_FIELD_SEPARATOR));
+		
+		if(wi_array_count(array) == 3) {
+			thread		= wi_uuid();
+			post		= wi_uuid();
+			thread_path	= wd_board_thread_path(board, thread);
+			post_path	= wd_board_post_path(board, thread, post);
+			subject		= WI_ARRAY(array, 2);
+			
+			if(!wi_fs_create_directory(thread_path, 0755)) {
+				wi_log_warn(WI_STR("Could not create %@: %m"), post_path);
+				
+				continue;
+			}
+			
+			if(wi_string_length(subject) > 32)
+				subject = wi_string_with_format(WI_STR("%@..."), wi_string_substring_to_index(subject, 31));
+			
+			dictionary = wi_dictionary_with_data_and_keys(
+				WI_ARRAY(array, 0),									WI_STR("wired.user.nick"),
+				WI_STR("admin"),									WI_STR("wired.user.login"),
+				wi_date_with_rfc3339_string(WI_ARRAY(array, 1)),	WI_STR("wired.board.post_date"),
+				subject,											WI_STR("wired.board.subject"),
+				WI_ARRAY(array, 2),									WI_STR("wired.board.text"),
+				NULL);
+			
+			if(!wi_plist_write_instance_to_file(dictionary, post_path))
+				wi_log_warn(WI_STR("Could not create %@: %m"), post_path);
+		}
+	}
+	
+	return true;
 }
 
 

@@ -714,6 +714,9 @@ static void wd_server_log_callback(wi_log_level_t level, wi_string_t *string) {
 	wd_user_t			*user;
 	wi_p7_uint32_t		transaction;
 	
+	if(!wd_users)
+		return;
+	
 	if(wi_dictionary_tryrdlock(wd_users)) {
 		enumerator = wi_dictionary_data_enumerator(wd_users);
 		
