@@ -96,8 +96,15 @@ install-wired:
 	fi
 
 	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/
-	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/etc/
-	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/tmp/
+
+	if [ ! -d $(installdir)/board ]; then \
+		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/board/; \
+		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/board/General/; \
+		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/board/General/.wired/; \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/board/General/.wired/permissions $(installdir)/board/General/.wired/; \
+		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/; \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/AD70D7CB-F789-4030-A92F-40D546DBE1D9.WiredPost $(installdir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/; \
+	fi
 
 	if [ ! -d $(installdir)/files ]; then \
 		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/files/; \
@@ -107,6 +114,12 @@ install-wired:
 		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/files/Drop\ Box/; \
 		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/files/Drop\ Box/.wired/; \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/files/Drop\ Box/.wired/type $(installdir)/files/Drop\ Box/.wired/; \
+	fi
+
+	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/etc/
+
+	if [ ! -f $(installdir)/etc/wired.conf ]; then \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/etc/wired.conf $(installdir)/etc/; \
 	fi
 
 	if [ ! -f $(installdir)/banlist ]; then \
@@ -127,10 +140,6 @@ install-wired:
 
 	if [ ! -f $(installdir)/users ]; then \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/users $(installdir)/; \
-	fi
-
-	if [ ! -f $(installdir)/etc/wired.conf ]; then \
-		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/etc/wired.conf $(installdir)/etc/; \
 	fi
 
 	$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/wired.xml $(installdir)/
