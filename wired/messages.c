@@ -843,8 +843,6 @@ static void wd_message_message_send_message(wd_user_t *user, wi_p7_message_t *me
 	
 	peer = wd_users_user_with_id(uid);
 	
-	wi_log_info(WI_STR("message from %@ to %@"), user, peer);
-	
 	if(!peer) {
 		wd_user_reply_error(user, WI_STR("wired.error.user_not_found"), message);
 		
