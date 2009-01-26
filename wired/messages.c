@@ -623,6 +623,8 @@ static void wd_message_chat_kick_user(wd_user_t *user, wi_p7_message_t *message)
 
 	if(chat == wd_public_chat)
 		wd_user_set_state(peer, WD_USER_DISCONNECTED);
+	else
+		wd_chat_remove_user(chat, peer);
 }
 
 
