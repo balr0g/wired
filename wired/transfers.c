@@ -65,6 +65,7 @@ static void								wd_transfer_dealloc(wi_runtime_instance_t *);
 static wi_string_t *					wd_transfer_description(wi_runtime_instance_t *);
 
 static void								wd_transfer_set_state(wd_transfer_t *, wd_transfer_state_t);
+static wd_transfer_state_t				wd_transfer_state(wd_transfer_t *);
 static inline void						wd_transfer_limit_speed(wd_transfer_t *, wi_uinteger_t, wi_uinteger_t, ssize_t, wi_time_interval_t, wi_time_interval_t);
 
 static void								wd_transfer_thread(wi_runtime_instance_t *);
@@ -145,7 +146,7 @@ static void wd_transfers_update_waiting(wi_timer_t *timer) {
 		for(i = 0; i < count; i++) {
 			transfer = WI_ARRAY(wd_transfers, i);
 
-			if(transfer->state == WD_TRANSFER_WAITING) {
+			if(wd_transfer_state(transfer) == WD_TRANSFER_WAITING) {
 				if(transfer->waiting_time + WD_TRANSFERS_WAITING_INTERVAL < interval) {
 					wd_transfers_add_or_remove_transfer(transfer, false);
 					
@@ -314,10 +315,11 @@ void wd_transfers_queue_upload(wi_string_t *path, wi_file_offset_t size, wi_bool
 
 
 void wd_transfers_remove_user(wd_user_t *user) {
-	wi_string_t		*key;
-	wd_transfer_t	*transfer;
-	wi_uinteger_t	i, count;
-	wi_boolean_t	update = false;
+	wi_string_t				*key;
+	wd_transfer_t			*transfer;
+	wi_uinteger_t			i, count;
+	wi_boolean_t			update = false;
+	wd_transfer_state_t		state;
 	
 	key = wd_transfers_transfer_key_for_user(user);
 	
@@ -332,18 +334,21 @@ void wd_transfers_remove_user(wd_user_t *user) {
 		transfer = wi_autorelease(wi_retain(WI_ARRAY(wd_transfers, i)));
 		
 		if(wi_is_equal(key, transfer->key)) {
-			if(transfer->state == WD_TRANSFER_RUNNING || transfer->state == WD_TRANSFER_STOP) {
+			state = wd_transfer_state(transfer);
+			
+			if(state == WD_TRANSFER_RUNNING) {
 				wi_array_unlock(wd_transfers);
 				
-				wd_transfer_set_state(transfer, WD_TRANSFER_STOP);
-				
 				transfer->disconnected = true;
+				
+				wd_transfer_set_state(transfer, WD_TRANSFER_STOP);
 				
 				wi_condition_lock_lock_when_condition(transfer->state_lock, WD_TRANSFER_STOPPED, 1.0);
 				wi_condition_lock_unlock(transfer->state_lock);
 				
 				wi_array_wrlock(wd_transfers);
-			} else {
+			}
+			else if(state == WD_TRANSFER_QUEUED || state == WD_TRANSFER_WAITING) {
 				wi_array_remove_data(wd_transfers, transfer);
 				wd_user_set_state(transfer->user, WD_USER_DISCONNECTED);
 
@@ -414,7 +419,7 @@ static void wd_transfers_update_queue(void) {
 	for(i = 0; i < count; i++) {
 		transfer = WI_ARRAY(wd_transfers, i);
 		
-		if(transfer->state == WD_TRANSFER_QUEUED) {
+		if(wd_transfer_state(transfer) == WD_TRANSFER_QUEUED) {
 			user_queue = wi_dictionary_data_for_key(user_queues, transfer->key);
 			
 			if(!user_queue) {
@@ -476,9 +481,10 @@ static void wd_transfers_update_queue(void) {
 						position++;
 					} else {
 						transfer->queue = 0;
-						transfer->state = WD_TRANSFER_WAITING;
 						transfer->waiting_time = wi_time_interval();
-						
+
+						wd_transfer_set_state(transfer, WD_TRANSFER_WAITING);
+					
 						if(wd_transfer_open(transfer)) {
 							if(transfer->type == WD_TRANSFER_DOWNLOAD) {
 								wd_transfer_start(transfer);
@@ -614,6 +620,18 @@ static void wd_transfer_set_state(wd_transfer_t *transfer, wd_transfer_state_t s
 
 
 
+static wd_transfer_state_t wd_transfer_state(wd_transfer_t *transfer) {
+	wd_transfer_state_t		state;
+	
+	wi_condition_lock_lock(transfer->state_lock);
+	state = transfer->state;
+	wi_condition_lock_unlock(transfer->state_lock);
+	
+	return state;
+}
+
+
+
 static inline void wd_transfer_limit_speed(wd_transfer_t *transfer, wi_uinteger_t totalspeed, wi_uinteger_t accountspeed, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
 	wi_uinteger_t	limit, totallimit;
 	
@@ -661,15 +679,18 @@ static void wd_transfer_thread(wi_runtime_instance_t *argument) {
 	
 	pool = wi_pool_init(wi_pool_alloc());
 
-	wd_transfer_set_state(transfer, WD_TRANSFER_RUNNING);
-	wi_socket_set_interactive(wd_user_socket(transfer->user), false);
+	if(wd_transfer_state(transfer) == WD_TRANSFER_WAITING) {
+		wd_transfer_set_state(transfer, WD_TRANSFER_RUNNING);
+		
+		wi_socket_set_interactive(wd_user_socket(transfer->user), false);
 
-	if(transfer->type == WD_TRANSFER_DOWNLOAD)
-		wd_transfer_download(transfer);
-	else
-		wd_transfer_upload(transfer);
+		if(transfer->type == WD_TRANSFER_DOWNLOAD)
+			wd_transfer_download(transfer);
+		else
+			wd_transfer_upload(transfer);
 
-	wi_socket_set_interactive(wd_user_socket(transfer->user), true);
+		wi_socket_set_interactive(wd_user_socket(transfer->user), true);
+	}
 
 	wd_user_set_transfer(transfer->user, NULL);
 	wd_user_set_state(transfer->user, WD_USER_LOGGED_IN);
@@ -777,7 +798,7 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 	
 	pool = wi_pool_init(wi_pool_alloc());
 
-	while(transfer->state == WD_TRANSFER_RUNNING && transfer->remainingsize > 0) {
+	while(wd_transfer_state(transfer) == WD_TRANSFER_RUNNING && transfer->remainingsize > 0) {
 		readbytes = read(transfer->fd, buffer, sizeof(buffer));
 
 		if(readbytes <= 0) {
@@ -797,17 +818,10 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 			if(state == WI_SOCKET_TIMEOUT) {
 				timeout += 0.1;
 				
-				if(timeout >= 30.0) {
-					wi_log_err(WI_STR("Timed out waiting to write download to %@"),
-						wd_user_identifier(transfer->user));
-					
-					transfer->state = WD_TRANSFER_STOPPED;
-				}
+				if(timeout >= 30.0)
+					break;
 			}
-		} while(state == WI_SOCKET_TIMEOUT && transfer->state == WD_TRANSFER_RUNNING);
-
-		if(transfer->state != WD_TRANSFER_RUNNING)
-			break;
+		} while(state == WI_SOCKET_TIMEOUT && wd_transfer_state(transfer) == WD_TRANSFER_RUNNING);
 
 		if(state == WI_SOCKET_ERROR) {
 			wi_log_err(WI_STR("Could not wait for download to %@: %m"),
@@ -816,6 +830,13 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 			break;
 		}
 		
+		if(timeout >= 30.0) {
+			wi_log_err(WI_STR("Timed out waiting to write download to %@"),
+				wd_user_identifier(transfer->user));
+		
+			break;
+		}
+
 		sendbytes = (transfer->remainingsize < (wi_file_offset_t) readbytes) ? transfer->remainingsize : (wi_file_offset_t) readbytes;
 		result = wi_p7_socket_write_oobdata(p7_socket, 0.0, buffer, sendbytes);
 		
@@ -927,7 +948,7 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 
 	pool = wi_pool_init(wi_pool_alloc());
 	
-	while(transfer->state == WD_TRANSFER_RUNNING && transfer->remainingsize > 0) {
+	while(wd_transfer_state(transfer) == WD_TRANSFER_RUNNING && transfer->remainingsize > 0) {
 		timeout = 0.0;
 		
 		do {
@@ -936,25 +957,25 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 			if(state == WI_SOCKET_TIMEOUT) {
 				timeout += 0.1;
 				
-				if(timeout >= 30.0) {
-					wi_log_err(WI_STR("Timed out waiting to read upload from %@"),
-						wd_user_identifier(transfer->user));
-					
-					transfer->state = WD_TRANSFER_STOPPED;
-				}
+				if(timeout >= 30.0)
+					break;
 			}
-		} while(state == WI_SOCKET_TIMEOUT && transfer->state == WD_TRANSFER_RUNNING);
+		} while(state == WI_SOCKET_TIMEOUT && wd_transfer_state(transfer) == WD_TRANSFER_RUNNING);
 		
-		if(transfer->state != WD_TRANSFER_RUNNING)
-			break;
-
 		if(state == WI_SOCKET_ERROR) {
 			wi_log_err(WI_STR("Could not wait for upload from %@: %m"),
 				wd_user_identifier(transfer->user));
 
 			break;
 		}
-
+		
+		if(timeout >= 30.0) {
+			wi_log_err(WI_STR("Timed out waiting to read upload from %@"),
+				wd_user_identifier(transfer->user));
+			
+			break;
+		}
+		
 		readbytes = wi_p7_socket_read_oobdata(p7_socket, 0.0, &buffer);
 
 		if(readbytes <= 0) {
