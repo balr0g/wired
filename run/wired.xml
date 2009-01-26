@@ -232,6 +232,7 @@
 		<p7:collection name="wired.info.host_info">
 			<p7:member field="wired.info.application.name" />
 			<p7:member field="wired.info.application.version" />
+			<p7:member field="wired.info.application.build" />
 			<p7:member field="wired.info.os.name" />
 			<p7:member field="wired.info.os.version" />
 			<p7:member field="wired.info.arch" />
@@ -365,14 +366,12 @@
 		<p7:message name="wired.client_info" id="2000">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter collection="wired.info.host_info" use="required" />
-			<p7:parameter field="wired.info.application.build" />
 		</p7:message>
 
 		<p7:message name="wired.server_info" id="2001">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter collection="wired.info.host_info" use="required" />
 			<p7:parameter collection="wired.info.server_info" use="required" />
-			<p7:parameter field="wired.info.application.build" />
 			<p7:parameter field="wired.info.start_time" use="required" />
 			<p7:parameter field="wired.info.files.count" use="required" />
 			<p7:parameter field="wired.info.files.size" use="required" />
@@ -506,7 +505,6 @@
 			<p7:parameter field="wired.user.cipher.bits" />
 			<p7:parameter field="wired.user.login_time" use="required" />
 			<p7:parameter collection="wired.info.host_info" />
-			<p7:parameter field="wired.info.application.build" />
 		</p7:message>
 
 		<p7:message name="wired.user.icon" id="4005">
