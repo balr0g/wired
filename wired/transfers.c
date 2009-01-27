@@ -678,9 +678,12 @@ static void wd_transfer_thread(wi_runtime_instance_t *argument) {
 	wd_transfer_t		*transfer = argument;
 	
 	pool = wi_pool_init(wi_pool_alloc());
-
-	if(wd_transfer_state(transfer) == WD_TRANSFER_WAITING) {
-		wd_transfer_set_state(transfer, WD_TRANSFER_RUNNING);
+	
+	wi_condition_lock_lock(transfer->state_lock);
+	
+	if(transfer->state == WD_TRANSFER_WAITING) {
+		transfer->state = WD_TRANSFER_RUNNING;
+		wi_condition_lock_unlock_with_condition(transfer->state_lock, transfer->state);
 		
 		wi_socket_set_interactive(wd_user_socket(transfer->user), false);
 
@@ -690,6 +693,8 @@ static void wd_transfer_thread(wi_runtime_instance_t *argument) {
 			wd_transfer_upload(transfer);
 
 		wi_socket_set_interactive(wd_user_socket(transfer->user), true);
+	} else {
+		wi_condition_lock_unlock(transfer->state_lock);
 	}
 
 	wd_user_set_transfer(transfer->user, NULL);
