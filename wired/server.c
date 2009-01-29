@@ -129,23 +129,23 @@ void wd_server_init(void) {
 	wd_rsa = wi_rsa_init_with_bits(wi_rsa_alloc(), 1024);
 	
 	if(!wd_rsa)
-		wi_log_err(WI_STR("Could not create RSA key: %m"));
+		wi_log_fatal(WI_STR("Could not create RSA key: %m"));
 	
 	wd_certificate = wi_x509_init_with_common_name(wi_x509_alloc(), wd_rsa, wi_process_hostname(wi_process()));
 
 	if(!wd_certificate)
-		wi_log_err(WI_STR("Could not create a certificate: %m"));
+		wi_log_fatal(WI_STR("Could not create a certificate: %m"));
 	
 	wd_socket_tls = wi_socket_tls_init_with_type(wi_socket_tls_alloc(), WI_SOCKET_TLS_SERVER);
 	
 	if(!wd_socket_tls)
-		wi_log_err(WI_STR("Could not create an TLS context: %m"));
+		wi_log_fatal(WI_STR("Could not create an TLS context: %m"));
 
 	if(!wi_socket_tls_set_private_key(wd_socket_tls, wd_rsa))
-		wi_log_err(WI_STR("Could not set TLS private key: %m"));
+		wi_log_fatal(WI_STR("Could not set TLS private key: %m"));
 
 	if(!wi_socket_tls_set_certificate(wd_socket_tls, wd_certificate))
-		wi_log_err(WI_STR("Could not set TLS certificate: %m"));
+		wi_log_fatal(WI_STR("Could not set TLS certificate: %m"));
 	
 	wi_p7_socket_password_provider = wd_accounts_password_for_user;
 	
@@ -153,7 +153,7 @@ void wd_server_init(void) {
 	wd_p7_spec = wi_p7_spec_init_with_file(wi_p7_spec_alloc(), path, WI_P7_SERVER);
 	
 	if(!wd_p7_spec)
-		wi_log_err(WI_STR("Could not load protocol %@: %m"), path);
+		wi_log_fatal(WI_STR("Could not load protocol %@: %m"), path);
 	
 	wi_log_info(WI_STR("Loaded protocol %@ %@"),
 		wi_p7_spec_name(wd_p7_spec),
@@ -254,11 +254,11 @@ void wd_server_listen(void) {
 	}
 
 	if(wi_array_count(wd_tcp_sockets) == 0 || wi_array_count(wd_udp_sockets) == 0)
-		wi_log_err(WI_STR("No addresses available for listening"));
+		wi_log_fatal(WI_STR("No addresses available for listening"));
 	
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	if(!wi_thread_create_thread(wd_server_cf_thread, NULL))
-		wi_log_err(WI_STR("Could not create a CoreFoundation thread: %m"));
+		wi_log_fatal(WI_STR("Could not create a CoreFoundation thread: %m"));
 #endif
 	
 #ifdef HAVE_DNS_SD_H
@@ -270,7 +270,7 @@ void wd_server_listen(void) {
 	
 	if(!wi_thread_create_thread(wd_server_listen_thread, NULL) ||
 	   !wi_thread_create_thread(wd_server_receive_thread, NULL))
-		wi_log_err(WI_STR("Could not create a listen thread: %m"));
+		wi_log_fatal(WI_STR("Could not create a listen thread: %m"));
 }
 
 

@@ -607,7 +607,7 @@ static void wd_message_chat_kick_user(wd_user_t *user, wi_p7_message_t *message)
 			return;
 		}
 
-		wi_log_ll(WI_STR("%@ kicked %@"),
+		wi_log_info(WI_STR("%@ kicked %@"),
 			wd_user_identifier(user),
 			wd_user_identifier(peer));
 	}
@@ -798,7 +798,7 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 		return;
 	}
 
-	wi_log_ll(WI_STR("%@ banned %@"),
+	wi_log_info(WI_STR("%@ banned %@"),
 		wd_user_identifier(user),
 		wd_user_identifier(peer));
 
@@ -1381,7 +1381,7 @@ static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 	propertopath	= wi_string_by_normalizing_path(topath);
 
 	if(wd_files_move_path(properfrompath, propertopath, user, message)) {
-		wi_log_ll(WI_STR("%@ moved \"%@\" to \"%@\""),
+		wi_log_info(WI_STR("%@ moved \"%@\" to \"%@\""),
 			wd_user_identifier(user),
 			wd_files_virtual_path(properfrompath, user),
 			wd_files_virtual_path(propertopath, user));
@@ -1420,7 +1420,7 @@ static void wd_message_file_link(wd_user_t *user, wi_p7_message_t *message) {
 	propertopath	= wi_string_by_normalizing_path(topath);
 
 	if(wd_files_link_path(properfrompath, propertopath, user, message)) {
-		wi_log_ll(WI_STR("%@ linked \"%@\" to \"%@\""),
+		wi_log_info(WI_STR("%@ linked \"%@\" to \"%@\""),
 			wd_user_identifier(user),
 			wd_files_virtual_path(properfrompath, user),
 			wd_files_virtual_path(propertopath, user));
@@ -1619,7 +1619,7 @@ static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
 	properpath = wi_string_by_normalizing_path(path);
 	
 	if(wd_files_delete_path(properpath, user, message)) {
-		wi_log_ll(WI_STR("%@ deleted \"%@\""),
+		wi_log_info(WI_STR("%@ deleted \"%@\""),
 			wd_user_identifier(user),
 			wd_files_virtual_path(properpath, user));
 	}
@@ -1695,7 +1695,7 @@ static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *m
 		if(type == WD_FILE_TYPE_DROPBOX && account->file_set_permissions)
 			wd_files_set_permissions(properpath, owner, group, mode, user, message);
 		
-		wi_log_ll(WI_STR("%@ created \"%@\""),
+		wi_log_info(WI_STR("%@ created \"%@\""),
 			wd_user_identifier(user),
 			wd_files_virtual_path(properpath, user));
 	}
@@ -1756,7 +1756,7 @@ static void wd_message_account_change_password(wd_user_t *user, wi_p7_message_t 
 	password = wi_p7_message_string_for_name(message, WI_STR("wired.account.password"));
 	
 	if(wd_accounts_change_password(account, password)) {
-		wi_log_ll(WI_STR("%@ changed password"),
+		wi_log_info(WI_STR("%@ changed password"),
 			wd_user_identifier(user));
 	}
 }
@@ -1868,7 +1868,7 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 	account->edited_by			= wi_retain(wd_user_nick(user));
 
 	if(wd_accounts_create_user(account)) {
-		wi_log_ll(WI_STR("%@ created the user \"%@\""),
+		wi_log_info(WI_STR("%@ created the user \"%@\""),
 			wd_user_identifier(user),
 			account->name);
 	} else {
@@ -1915,7 +1915,7 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 	account->edited_by			= wi_retain(wd_user_nick(user));
 
 	if(wd_accounts_create_group(account)) {
-		wi_log_ll(WI_STR("%@ created the group \"%@\""),
+		wi_log_info(WI_STR("%@ created the group \"%@\""),
 			wd_user_identifier(user),
 			account->name);
 	} else {
@@ -1945,7 +1945,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	if(wd_accounts_edit_user(account, user, message)) {
 		wd_accounts_reload_user_account(account->name);
 		
-		wi_log_ll(WI_STR("%@ modified the user \"%@\""),
+		wi_log_info(WI_STR("%@ modified the user \"%@\""),
 			wd_user_identifier(user),
 			account->name);
 	} else {
@@ -1975,7 +1975,7 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 	if(wd_accounts_edit_group(account, user, message)) {
 		wd_accounts_reload_group_account(account->name);
 		
-		wi_log_ll(WI_STR("%@ modified the group \"%@\""),
+		wi_log_info(WI_STR("%@ modified the group \"%@\""),
 			wd_user_identifier(user),
 			account->name);
 	} else {
@@ -2005,7 +2005,7 @@ static void wd_message_account_delete_user(wd_user_t *user, wi_p7_message_t *mes
 	}
 
 	if(wd_accounts_delete_user(name)) {
-		wi_log_ll(WI_STR("%@ deleted the user \"%@\""),
+		wi_log_info(WI_STR("%@ deleted the user \"%@\""),
 			wd_user_identifier(user),
 			name);
 	} else {
@@ -2037,7 +2037,7 @@ static void wd_message_account_delete_group(wd_user_t *user, wi_p7_message_t *me
 	if(wd_accounts_delete_group(name)) {
 		wd_accounts_clear_group(name);
 
-		wi_log_ll(WI_STR("%@ deleted the group \"%@\""),
+		wi_log_info(WI_STR("%@ deleted the group \"%@\""),
 			wd_user_identifier(user),
 			name);
 	} else {
@@ -2181,7 +2181,7 @@ static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_
 	properpath = wi_string_by_normalizing_path(path);
 
 	if(wd_files_create_path(properpath, parenttype, user, message)) {
-		wi_log_ll(WI_STR("%@ uploaded \"%@\""),
+		wi_log_info(WI_STR("%@ uploaded \"%@\""),
 			wd_user_identifier(user),
 			wd_files_virtual_path(properpath, user));
 	}

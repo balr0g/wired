@@ -90,7 +90,6 @@ int main(int argc, const char **argv) {
 	wi_array_t			*arguments;
 	wi_pool_t			*pool;
 	wi_string_t			*string, *root_path, *user, *group;
-	const char			**xargv;
 	uint32_t			uid, gid;
 	int					ch, facility;
 	wi_boolean_t		test_config, daemonize, change_directory, switch_user;
@@ -104,7 +103,6 @@ int main(int argc, const char **argv) {
 
 //	wi_p7_message_debug		= true;
 //	wi_p7_socket_debug		= true;
-	wi_log_startup			= true;
 	wi_log_syslog			= true;
 	wi_log_syslog_facility	= LOG_DAEMON;
 	wd_status_lock			= wi_lock_init(wi_lock_alloc());
@@ -165,10 +163,8 @@ int main(int argc, const char **argv) {
 				string = wi_string_with_cstring(optarg);
 				facility = wi_log_syslog_facility_with_name(string);
 				
-				if(facility < 0) {
-					wi_log_err(WI_STR("Could not find syslog facility \"%@\": %m"),
-						string);
-				}
+				if(facility < 0)
+					wi_log_fatal(WI_STR("Could not find syslog facility \"%@\": %m"), string);
 				
 				wi_log_syslog_facility = facility;
 				break;
@@ -210,18 +206,15 @@ int main(int argc, const char **argv) {
 
 	if(daemonize) {
 		wi_array_add_data(arguments, WI_STR("-X"));
-		wi_array_insert_data_at_index(arguments, wi_string_with_cstring(argv[0]), 0);
 		
-		switch(fork()) {
+		switch(wi_fork()) {
 			case -1:
-				wi_log_err(WI_STR("Could not fork: %m"));
+				wi_log_fatal(WI_STR("Could not fork: %m"));
 				break;
 				
 			case 0:
-				xargv = wi_array_argv(arguments);
-				
-				if(execv(argv[0], (char * const *) xargv) < 0)
-					wi_log_err(WI_STR("Could not execute %s: %m"), argv[0]);
+				if(!wi_execv(wi_string_with_cstring(argv[0]), arguments))
+					wi_log_fatal(WI_STR("Could not execute %s: %m"), argv[0]);
 				break;
 				
 			default:
@@ -234,7 +227,7 @@ int main(int argc, const char **argv) {
 	
 	if(change_directory) {
 		if(!wi_fs_change_directory(root_path))
-			wi_log_err(WI_STR("Could not change directory to %@: %m"), root_path);
+			wi_log_fatal(WI_STR("Could not change directory to %@: %m"), root_path);
 	}
 	
 	wi_log_open();
@@ -293,7 +286,6 @@ int main(int argc, const char **argv) {
 	wd_server_listen();
 	wd_write_pid();
 	wd_write_status(true);
-	wi_log_startup = false;
 	
 	wd_files_index(true);
 	
