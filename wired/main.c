@@ -44,7 +44,6 @@
 #include "files.h"
 #include "main.h"
 #include "messages.h"
-#include "news.h"
 #include "server.h"
 #include "servers.h"
 #include "settings.h"
@@ -240,7 +239,6 @@ int main(int argc, const char **argv) {
 	wd_users_init();
 	wd_files_init();
 	wd_messages_init();
-	wd_news_init();
 	wd_banlist_init();
 	wd_servers_init();
 	wd_settings_init();

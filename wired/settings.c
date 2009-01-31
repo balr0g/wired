@@ -54,7 +54,6 @@ void wd_settings_init(void) {
 		WI_INT32(WI_CONFIG_TIME_INTERVAL),		WI_STR("index time"),
 		WI_INT32(WI_CONFIG_BOOL),				WI_STR("map port"),
 		WI_INT32(WI_CONFIG_STRING),				WI_STR("name"),
-		WI_INT32(WI_CONFIG_INTEGER),			WI_STR("news limit"),
 		WI_INT32(WI_CONFIG_PORT),				WI_STR("port"),
 		WI_INT32(WI_CONFIG_BOOL),				WI_STR("register"),
 		WI_INT32(WI_CONFIG_INTEGER),			WI_STR("total download speed"),

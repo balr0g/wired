@@ -32,10 +32,6 @@ user = @WD_USER@
 # (default "@WD_GROUP@")
 group = @WD_GROUP@
 
-# If set, the news file will be truncated after this many entries.
-# (no default)
-#news limit = 100
-
 
 ### FILES #############################################################
 

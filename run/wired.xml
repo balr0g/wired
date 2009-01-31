@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b14">
+			 version="2.0b15">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -80,24 +80,22 @@
 		<p7:field name="wired.message.message" type="string" id="5000" />
 		<p7:field name="wired.message.broadcast" type="string" id="5001" />
 
-		<p7:field name="wired.news.post" type="string" id="6000" />
-		<p7:field name="wired.news.time" type="date" id="6001" />
-		<p7:field name="wired.board.board" type="string" id="6100" />
-		<p7:field name="wired.board.new_board" type="string" id="6101" />
-		<p7:field name="wired.board.thread" type="uuid" id="6102" />
-		<p7:field name="wired.board.post" type="uuid" id="6103" />
-		<p7:field name="wired.board.post_date" type="date" id="6104" />
-		<p7:field name="wired.board.edit_date" type="date" id="6105" />
-		<p7:field name="wired.board.subject" type="string" id="6106" />
-		<p7:field name="wired.board.text" type="string" id="6107" />
-		<p7:field name="wired.board.owner" type="string" id="6108" />
-		<p7:field name="wired.board.owner.read" type="bool" id="6109" />
-		<p7:field name="wired.board.owner.write" type="bool" id="6110" />
-		<p7:field name="wired.board.group" type="string" id="6111" />
-		<p7:field name="wired.board.group.read" type="bool" id="6112" />
-		<p7:field name="wired.board.group.write" type="bool" id="6113" />
-		<p7:field name="wired.board.everyone.read" type="bool" id="6114" />
-		<p7:field name="wired.board.everyone.write" type="bool" id="6115" />
+		<p7:field name="wired.board.board" type="string" id="6000" />
+		<p7:field name="wired.board.new_board" type="string" id="6001" />
+		<p7:field name="wired.board.thread" type="uuid" id="6002" />
+		<p7:field name="wired.board.post" type="uuid" id="6003" />
+		<p7:field name="wired.board.post_date" type="date" id="6004" />
+		<p7:field name="wired.board.edit_date" type="date" id="6005" />
+		<p7:field name="wired.board.subject" type="string" id="6006" />
+		<p7:field name="wired.board.text" type="string" id="6007" />
+		<p7:field name="wired.board.owner" type="string" id="6008" />
+		<p7:field name="wired.board.owner.read" type="bool" id="6009" />
+		<p7:field name="wired.board.owner.write" type="bool" id="6010" />
+		<p7:field name="wired.board.group" type="string" id="6011" />
+		<p7:field name="wired.board.group.read" type="bool" id="6012" />
+		<p7:field name="wired.board.group.write" type="bool" id="6013" />
+		<p7:field name="wired.board.everyone.read" type="bool" id="6014" />
+		<p7:field name="wired.board.everyone.write" type="bool" id="6015" />
 
 		<p7:field name="wired.file.path" type="string" id="7000" />
 		<p7:field name="wired.file.type" type="enum" id="7001">
@@ -589,41 +587,11 @@
 			<p7:parameter field="wired.message.broadcast" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.news.get_news" id="6000">
-			<p7:parameter field="wired.transaction" />
-		</p7:message>
-
-		<p7:message name="wired.news.list" id="6001">
-			<p7:parameter field="wired.transaction" />
-			<p7:parameter field="wired.user.nick" use="required" />
-			<p7:parameter field="wired.news.time" use="required" />
-			<p7:parameter field="wired.news.post" use="required" />
-		</p7:message>
-
-		<p7:message name="wired.news.list.done" id="6002">
-			<p7:parameter field="wired.transaction" />
-		</p7:message>
-
-		<p7:message name="wired.news.post_news" id="6003">
-			<p7:parameter field="wired.transaction" />
-			<p7:parameter field="wired.news.post" use="required" />
-		</p7:message>
-
-		<p7:message name="wired.news.post" id="6004">
-			<p7:parameter field="wired.user.nick" use="required" />
-			<p7:parameter field="wired.news.time" use="required" />
-			<p7:parameter field="wired.news.post" use="required" />
-		</p7:message>
-
-		<p7:message name="wired.news.clear_news" id="6005">
-			<p7:parameter field="wired.transaction" />
-		</p7:message>
-
-		<p7:message name="wired.board.get_boards" id="6100">
+		<p7:message name="wired.board.get_boards" id="6000">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 		
-		<p7:message name="wired.board.board_list" id="6101">
+		<p7:message name="wired.board.board_list" id="6001">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.owner" use="required" />
@@ -636,15 +604,15 @@
 			<p7:parameter field="wired.board.everyone.write" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.board_list.done" id="6102">
+		<p7:message name="wired.board.board_list.done" id="6002">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 
-		<p7:message name="wired.board.get_posts" id="6103">
+		<p7:message name="wired.board.get_posts" id="6003">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 		
-		<p7:message name="wired.board.post_list" id="6104">
+		<p7:message name="wired.board.post_list" id="6004">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
@@ -657,11 +625,11 @@
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.post_list.done" id="6105">
+		<p7:message name="wired.board.post_list.done" id="6005">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 
-		<p7:message name="wired.board.add_board" id="6106">
+		<p7:message name="wired.board.add_board" id="6006">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.owner" use="required" />
@@ -674,7 +642,7 @@
 			<p7:parameter field="wired.board.everyone.write" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.board_added" id="6107">
+		<p7:message name="wired.board.board_added" id="6007">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.owner" use="required" />
 			<p7:parameter field="wired.board.owner.read" use="required" />
@@ -686,38 +654,38 @@
 			<p7:parameter field="wired.board.everyone.write" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.rename_board" id="6108">
+		<p7:message name="wired.board.rename_board" id="6008">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.new_board" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.board.board_renamed" id="6109">
+		<p7:message name="wired.board.board_renamed" id="6009">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.new_board" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.board.move_board" id="6110">
+		<p7:message name="wired.board.move_board" id="6010">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.new_board" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.board.board_moved" id="6111">
+		<p7:message name="wired.board.board_moved" id="6011">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.new_board" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.board.delete_board" id="6112">
+		<p7:message name="wired.board.delete_board" id="6012">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.board.board_deleted" id="6113">
+		<p7:message name="wired.board.board_deleted" id="6013">
 			<p7:parameter field="wired.board.board" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.board.set_permissions" id="6114">
+		<p7:message name="wired.board.set_permissions" id="6014">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.owner" use="required" />
@@ -730,7 +698,7 @@
 			<p7:parameter field="wired.board.everyone.write" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.permissions_changed" id="6115">
+		<p7:message name="wired.board.permissions_changed" id="6015">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.owner" use="required" />
 			<p7:parameter field="wired.board.owner.read" use="required" />
@@ -742,38 +710,38 @@
 			<p7:parameter field="wired.board.everyone.write" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.add_thread" id="6116">
+		<p7:message name="wired.board.add_thread" id="6016">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.subject" use="required" />
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.move_thread" id="6117">
+		<p7:message name="wired.board.move_thread" id="6017">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.new_board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.thread_moved" id="6118">
+		<p7:message name="wired.board.thread_moved" id="6018">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.new_board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.delete_thread" id="6119">
+		<p7:message name="wired.board.delete_thread" id="6019">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.thread_deleted" id="6120">
+		<p7:message name="wired.board.thread_deleted" id="6020">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.add_post" id="6121">
+		<p7:message name="wired.board.add_post" id="6021">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
@@ -781,7 +749,7 @@
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.post_added" id="6122">
+		<p7:message name="wired.board.post_added" id="6022">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 			<p7:parameter field="wired.board.post" use="required" />
@@ -792,7 +760,7 @@
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.edit_post" id="6123">
+		<p7:message name="wired.board.edit_post" id="6023">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
@@ -801,7 +769,7 @@
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.post_edited" id="6124">
+		<p7:message name="wired.board.post_edited" id="6024">
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 			<p7:parameter field="wired.board.post" use="required" />
@@ -810,14 +778,14 @@
 			<p7:parameter field="wired.board.text" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.delete_post" id="6125">
+		<p7:message name="wired.board.delete_post" id="6025">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
 			<p7:parameter field="wired.board.post" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.board.post_deleted" id="6126">
+		<p7:message name="wired.board.post_deleted" id="6026">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.board.board" use="required" />
 			<p7:parameter field="wired.board.thread" use="required" />
@@ -1289,24 +1257,6 @@
 			<p7:reply message="wired.error" count="?" use="required" />
 		</p7:transaction>
 
-		<p7:transaction message="wired.news.get_news" originator="client">
-			<p7:or>
-				<p7:and>
-					<p7:reply message="wired.news.list" count="*" use="required" />
-					<p7:reply message="wired.news.list.done" count="1" use="required" />
-				</p7:and>
-				<p7:reply message="wired.error" count="1" use="required" />
-			</p7:or>
-		</p7:transaction>
-		
-		<p7:transaction message="wired.news.post_news" originator="client">
-			<p7:reply message="wired.error" count="?" use="required" />
-		</p7:transaction>
-		
-		<p7:transaction message="wired.news.clear_news" originator="client">
-			<p7:reply message="wired.error" count="?" use="required" />
-		</p7:transaction>
-		
 		<p7:transaction message="wired.board.get_boards" originator="client">
 			<p7:or>
 				<p7:and>
@@ -1602,7 +1552,6 @@
 		<p7:broadcast message="wired.user.user_ban" />
 		<p7:broadcast message="wired.message.message" />
 		<p7:broadcast message="wired.message.broadcast" />
-		<p7:broadcast message="wired.news.post" />
 		<p7:broadcast message="wired.board.board_added" />
 		<p7:broadcast message="wired.board.board_renamed" />
 		<p7:broadcast message="wired.board.board_deleted" />

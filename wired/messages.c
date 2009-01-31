@@ -36,7 +36,6 @@
 #include "files.h"
 #include "main.h"
 #include "messages.h"
-#include "news.h"
 #include "server.h"
 #include "servers.h"
 #include "settings.h"
@@ -66,9 +65,6 @@ static void							wd_message_user_ban_user(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_user_get_users(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_message_send_message(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_message_send_broadcast(wd_user_t *, wi_p7_message_t *);
-static void							wd_message_news_get_news(wd_user_t *, wi_p7_message_t *);
-static void							wd_message_news_post_news(wd_user_t *, wi_p7_message_t *);
-static void							wd_message_news_clear_news(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_get_boards(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_get_posts(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_add_board(wd_user_t *, wi_p7_message_t *);
@@ -154,9 +150,6 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.user.get_users"), wd_message_user_get_users);
 	WD_MESSAGE_HANDLER(WI_STR("wired.message.send_message"), wd_message_message_send_message);
 	WD_MESSAGE_HANDLER(WI_STR("wired.message.send_broadcast"), wd_message_message_send_broadcast);
-	WD_MESSAGE_HANDLER(WI_STR("wired.news.get_news"), wd_message_news_get_news);
-	WD_MESSAGE_HANDLER(WI_STR("wired.news.post_news"), wd_message_news_post_news);
-	WD_MESSAGE_HANDLER(WI_STR("wired.news.clear_news"), wd_message_news_clear_news);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_boards"), wd_message_board_get_boards);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_posts"), wd_message_board_get_posts);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.add_board"), wd_message_board_add_board);
@@ -876,46 +869,6 @@ static void wd_message_message_send_broadcast(wd_user_t *user, wi_p7_message_t *
 	wi_p7_message_set_uint32_for_name(broadcast, wd_user_id(user), WI_STR("wired.user.id"));
 	wi_p7_message_set_string_for_name(broadcast, string, WI_STR("wired.message.broadcast"));
 	wd_chat_broadcast_message(wd_public_chat, broadcast);
-}
-
-
-
-static void wd_message_news_get_news(wd_user_t *user, wi_p7_message_t *message) {
-/*	if(!wd_user_account(user)->news_read_news) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-		
-		return;
-	}
-
-	wd_news_reply_news(user, message);*/
-}
-
-
-
-static void wd_message_news_post_news(wd_user_t *user, wi_p7_message_t *message) {
-/*	wi_string_t		*string;
-	
-	if(!wd_user_account(user)->news_post_news) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-		
-		return;
-	}
-
-	string = wi_p7_message_string_for_name(message, WI_STR("wired.news.post"));
-
-	wd_news_post_news(user, string);*/
-}
-
-
-
-static void wd_message_news_clear_news(wd_user_t *user, wi_p7_message_t *message) {
-/*	if(!wd_user_account(user)->news_clear_news) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-		
-		return;
-	}
-	
-	wd_news_clear_news();*/
 }
 
 

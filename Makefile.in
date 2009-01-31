@@ -134,10 +134,6 @@ install-wired:
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/groups $(installdir)/; \
 	fi
 
-	if [ ! -f $(installdir)/news ]; then \
-		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/news $(installdir)/; \
-	fi
-
 	if [ ! -f $(installdir)/users ]; then \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/users $(installdir)/; \
 	fi
