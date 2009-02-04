@@ -939,7 +939,11 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.everyone.write")) && value)
 		mode |= WD_BOARD_EVERYONE_WRITE;
 
-	wd_board_add_board(board, owner, group, mode, user, message);
+	if(wd_board_add_board(board, owner, group, mode, user, message)) {
+		wi_log_info(WI_STR("%@ added board \"%@\""),
+			wd_user_identifier(user),
+			board);
+	}
 }
 
 
@@ -975,7 +979,12 @@ static void wd_message_board_rename_board(wd_user_t *user, wi_p7_message_t *mess
 		return;
 	}
 	
-	wd_board_rename_board(oldboard, newboard, user, message);
+	if(wd_board_rename_board(oldboard, newboard, user, message)) {
+		wi_log_info(WI_STR("%@ renamed board \"%@\" to \"%@\""),
+			wd_user_identifier(user),
+			oldboard,
+			newboard);
+	}
 }
 
 
@@ -1005,7 +1014,12 @@ static void wd_message_board_move_board(wd_user_t *user, wi_p7_message_t *messag
 		return;
 	}
 	
-	wd_board_move_board(oldboard, newboard, user, message);
+	if(wd_board_move_board(oldboard, newboard, user, message)) {
+		wi_log_info(WI_STR("%@ moved board \"%@\" to \"%@\""),
+			wd_user_identifier(user),
+			oldboard,
+			newboard);
+	}
 }
 
 
@@ -1027,7 +1041,11 @@ static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *mess
 		return;
 	}
 	
-	wd_board_delete_board(board, user, message);
+	if(wd_board_delete_board(board, user, message)) {
+		wi_log_info(WI_STR("%@ deleted board \"%@\""),
+			wd_user_identifier(user),
+			board);
+	}
 }
 
 
@@ -1037,11 +1055,11 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 	wi_uinteger_t		mode;
 	wi_p7_boolean_t		value;
 	
-/*	if(!wd_user_account(user)->board_set_permissions) {
+	if(!wd_user_account(user)->board_set_permissions) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
-	}*/
+	}
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
@@ -1074,7 +1092,11 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.everyone.write")) && value)
 		mode |= WD_BOARD_EVERYONE_WRITE;
 	
-	wd_board_set_permissions(board, owner, group, mode, user, message);
+	if(wd_board_set_permissions(board, owner, group, mode, user, message)) {
+		wi_log_info(WI_STR("%@ changed permissions for board \"%@\""),
+			wd_user_identifier(user),
+			board);
+	}
 }
 
 
