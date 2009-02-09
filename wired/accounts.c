@@ -43,6 +43,7 @@ static wi_boolean_t					wd_accounts_delete_from_file(wi_file_t *, wi_string_t *)
 static void							wd_accounts_reload_account(wd_user_t *, wd_account_t *);
 static void							wd_accounts_copy_attributes(wd_account_t *, wd_account_t *);
 
+static wd_account_t *				wd_account_init(wd_account_t *);
 static void							wd_account_dealloc(wi_runtime_instance_t *);
 
 static wi_string_t *				wd_account_next_string(wi_array_t *, wi_uinteger_t *);
@@ -669,9 +670,19 @@ wd_account_t * wd_account_alloc(void) {
 
 
 
+static wd_account_t * wd_account_init(wd_account_t *account) {
+	account->values = wi_dictionary_init(wi_dictionary_alloc());
+	
+	return account;
+}
+
+
+
 wd_account_t * wd_account_init_with_message(wd_account_t *account, wi_p7_message_t *message) {
 	wi_uinteger_t		i, count;
 	
+	account = wd_account_init(account);
+
 	account->name = wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.account.name")));
 	wi_string_replace_string_with_string(account->name, WI_STR(":"), WI_STR(""), 0);
 	wi_string_replace_string_with_string(account->name, WI_STR(","), WI_STR(""), 0);
@@ -712,6 +723,8 @@ wd_account_t * wd_account_init_with_message(wd_account_t *account, wi_p7_message
 
 wd_account_t * wd_account_init_user_with_array(wd_account_t *account, wi_array_t *array) {
 	wi_uinteger_t		i, count;
+	
+	account = wd_account_init(account);
 	
 	i = 0;
 	count = wi_array_count(array);
@@ -799,6 +812,8 @@ wd_account_t * wd_account_init_user_with_array(wd_account_t *account, wi_array_t
 wd_account_t * wd_account_init_group_with_array(wd_account_t *account, wi_array_t *array) {
 	wi_uinteger_t	i, count;
 	
+	account = wd_account_init(account);
+	
 	i = 0;
 	count = wi_array_count(array);
 
@@ -875,6 +890,7 @@ wd_account_t * wd_account_init_group_with_array(wd_account_t *account, wi_array_
 static void wd_account_dealloc(wi_runtime_instance_t *instance) {
 	wd_account_t		*account = instance;
 	
+	wi_release(account->values);
 	wi_release(account->name);
 	wi_release(account->full_name);
 	wi_release(account->creation_time);
@@ -1387,4 +1403,715 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 	}
 	
 	return true;
+}
+
+
+
+#pragma mark -
+
+wi_string_t * wd_account_name(wd_account_t *account) {
+	return wi_dictionary_data_for_key(account->values, WI_STR("wired.account.name"));
+}
+
+
+
+wi_string_t * wd_account_full_name(wd_account_t *account) {
+	return wi_dictionary_data_for_key(account->values, WI_STR("wired.account.full_name"));
+}
+
+
+
+wi_date_t * wd_account_creation_time(wd_account_t *account) {
+	return wi_dictionary_data_for_key(account->values, WI_STR("wired.account.creation_time"));
+}
+
+
+
+wi_date_t * wd_account_modification_time(wd_account_t *account) {
+	return wi_dictionary_data_for_key(account->values, WI_STR("wired.account.modification_time"));
+}
+
+
+
+wi_date_t * wd_account_login_time(wd_account_t *account) {
+	return wi_dictionary_data_for_key(account->values, WI_STR("wired.account.login_time"));
+}
+
+
+
+wi_string_t * wd_account_edited_by(wd_account_t *account) {
+	return wi_dictionary_data_for_key(account->values, WI_STR("wired.account.edited_by"));
+}
+
+
+
+wi_string_t * wd_account_password(wd_account_t *account) {
+	return wi_dictionary_data_for_key(account->values, WI_STR("wired.account.password"));
+}
+
+
+
+wi_string_t * wd_account_group(wd_account_t *account) {
+	return wi_dictionary_data_for_key(account->values, WI_STR("wired.account.group"));
+}
+
+
+
+wi_array_t * wd_account_groups(wd_account_t *account) {
+	return wi_dictionary_data_for_key(account->values, WI_STR("wired.account.groups"));
+}
+
+
+
+wi_string_t * wd_account_files(wd_account_t *account) {
+	return wi_dictionary_data_for_key(account->values, WI_STR("wired.account.files"));
+}
+
+
+
+wi_boolean_t wd_account_user_cannot_set_nick(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.files"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_user_get_info(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.user.get_info"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_user_kick_users(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.user.kick_users"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_user_ban_users(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.user.ban_users"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_user_cannot_be_disconnected(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.user.cannot_be_disconnected"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_chat_set_topic(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.chat.set_topic"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_chat_create_chats(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.chat.create_chats"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_message_send_messages(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.message.send_messages"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_message_broadcast(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.message.broadcast"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_read_boards(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.read_boards"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_add_boards(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.add_boards"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_move_boards(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.move_boards"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_rename_boards(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.rename_boards"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_delete_boards(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.delete_boards"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_set_permissions(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.set_permissions"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_add_threads(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.add_threads"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_move_threads(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.move_threads"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_delete_threads(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.delete_threads"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_add_posts(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.add_posts"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_edit_own_posts(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.edit_own_posts"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_edit_all_posts(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.edit_all_posts"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_board_delete_posts(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.board.delete_posts"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_list_files(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.list_files"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_get_info(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.get_info"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_create_directories(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.create_directories"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_create_links(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.create_links"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_move_files(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.move_files"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_rename_files(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.rename_files"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_set_type(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.set_type"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_set_comment(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.set_comment"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_set_permissions(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.set_permissions"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_set_executable(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.set_executable"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_delete_files(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.delete_files"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_file_access_all_dropboxes(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.access_all_dropboxes"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_uinteger_t wd_account_file_recursive_list_depth_limit(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.file.recursive_list_depth_limit"))))
+		return wi_number_integer(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_transfer_download_files(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.transfer.download_files"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_transfer_upload_files(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.transfer.upload_files"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_transfer_upload_directories(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.transfer.upload_directories"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_transfer_upload_anywhere(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.transfer.upload_anywhere"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_uinteger_t wd_account_transfer_download_limit(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.transfer.download_limit"))))
+		return wi_number_integer(number);
+
+	return false;
+}
+
+
+
+wi_uinteger_t wd_account_transfer_upload_limit(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.transfer.upload_limit"))))
+		return wi_number_integer(number);
+
+	return false;
+}
+
+
+
+wi_uinteger_t wd_account_transfer_download_speed_limit(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.transfer.download_speed_limit"))))
+		return wi_number_integer(number);
+
+	return false;
+}
+
+
+
+wi_uinteger_t wd_account_transfer_upload_speed_limit(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.transfer.upload_speed_limit"))))
+		return wi_number_integer(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_account_change_password(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.account.change_password"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_account_list_accounts(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.account.list_accounts"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_account_read_accounts(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.account.read_accounts"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_account_create_accounts(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.account.create_accounts"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_account_edit_accounts(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.account.edit_accounts"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_account_delete_accounts(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.account.delete_accounts"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_account_raise_account_privileges(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.account.raise_account_privileges"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_user_get_users(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.user.get_users"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_log_view_log(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.log.view_log"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_settings_get_settings(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.settings.get_settings"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_settings_set_settings(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.settings.set_settings"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_banlist_get_bans(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.banlist.get_bans"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_banlist_add_bans(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.banlist.add_bans"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_banlist_delete_bans(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.banlist.delete_bans"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_tracker_list_servers(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.tracker.list_servers"))))
+		return wi_number_bool(number);
+
+	return false;
+}
+
+
+
+wi_boolean_t wd_account_tracker_register_servers(wd_account_t *account) {
+	wi_number_t		*number;
+
+	if((number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.tracker.register_servers"))))
+		return wi_number_bool(number);
+
+	return false;
 }

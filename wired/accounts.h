@@ -35,6 +35,8 @@
 struct _wd_account {
 	wi_runtime_base_t				base;
 	
+	wi_dictionary_t					*values;
+	
 	wi_string_t						*name;
 	wi_string_t						*full_name;
 	wi_date_t						*creation_time;
@@ -141,5 +143,75 @@ void								wd_account_reply_user_account(wd_account_t *, wd_user_t *, wi_p7_mes
 void								wd_account_reply_group_account(wd_account_t *, wd_user_t *, wi_p7_message_t *);
 
 wi_boolean_t						wd_account_check_privileges(wd_account_t *, wd_user_t *);
+
+wi_string_t *						wd_account_name(wd_account_t *);
+wi_string_t *						wd_account_full_name(wd_account_t *);
+wi_date_t *							wd_account_creation_time(wd_account_t *);
+wi_date_t *							wd_account_modification_time(wd_account_t *);
+wi_date_t *							wd_account_login_time(wd_account_t *);
+wi_string_t *						wd_account_edited_by(wd_account_t *);
+wi_string_t *						wd_account_password(wd_account_t *);
+wi_string_t *						wd_account_group(wd_account_t *);
+wi_array_t *						wd_account_groups(wd_account_t *);
+wi_string_t *						wd_account_files(wd_account_t *);
+wi_boolean_t 						wd_account_user_cannot_set_nick(wd_account_t *);
+wi_boolean_t 						wd_account_user_get_info(wd_account_t *);
+wi_boolean_t 						wd_account_user_kick_users(wd_account_t *);
+wi_boolean_t 						wd_account_user_ban_users(wd_account_t *);
+wi_boolean_t 						wd_account_user_cannot_be_disconnected(wd_account_t *);
+wi_boolean_t 						wd_account_chat_set_topic(wd_account_t *);
+wi_boolean_t 						wd_account_chat_create_chats(wd_account_t *);
+wi_boolean_t 						wd_account_message_send_messages(wd_account_t *);
+wi_boolean_t 						wd_account_message_broadcast(wd_account_t *);
+wi_boolean_t 						wd_account_board_read_boards(wd_account_t *);
+wi_boolean_t 						wd_account_board_add_boards(wd_account_t *);
+wi_boolean_t 						wd_account_board_move_boards(wd_account_t *);
+wi_boolean_t 						wd_account_board_rename_boards(wd_account_t *);
+wi_boolean_t 						wd_account_board_delete_boards(wd_account_t *);
+wi_boolean_t 						wd_account_board_set_permissions(wd_account_t *);
+wi_boolean_t 						wd_account_board_add_threads(wd_account_t *);
+wi_boolean_t 						wd_account_board_move_threads(wd_account_t *);
+wi_boolean_t 						wd_account_board_delete_threads(wd_account_t *);
+wi_boolean_t 						wd_account_board_add_posts(wd_account_t *);
+wi_boolean_t 						wd_account_board_edit_own_posts(wd_account_t *);
+wi_boolean_t 						wd_account_board_edit_all_posts(wd_account_t *);
+wi_boolean_t 						wd_account_board_delete_posts(wd_account_t *);
+wi_boolean_t 						wd_account_file_list_files(wd_account_t *);
+wi_boolean_t 						wd_account_file_get_info(wd_account_t *);
+wi_boolean_t 						wd_account_file_create_directories(wd_account_t *);
+wi_boolean_t 						wd_account_file_create_links(wd_account_t *);
+wi_boolean_t 						wd_account_file_move_files(wd_account_t *);
+wi_boolean_t 						wd_account_file_rename_files(wd_account_t *);
+wi_boolean_t 						wd_account_file_set_type(wd_account_t *);
+wi_boolean_t 						wd_account_file_set_comment(wd_account_t *);
+wi_boolean_t 						wd_account_file_set_permissions(wd_account_t *);
+wi_boolean_t 						wd_account_file_set_executable(wd_account_t *);
+wi_boolean_t 						wd_account_file_delete_files(wd_account_t *);
+wi_boolean_t 						wd_account_file_access_all_dropboxes(wd_account_t *);
+wi_uinteger_t 						wd_account_file_recursive_list_depth_limit(wd_account_t *);
+wi_boolean_t 						wd_account_transfer_download_files(wd_account_t *);
+wi_boolean_t 						wd_account_transfer_upload_files(wd_account_t *);
+wi_boolean_t 						wd_account_transfer_upload_directories(wd_account_t *);
+wi_boolean_t 						wd_account_transfer_upload_anywhere(wd_account_t *);
+wi_uinteger_t 						wd_account_transfer_download_limit(wd_account_t *);
+wi_uinteger_t 						wd_account_transfer_upload_limit(wd_account_t *);
+wi_uinteger_t 						wd_account_transfer_download_speed_limit(wd_account_t *);
+wi_uinteger_t 						wd_account_transfer_upload_speed_limit(wd_account_t *);
+wi_boolean_t 						wd_account_account_change_password(wd_account_t *);
+wi_boolean_t 						wd_account_account_list_accounts(wd_account_t *);
+wi_boolean_t 						wd_account_account_read_accounts(wd_account_t *);
+wi_boolean_t 						wd_account_account_create_accounts(wd_account_t *);
+wi_boolean_t 						wd_account_account_edit_accounts(wd_account_t *);
+wi_boolean_t 						wd_account_account_delete_accounts(wd_account_t *);
+wi_boolean_t 						wd_account_account_raise_account_privileges(wd_account_t *);
+wi_boolean_t 						wd_account_user_get_users(wd_account_t *);
+wi_boolean_t 						wd_account_log_view_log(wd_account_t *);
+wi_boolean_t 						wd_account_settings_get_settings(wd_account_t *);
+wi_boolean_t 						wd_account_settings_set_settings(wd_account_t *);
+wi_boolean_t 						wd_account_banlist_get_bans(wd_account_t *);
+wi_boolean_t 						wd_account_banlist_add_bans(wd_account_t *);
+wi_boolean_t 						wd_account_banlist_delete_bans(wd_account_t *);
+wi_boolean_t 						wd_account_tracker_list_servers(wd_account_t *);
+wi_boolean_t 						wd_account_tracker_register_servers(wd_account_t *);
 
 #endif /* WD_ACCOUNTS_H */
