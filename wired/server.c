@@ -724,7 +724,7 @@ static void wd_server_log_callback(wi_log_level_t level, wi_string_t *string) {
 			if(wd_user_state(user) == WD_USER_LOGGED_IN && wd_user_is_subscribed_log(user, &transaction)) {
 				message = wi_p7_message_with_name(WI_STR("wired.log.message"), wd_p7_spec);
 				wi_p7_message_set_date_for_name(message, wi_date(), WI_STR("wired.log.time"));
-				wi_p7_message_set_enum_for_name(message, 3 - level, WI_STR("wired.log.level"));
+				wi_p7_message_set_enum_for_name(message, 4 - level, WI_STR("wired.log.level"));
 				wi_p7_message_set_string_for_name(message, string, WI_STR("wired.log.message"));
 				
 				if(transaction != 0)
