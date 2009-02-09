@@ -904,7 +904,7 @@ void wd_board_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, 
 			if(wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
 				account = wd_user_account(user);
 				
-				if(!account->board_edit_all_posts) {
+				if(!wd_account_board_edit_all_posts(account)) {
 					login = wi_dictionary_data_for_key(instance, WI_STR("wired.user.login"));
 					
 					if(!wi_is_equal(login, wd_user_login(user))) {
@@ -1064,12 +1064,12 @@ static wi_boolean_t wd_board_privileges_is_xable_by_user(wd_board_privileges_t *
 	account = wd_user_account(user);
 	
 	if(privileges->mode & mode && wi_string_length(privileges->group) > 0) {
-		if(wi_is_equal(privileges->group, account->group) || wi_array_contains_data(account->groups, privileges->group))
+		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
 			return true;
 	}
 	
 	if(privileges->mode & mode && wi_string_length(privileges->owner) > 0) {
-		if(wi_is_equal(privileges->owner, account->name))
+		if(wi_is_equal(privileges->owner, wd_account_name(account)))
 			return true;
 	}
 	

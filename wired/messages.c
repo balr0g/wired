@@ -462,7 +462,7 @@ static void wd_message_chat_set_topic(wd_user_t *user, wi_p7_message_t *message)
 	if(!chat || !wd_chat_contains_user(chat, user))
 		return;
 	
-	if(chat == wd_public_chat && !wd_user_account(user)->chat_set_topic) {
+	if(chat == wd_public_chat && !wd_account_chat_set_topic(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -480,7 +480,7 @@ static void wd_message_chat_create_chat(wd_user_t *user, wi_p7_message_t *messag
 	wi_p7_message_t		*reply;
 	wd_chat_t			*chat;
 
-	if(!wd_user_account(user)->chat_create_chats) {
+	if(!wd_account_chat_create_chats(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 			
 		return;
@@ -588,13 +588,13 @@ static void wd_message_chat_kick_user(wd_user_t *user, wi_p7_message_t *message)
 		return;
 	
 	if(chat == wd_public_chat) {
-		if(!wd_user_account(user)->user_kick_users) {
+		if(!wd_account_user_kick_users(wd_user_account(user))) {
 			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 			
 			return;
 		}
 		
-		if(wd_user_account(peer)->user_cannot_be_disconnected) {
+		if(wd_account_user_cannot_be_disconnected(wd_user_account(peer))) {
 			wd_user_reply_error(user, WI_STR("wired.error.user_cannot_be_disconnected"), message);
 
 			return;
@@ -657,14 +657,14 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 		return;
 	}
 	
-	if(account->user_cannot_set_nick || !wd_user_nick(user))
+	if(wd_account_user_cannot_set_nick(account) || !wd_user_nick(user))
 		wd_user_set_nick(user, login);
 	
 	wd_user_set_account(user, account);
 	
 	password = wi_p7_message_string_for_name(message, WI_STR("wired.user.password"));
 	
-	if(!wi_is_equal(account->password, password)) {
+	if(!wi_is_equal(wd_account_password(account), password)) {
 		wd_user_reply_error(user, WI_STR("wired.error.login_failed"), message);
 		
 		wi_log_info(WI_STR("Login from %@ failed: Wrong password"),
@@ -676,7 +676,7 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 	wi_log_info(WI_STR("Login from %@ using %@ succeeded"),
 	   wd_user_identifier(user), wd_client_info_string(wd_user_client_info(user)));
 	
-	wd_user_set_admin(user, (account->user_kick_users || account->user_ban_users));
+	wd_user_set_admin(user, (wd_account_user_kick_users(account) || wd_account_user_ban_users(account)));
 	wd_user_set_state(user, WD_USER_LOGGED_IN);
 	
 	wi_lock_lock(wd_status_lock);
@@ -732,7 +732,7 @@ static void wd_message_user_set_nick(wd_user_t *user, wi_p7_message_t *message) 
 	
 	account = wd_user_account(user);
 	
-	if(account && account->user_cannot_set_nick)
+	if(account && wd_account_user_cannot_set_nick(account))
 		return;
 	
 	nick = wi_p7_message_string_for_name(message, WI_STR("wired.user.nick"));
@@ -769,7 +769,7 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 	wd_user_t			*peer;
 	wi_p7_uint32_t		uid;
 
-	if(!wd_user_account(user)->user_kick_users) {
+	if(!wd_account_user_kick_users(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -785,7 +785,7 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 		return;
 	}
 
-	if(wd_user_account(peer)->user_cannot_be_disconnected) {
+	if(wd_account_user_cannot_be_disconnected(wd_user_account(peer))) {
 		wd_user_reply_error(user, WI_STR("wired.error.user_cannot_be_disconnected"), message);
 
 		return;
@@ -811,7 +811,7 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 
 
 static void wd_message_user_get_users(wd_user_t *user, wi_p7_message_t *message) {
-	if(!wd_user_account(user)->user_get_users) {
+	if(!wd_account_user_get_users(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -828,7 +828,7 @@ static void wd_message_message_send_message(wd_user_t *user, wi_p7_message_t *me
 	wd_user_t			*peer;
 	wi_p7_uint32_t		uid;
 
-	if(!wd_user_account(user)->message_send_messages) {
+	if(!wd_account_message_send_messages(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 			
 		return;
@@ -857,7 +857,7 @@ static void wd_message_message_send_broadcast(wd_user_t *user, wi_p7_message_t *
 	wi_p7_message_t		*broadcast;
 	wi_string_t			*string;
 	
-	if(!wd_user_account(user)->message_broadcast) {
+	if(!wd_account_message_broadcast(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -874,7 +874,7 @@ static void wd_message_message_send_broadcast(wd_user_t *user, wi_p7_message_t *
 
 
 static void wd_message_board_get_boards(wd_user_t *user, wi_p7_message_t *message) {
-	if(!wd_user_account(user)->board_read_boards) {
+	if(!wd_account_board_read_boards(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -886,7 +886,7 @@ static void wd_message_board_get_boards(wd_user_t *user, wi_p7_message_t *messag
 
 
 static void wd_message_board_get_posts(wd_user_t *user, wi_p7_message_t *message) {
-	if(!wd_user_account(user)->board_read_boards) {
+	if(!wd_account_board_read_boards(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -902,7 +902,7 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 	wi_p7_boolean_t		value;
 	wi_uinteger_t		mode;
 	
-	if(!wd_user_account(user)->board_add_boards) {
+	if(!wd_account_board_add_boards(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -951,7 +951,7 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 static void wd_message_board_rename_board(wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t		*oldboard, *newboard;
 	
-	if(!wd_user_account(user)->board_rename_boards) {
+	if(!wd_account_board_rename_boards(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -992,7 +992,7 @@ static void wd_message_board_rename_board(wd_user_t *user, wi_p7_message_t *mess
 static void wd_message_board_move_board(wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t		*oldboard, *newboard;
 	
-	if(!wd_user_account(user)->board_move_boards) {
+	if(!wd_account_board_move_boards(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1027,7 +1027,7 @@ static void wd_message_board_move_board(wd_user_t *user, wi_p7_message_t *messag
 static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t		*board;
 	
-	if(!wd_user_account(user)->board_delete_boards) {
+	if(!wd_account_board_delete_boards(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1055,7 +1055,7 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 	wi_uinteger_t		mode;
 	wi_p7_boolean_t		value;
 	
-	if(!wd_user_account(user)->board_set_permissions) {
+	if(!wd_account_board_set_permissions(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1104,7 +1104,7 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 static void wd_message_board_add_thread(wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t		*board, *subject, *text;
 	
-	if(!wd_user_account(user)->board_add_threads) {
+	if(!wd_account_board_add_threads(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1130,7 +1130,7 @@ static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *messa
 	wi_string_t		*oldboard, *newboard;
 	wi_uuid_t		*thread;
 	
-	if(!wd_user_account(user)->board_move_threads) {
+	if(!wd_account_board_move_threads(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1164,7 +1164,7 @@ static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *mes
 	wi_string_t		*board;
 	wi_uuid_t		*thread;
 	
-	if(!wd_user_account(user)->board_delete_threads) {
+	if(!wd_account_board_delete_threads(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1189,7 +1189,7 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 	wi_string_t		*board, *subject, *text;
 	wi_uuid_t		*thread;
 	
-	if(!wd_user_account(user)->board_add_posts) {
+	if(!wd_account_board_add_posts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1219,7 +1219,7 @@ static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message
 	
 	account = wd_user_account(user);
 	
-	if(!account->board_edit_own_posts || !account->board_edit_all_posts) {
+	if(!wd_account_board_edit_own_posts(account) || !wd_account_board_edit_all_posts(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1247,7 +1247,7 @@ static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *messa
 	wi_string_t		*board;
 	wi_uuid_t		*thread, *post;
 	
-	if(!wd_user_account(user)->board_delete_posts) {
+	if(!wd_account_board_delete_posts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1273,7 +1273,7 @@ static void wd_message_file_list_directory(wd_user_t *user, wi_p7_message_t *mes
 	wi_string_t			*path;
 	wi_p7_boolean_t		recursive;
 	
-	if(!wd_user_account(user)->file_list_files) {
+	if(!wd_account_file_list_files(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1292,7 +1292,7 @@ static void wd_message_file_list_directory(wd_user_t *user, wi_p7_message_t *mes
 static void wd_message_file_get_info(wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t		*path;
 	
-	if(!wd_user_account(user)->file_get_info) {
+	if(!wd_account_file_get_info(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1341,11 +1341,11 @@ static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 	
 	account = wd_user_account(user);
 	
-	if(!account->file_move_files) {
+	if(!wd_account_file_move_files(account)) {
 		fromdirectory = wi_string_by_deleting_last_path_component(frompath);
 		todirectory = wi_string_by_deleting_last_path_component(topath);
 
-		if(!account->file_rename_files || !wi_is_equal(frompath, topath)) {
+		if(!wd_account_file_rename_files(account) || !wi_is_equal(frompath, topath)) {
 			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 			
 			return;
@@ -1385,7 +1385,7 @@ static void wd_message_file_link(wd_user_t *user, wi_p7_message_t *message) {
 		return;
 	}
 
-	if(!wd_user_account(user)->file_create_links) {
+	if(!wd_account_file_create_links(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 			
 		return;
@@ -1411,7 +1411,7 @@ static void wd_message_file_set_type(wd_user_t *user, wi_p7_message_t *message) 
 	
 	account = wd_user_account(user);
 
-	if(!account->file_set_type) {
+	if(!wd_account_file_set_type(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1444,7 +1444,7 @@ static void wd_message_file_set_comment(wd_user_t *user, wi_p7_message_t *messag
 	
 	account = wd_user_account(user);
 
-	if(!account->file_set_comment) {
+	if(!wd_account_file_set_comment(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1475,7 +1475,7 @@ static void wd_message_file_set_executable(wd_user_t *user, wi_p7_message_t *mes
 	wi_string_t			*path;
 	wi_p7_boolean_t		executable;
 	
-	if(!wd_user_account(user)->transfer_upload_files) {
+	if(!wd_account_transfer_upload_files(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
 		return;
@@ -1510,7 +1510,7 @@ static void wd_message_file_set_permissions(wd_user_t *user, wi_p7_message_t *me
 	
 	account = wd_user_account(user);
 
-	if(!account->file_set_permissions) {
+	if(!wd_account_file_set_permissions(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1571,7 +1571,7 @@ static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
 
 	account = wd_user_account(user);
 	
-	if(!account->file_delete_files) {
+	if(!wd_account_file_delete_files(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1611,7 +1611,7 @@ static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *m
 	
 	account = wd_user_account(user);
 	
-	if(!account->file_create_directories) {
+	if(!wd_account_file_create_directories(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1667,7 +1667,7 @@ static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *m
 	properpath = wi_string_by_normalizing_path(path);
 
 	if(wd_files_create_path(properpath, type, user, message)) {
-		if(type == WD_FILE_TYPE_DROPBOX && account->file_set_permissions)
+		if(type == WD_FILE_TYPE_DROPBOX && wd_account_file_set_permissions(account))
 			wd_files_set_permissions(properpath, owner, group, mode, user, message);
 		
 		wi_log_info(WI_STR("%@ created \"%@\""),
@@ -1691,7 +1691,7 @@ static void wd_message_file_search(wd_user_t *user, wi_p7_message_t *message) {
 static void wd_message_file_subscribe_directory(wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t		*path, *realpath;
 	
-	if(!wd_user_account(user)->file_list_files) {
+	if(!wd_account_file_list_files(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1722,7 +1722,7 @@ static void wd_message_account_change_password(wd_user_t *user, wi_p7_message_t 
 	
 	account = wd_user_account(user);
 	
-	if(!account->account_change_password) {
+	if(!wd_account_account_change_password(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1739,7 +1739,7 @@ static void wd_message_account_change_password(wd_user_t *user, wi_p7_message_t 
 
 
 static void wd_message_account_list_users(wd_user_t *user, wi_p7_message_t *message) {
-	if(!wd_user_account(user)->account_list_accounts) {
+	if(!wd_account_account_list_accounts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1751,7 +1751,7 @@ static void wd_message_account_list_users(wd_user_t *user, wi_p7_message_t *mess
 
 
 static void wd_message_account_list_groups(wd_user_t *user, wi_p7_message_t *message) {
-	if(!wd_user_account(user)->account_list_accounts) {
+	if(!wd_account_account_list_accounts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1765,7 +1765,7 @@ static void wd_message_account_list_groups(wd_user_t *user, wi_p7_message_t *mes
 static void wd_message_account_read_user(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t		*account;
 
-	if(!wd_user_account(user)->account_read_accounts) {
+	if(!wd_account_account_read_accounts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1787,7 +1787,7 @@ static void wd_message_account_read_user(wd_user_t *user, wi_p7_message_t *messa
 static void wd_message_account_read_group(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t		*account;
 
-	if(!wd_user_account(user)->account_read_accounts) {
+	if(!wd_account_account_read_accounts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1809,7 +1809,7 @@ static void wd_message_account_read_group(wd_user_t *user, wi_p7_message_t *mess
 static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t		*account;
 
-	if(!wd_user_account(user)->account_create_accounts) {
+	if(!wd_account_account_create_accounts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1825,7 +1825,7 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 	
 	account = wi_autorelease(wd_account_init_with_message(wd_account_alloc(), message));
 	
-	if(wi_string_length(account->name) == 0) {
+	if(wi_string_length(wd_account_name(account)) == 0) {
 		wd_user_reply_error(user, WI_STR("wired.error.invalid_message"), message);
 		
 		return;
@@ -1837,15 +1837,15 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 		return;
 	}
 
-	account->creation_time		= wi_retain(wi_date());
+/*	account->creation_time		= wi_retain(wi_date());
 	account->modification_time	= wi_retain(wi_date_with_time(0));
 	account->login_time			= wi_retain(wi_date_with_time(0));
-	account->edited_by			= wi_retain(wd_user_nick(user));
+	account->edited_by			= wi_retain(wd_user_nick(user));*/
 
 	if(wd_accounts_create_user(account)) {
 		wi_log_info(WI_STR("%@ created the user \"%@\""),
 			wd_user_identifier(user),
-			account->name);
+			wd_account_name(account));
 	} else {
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
@@ -1856,7 +1856,7 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t		*account;
 
-	if(!wd_user_account(user)->account_create_accounts) {
+	if(!wd_account_account_create_accounts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1872,7 +1872,7 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 	
 	account = wi_autorelease(wd_account_init_with_message(wd_account_alloc(), message));
 	
-	if(wi_string_length(account->name) == 0) {
+	if(wi_string_length(wd_account_name(account)) == 0) {
 		wd_user_reply_error(user, WI_STR("wired.error.invalid_message"), message);
 		
 		return;
@@ -1884,15 +1884,15 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 		return;
 	}
 	
-	account->creation_time		= wi_retain(wi_date());
+/*	account->creation_time		= wi_retain(wi_date());
 	account->modification_time	= wi_retain(wi_date_with_time(0));
 	account->login_time			= wi_retain(wi_date_with_time(0));
-	account->edited_by			= wi_retain(wd_user_nick(user));
+	account->edited_by			= wi_retain(wd_user_nick(user));*/
 
 	if(wd_accounts_create_group(account)) {
 		wi_log_info(WI_STR("%@ created the group \"%@\""),
 			wd_user_identifier(user),
-			account->name);
+			wd_account_name(account));
 	} else {
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
@@ -1903,7 +1903,7 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t	*account;
 
-	if(!wd_user_account(user)->account_edit_accounts) {
+	if(!wd_account_account_edit_accounts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1918,11 +1918,11 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	}
 	
 	if(wd_accounts_edit_user(account, user, message)) {
-		wd_accounts_reload_user_account(account->name);
+		wd_accounts_reload_user_account(wd_account_name(account));
 		
 		wi_log_info(WI_STR("%@ modified the user \"%@\""),
 			wd_user_identifier(user),
-			account->name);
+			wd_account_name(account));
 	} else {
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
@@ -1933,7 +1933,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t	*account;
 
-	if(!wd_user_account(user)->account_edit_accounts) {
+	if(!wd_account_account_edit_accounts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1948,11 +1948,11 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 	}
 	
 	if(wd_accounts_edit_group(account, user, message)) {
-		wd_accounts_reload_group_account(account->name);
+		wd_accounts_reload_group_account(wd_account_name(account));
 		
 		wi_log_info(WI_STR("%@ modified the group \"%@\""),
 			wd_user_identifier(user),
-			account->name);
+			wd_account_name(account));
 	} else {
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
@@ -1964,7 +1964,7 @@ static void wd_message_account_delete_user(wd_user_t *user, wi_p7_message_t *mes
 	wi_string_t		*name;
 	wd_account_t	*account;
 	
-	if(!wd_user_account(user)->account_delete_accounts) {
+	if(!wd_account_account_delete_accounts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1994,7 +1994,7 @@ static void wd_message_account_delete_group(wd_user_t *user, wi_p7_message_t *me
 	wi_string_t		*name;
 	 wd_account_t	*account;
 	
-	if(!wd_user_account(user)->account_delete_accounts) {
+	if(!wd_account_account_delete_accounts(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2026,7 +2026,7 @@ static void wd_message_transfer_download_file(wd_user_t *user, wi_p7_message_t *
 	wi_string_t			*path, *properpath;
 	wi_file_offset_t	offset;
 	
-	if(!wd_user_account(user)->transfer_download_files) {
+	if(!wd_account_transfer_download_files(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2080,7 +2080,7 @@ static void wd_message_transfer_upload_file(wd_user_t *user, wi_p7_message_t *me
 	switch(wd_files_type(realparentpath)) {
 		case WD_FILE_TYPE_UPLOADS:
 		case WD_FILE_TYPE_DROPBOX:
-			if(!wd_user_account(user)->transfer_upload_files) {
+			if(!wd_account_transfer_upload_files(wd_user_account(user))) {
 				wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
 				return;
@@ -2088,7 +2088,7 @@ static void wd_message_transfer_upload_file(wd_user_t *user, wi_p7_message_t *me
 			break;
 
 		default:
-			if(!wd_user_account(user)->transfer_upload_anywhere) {
+			if(!wd_account_transfer_upload_anywhere(wd_user_account(user))) {
 				wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
 				return;
@@ -2147,7 +2147,7 @@ static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_
 	realparentpath	= wi_string_by_deleting_last_path_component(realpath);
 	parenttype		= wd_files_type(realparentpath);
 	
-	if(parenttype == WD_FILE_TYPE_DIR || !account->transfer_upload_directories) {
+	if(parenttype == WD_FILE_TYPE_DIR || !wd_account_transfer_upload_directories(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
 		return;
@@ -2167,7 +2167,7 @@ static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_
 static void wd_message_log_subscribe(wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_uint32_t		transaction;
 	
-	if(!wd_user_account(user)->log_view_log) {
+	if(!wd_account_log_view_log(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2182,13 +2182,13 @@ static void wd_message_log_subscribe(wd_user_t *user, wi_p7_message_t *message) 
 
 
 static void wd_message_log_unsubscribe(wd_user_t *user, wi_p7_message_t *message) {
-	if(!wd_user_account(user)->log_view_log) {
+	if(!wd_account_log_view_log(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
 	}
 
-	if(!wd_user_account(user)->log_view_log) {
+	if(!wd_account_log_view_log(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2200,7 +2200,7 @@ static void wd_message_log_unsubscribe(wd_user_t *user, wi_p7_message_t *message
 
 
 static void wd_message_settings_get_settings(wd_user_t *user, wi_p7_message_t *message) {
-	if(!wd_user_account(user)->settings_get_settings) {
+	if(!wd_account_settings_get_settings(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2212,7 +2212,7 @@ static void wd_message_settings_get_settings(wd_user_t *user, wi_p7_message_t *m
 
 
 static void wd_message_settings_set_settings(wd_user_t *user, wi_p7_message_t *message) {
-	if(!wd_user_account(user)->settings_set_settings) {
+	if(!wd_account_settings_set_settings(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2224,7 +2224,7 @@ static void wd_message_settings_set_settings(wd_user_t *user, wi_p7_message_t *m
 
 
 static void wd_message_banlist_get_bans(wd_user_t *user, wi_p7_message_t *message) {
-	if(!wd_user_account(user)->banlist_get_bans) {
+	if(!wd_account_banlist_get_bans(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2239,7 +2239,7 @@ static void wd_message_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message
 	wi_string_t		*ip;
 	wi_date_t		*expiration_date;
 	
-	if(!wd_user_account(user)->banlist_add_bans) {
+	if(!wd_account_banlist_add_bans(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2257,7 +2257,7 @@ static void wd_message_banlist_delete_ban(wd_user_t *user, wi_p7_message_t *mess
 	wi_string_t		*ip;
 	wi_date_t		*expiration_date;
 	
-	if(!wd_user_account(user)->banlist_delete_bans) {
+	if(!wd_account_banlist_delete_bans(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 	 
 		return;
@@ -2278,7 +2278,7 @@ static void wd_message_tracker_get_categories(wd_user_t *user, wi_p7_message_t *
 		return;
 	}
 	
-	if(!wd_user_account(user)->tracker_list_servers) {
+	if(!wd_account_tracker_list_servers(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2296,7 +2296,7 @@ static void wd_message_tracker_get_servers(wd_user_t *user, wi_p7_message_t *mes
 		return;
 	}
 	
-	if(!wd_user_account(user)->tracker_list_servers) {
+	if(!wd_account_tracker_list_servers(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2314,7 +2314,7 @@ static void wd_message_tracker_send_register(wd_user_t *user, wi_p7_message_t *m
 		return;
 	}
 	
-	if(!wd_user_account(user)->tracker_register_servers) {
+	if(!wd_account_tracker_register_servers(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;

@@ -184,7 +184,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 			goto done;
 	}
 	
-	depthlimit = account->file_recursive_list_depth_limit;
+	depthlimit = wd_account_file_recursive_list_depth_limit(account);
 	
 	fsenumerator = wi_fs_enumerator_at_path(realpath);
 	
@@ -279,10 +279,10 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 	}
 	
 done:
-	if(account->transfer_upload_anywhere)
+	if(wd_account_transfer_upload_anywhere(account))
 		upload = true;
 	else if(pathtype == WD_FILE_TYPE_DROPBOX || pathtype == WD_FILE_TYPE_UPLOADS)
-		upload = account->transfer_upload_files;
+		upload = wd_account_transfer_upload_files(account);
 	else
 		upload = false;
 
@@ -625,8 +625,8 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 	
 	account = wd_user_account(user);
 
-	if(account->files)
-		pathlength = wi_string_length(account->files);
+	if(wd_account_files(account))
+		pathlength = wi_string_length(wd_account_files(account));
 	else
 		pathlength = 0;
 	
@@ -1455,7 +1455,7 @@ static wi_boolean_t wd_files_drop_box_path_is_listable(wi_string_t *realpath, wd
 	wi_string_t		*owner, *group;
 	wi_uinteger_t	mode;
 	
-	if(account->file_access_all_dropboxes)
+	if(wd_account_file_access_all_dropboxes(account))
 		return true;
 	
 	if(!wd_files_get_permissions(realpath, &owner, &group, &mode))
@@ -1465,12 +1465,12 @@ static wi_boolean_t wd_files_drop_box_path_is_listable(wi_string_t *realpath, wd
 		return true;
 	
 	if(mode & WD_FILE_GROUP_READ && wi_string_length(group) > 0) {
-		if(wi_is_equal(group, account->group) || wi_array_contains_data(account->groups, group))
+		if(wi_is_equal(group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), group))
 			return true;
 	}
 	
 	if(mode & WD_FILE_OWNER_READ && wi_string_length(owner) > 0) {
-		if(wi_is_equal(owner, account->name))
+		if(wi_is_equal(owner, wd_account_name(account)))
 			return true;
 	}
 	
@@ -1486,7 +1486,7 @@ static wi_boolean_t wd_files_drop_box_path_is_xable(wi_string_t *path, wd_user_t
 	
 	account = wd_user_account(user);
 	
-	if(account->file_access_all_dropboxes)
+	if(wd_account_file_access_all_dropboxes(account))
 		return true;
 	
 	realpath = wd_files_drop_box_path_in_path(path, user);
@@ -1505,12 +1505,12 @@ static wi_boolean_t wd_files_drop_box_path_is_xable(wi_string_t *path, wd_user_t
 		return true;
 	
 	if(mode & inmode && wi_string_length(group) > 0) {
-		if(wi_is_equal(group, account->group) || wi_array_contains_data(account->groups, group))
+		if(wi_is_equal(group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), group))
 			return true;
 	}
 	
 	if(mode & inmode && wi_string_length(owner) > 0) {
-		if(wi_is_equal(owner, account->name))
+		if(wi_is_equal(owner, wd_account_name(account)))
 			return true;
 	}
 	
@@ -1547,8 +1547,8 @@ wi_string_t * wd_files_virtual_path(wi_string_t *path, wd_user_t *user) {
 	
 	account = user ? wd_user_account(user) : NULL;
 	
-	if(account && account->files)
-		virtualpath = wi_string_by_normalizing_path(wi_string_with_format(WI_STR("%@/%@"), account->files, path));
+	if(account && wd_account_files(account))
+		virtualpath = wi_string_by_normalizing_path(wi_string_with_format(WI_STR("%@/%@"), wd_account_files(account), path));
 	else
 		virtualpath = path;
 	
@@ -1563,8 +1563,8 @@ wi_string_t * wd_files_real_path(wi_string_t *path, wd_user_t *user) {
 	
 	account = user ? wd_user_account(user) : NULL;
 	
-	if(account && account->files)
-		realpath = wi_string_with_format(WI_STR("%@/%@/%@"), wd_files, account->files, path);
+	if(account && wd_account_files(account))
+		realpath = wi_string_with_format(WI_STR("%@/%@/%@"), wd_files, wd_account_files(account), path);
 	else
 		realpath = wi_string_with_format(WI_STR("%@/%@"), wd_files, path);
 	

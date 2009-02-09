@@ -288,7 +288,7 @@ int main(int argc, const char **argv) {
 	wd_files_index(true);
 	
 	wi_pool_drain(pool);
-
+	
 	wd_signal_thread(NULL);
 
 	wd_users_remove_all_users();

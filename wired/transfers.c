@@ -451,13 +451,13 @@ static void wd_transfers_update_queue(void) {
 					transfer	= WI_ARRAY(user_queue, 0);
 					
 					if(transfer->type == WD_TRANSFER_DOWNLOAD) {
-						user_downloads = account->transfer_download_limit;
+						user_downloads = wd_account_transfer_download_limit(account);
 						user_transfers = wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key);
 						
 						queue = ((total_downloads > 0 && wd_transfers_active_downloads >= total_downloads) ||
 								 (user_downloads > 0 && user_transfers && wi_array_count(user_transfers) >= user_downloads));
 					} else {
-						user_uploads = account->transfer_upload_limit;
+						user_uploads = wd_account_transfer_upload_limit(account);
 						user_transfers = wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key);
 						
 						queue = ((total_uploads > 0 && wd_transfers_active_uploads >= total_uploads) ||
@@ -862,7 +862,7 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 
 		wd_transfer_limit_speed(transfer,
 								wd_transfers_total_download_speed,
-								account->transfer_download_speed_limit,
+								wd_account_transfer_download_speed_limit(account),
 								speedbytes,
 								interval,
 								speedinterval);
@@ -1013,7 +1013,7 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 
 		wd_transfer_limit_speed(transfer,
 								wd_transfers_total_upload_speed,
-								account->transfer_upload_speed_limit,
+								wd_account_transfer_upload_speed_limit(account),
 								speedbytes,
 								interval,
 								speedinterval);
