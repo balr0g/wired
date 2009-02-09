@@ -32,11 +32,6 @@
 #include <wired/wired.h>
 #include "main.h"
 
-struct _wd_account {
-	wi_runtime_base_t				base;
-	
-	wi_dictionary_t					*values;
-};
 typedef struct _wd_account			wd_account_t;
 
 
@@ -47,10 +42,10 @@ wd_account_t *						wd_accounts_read_user(wi_string_t *);
 wd_account_t *						wd_accounts_read_group(wi_string_t *);
 wi_string_t *						wd_accounts_password_for_user(wi_string_t *);
 wi_boolean_t						wd_accounts_change_password(wd_account_t *, wi_string_t *);
-wi_boolean_t						wd_accounts_create_user(wd_account_t *, wd_user_t *user);
-wi_boolean_t						wd_accounts_create_group(wd_account_t *, wd_user_t *user);
-wi_boolean_t						wd_accounts_edit_user(wd_account_t *, wd_user_t *, wi_p7_message_t *);
-wi_boolean_t						wd_accounts_edit_group(wd_account_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t						wd_accounts_create_user(wd_account_t *, wd_user_t *);
+wi_boolean_t						wd_accounts_create_group(wd_account_t *, wd_user_t *);
+wi_boolean_t						wd_accounts_edit_user(wd_account_t *, wd_user_t *);
+wi_boolean_t						wd_accounts_edit_group(wd_account_t *, wd_user_t *);
 wi_boolean_t						wd_accounts_delete_user(wi_string_t *);
 wi_boolean_t						wd_accounts_delete_group(wi_string_t *);
 wi_boolean_t						wd_accounts_clear_group(wi_string_t *);
@@ -64,8 +59,6 @@ void								wd_accounts_reply_group_list(wd_user_t *, wi_p7_message_t *);
 
 wd_account_t *						wd_account_alloc(void);
 wd_account_t *						wd_account_init_with_message(wd_account_t *, wi_p7_message_t *);
-wd_account_t *						wd_account_init_user_with_array(wd_account_t *, wi_array_t *);
-wd_account_t *						wd_account_init_group_with_array(wd_account_t *, wi_array_t *);
 
 wi_p7_message_t *					wd_account_privileges_message(wd_account_t *);
 void								wd_account_reply_user_account(wd_account_t *, wd_user_t *, wi_p7_message_t *);

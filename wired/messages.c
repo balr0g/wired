@@ -1907,7 +1907,15 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 		return;
 	}
 	
-	if(wd_accounts_edit_user(account, user, message)) {
+	account = wi_autorelease(wd_account_init_with_message(wd_account_alloc(), message));
+	
+	if(!wd_account_check_privileges(account, user)) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return;
+	}
+
+	if(wd_accounts_edit_user(account, user)) {
 		wd_accounts_reload_user_account(wd_account_name(account));
 		
 		wi_log_info(WI_STR("%@ modified the user \"%@\""),
@@ -1937,7 +1945,15 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 		return;
 	}
 	
-	if(wd_accounts_edit_group(account, user, message)) {
+	account = wi_autorelease(wd_account_init_with_message(wd_account_alloc(), message));
+	
+	if(!wd_account_check_privileges(account, user)) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return;
+	}
+
+	if(wd_accounts_edit_group(account, user)) {
 		wd_accounts_reload_group_account(wd_account_name(account));
 		
 		wi_log_info(WI_STR("%@ modified the group \"%@\""),
