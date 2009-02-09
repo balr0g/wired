@@ -1837,12 +1837,7 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 		return;
 	}
 
-/*	account->creation_time		= wi_retain(wi_date());
-	account->modification_time	= wi_retain(wi_date_with_time(0));
-	account->login_time			= wi_retain(wi_date_with_time(0));
-	account->edited_by			= wi_retain(wd_user_nick(user));*/
-
-	if(wd_accounts_create_user(account)) {
+	if(wd_accounts_create_user(account, user)) {
 		wi_log_info(WI_STR("%@ created the user \"%@\""),
 			wd_user_identifier(user),
 			wd_account_name(account));
@@ -1884,12 +1879,7 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 		return;
 	}
 	
-/*	account->creation_time		= wi_retain(wi_date());
-	account->modification_time	= wi_retain(wi_date_with_time(0));
-	account->login_time			= wi_retain(wi_date_with_time(0));
-	account->edited_by			= wi_retain(wd_user_nick(user));*/
-
-	if(wd_accounts_create_group(account)) {
+	if(wd_accounts_create_group(account, user)) {
 		wi_log_info(WI_STR("%@ created the group \"%@\""),
 			wd_user_identifier(user),
 			wd_account_name(account));

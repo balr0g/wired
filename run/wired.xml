@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b16">
+			 version="2.0b17">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -971,8 +971,8 @@
 			<p7:parameter field="wired.account.group" use="required" />
 			<p7:parameter field="wired.account.groups" use="required" />
 			<p7:parameter field="wired.account.password" use="required" />
-			<p7:parameter field="wired.account.files" use="required" />
-			<p7:parameter collection="wired.account.privileges" use="required" />
+			<p7:parameter field="wired.account.files" />
+			<p7:parameter collection="wired.account.privileges" />
 		</p7:message>
 		
 		<p7:message name="wired.account.read_group" id="8010">
@@ -986,8 +986,8 @@
 			<p7:parameter field="wired.account.creation_time" use="required" />
 			<p7:parameter field="wired.account.modification_time" use="required" />
 			<p7:parameter field="wired.account.edited_by" use="required" />
-			<p7:parameter field="wired.account.files" use="required" />
-			<p7:parameter collection="wired.account.privileges" use="required" />
+			<p7:parameter field="wired.account.files" />
+			<p7:parameter collection="wired.account.privileges" />
 		</p7:message>
 		
 		<p7:message name="wired.account.create_user" id="8012">
@@ -997,15 +997,15 @@
 			<p7:parameter field="wired.account.group" use="required" />
 			<p7:parameter field="wired.account.groups" use="required" />
 			<p7:parameter field="wired.account.password" use="required" />
-			<p7:parameter field="wired.account.files" use="required" />
-			<p7:parameter collection="wired.account.privileges" use="required" />
+			<p7:parameter field="wired.account.files" />
+			<p7:parameter collection="wired.account.privileges" />
 		</p7:message>
 
 		<p7:message name="wired.account.create_group" id="8013">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.account.name" use="required" />
-			<p7:parameter field="wired.account.files" use="required" />
-			<p7:parameter collection="wired.account.privileges" use="required" />
+			<p7:parameter field="wired.account.files" />
+			<p7:parameter collection="wired.account.privileges" />
 		</p7:message>
 
 		<p7:message name="wired.account.edit_user" id="8014">
@@ -1015,13 +1015,15 @@
 			<p7:parameter field="wired.account.group" use="required" />
 			<p7:parameter field="wired.account.groups" use="required" />
 			<p7:parameter field="wired.account.password" use="required" />
-			<p7:parameter collection="wired.account.privileges" use="required" />
+			<p7:parameter field="wired.account.files" />
+			<p7:parameter collection="wired.account.privileges" />
 		</p7:message>
 
 		<p7:message name="wired.account.edit_group" id="8015">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.account.name" use="required" />
-			<p7:parameter collection="wired.account.privileges" use="required" />
+			<p7:parameter field="wired.account.files" />
+			<p7:parameter collection="wired.account.privileges" />
 		</p7:message>
 
 		<p7:message name="wired.account.delete_user" id="8016">

@@ -55,6 +55,8 @@
 #define WD_ACCOUNT_FIELD_REQUIRED			"required"
 
 
+static wi_boolean_t							wd_accounts_write_user_to_file(wd_account_t *);
+static wi_boolean_t							wd_accounts_write_group_to_file(wd_account_t *);
 static wi_boolean_t							wd_accounts_delete_from_file(wi_file_t *, wi_string_t *);
 static void									wd_accounts_reload_account(wd_user_t *, wd_account_t *);
 
@@ -231,7 +233,6 @@ void wd_accounts_init(void) {
 			WI_STR("wired.account.files"),								WI_STR(WD_ACCOUNT_FIELD_NAME),
 			WI_INT32(WD_ACCOUNT_FIELD_STRING),							WI_STR(WD_ACCOUNT_FIELD_TYPE),
 			WI_INT32(WD_ACCOUNT_FIELD_USER_AND_GROUP),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			wi_number_with_bool(true),									WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
 			NULL),
 		wi_dictionary_with_data_and_keys(
 			WI_STR("wired.account.full_name"),							WI_STR(WD_ACCOUNT_FIELD_NAME),
@@ -574,7 +575,7 @@ wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *pas
 	wi_recursive_lock_lock(wd_users_lock);
 	
 	if(wd_accounts_delete_user(wd_account_name(account))) {
-		if(wd_accounts_create_user(account))
+		if(wd_accounts_write_user_to_file(account))
 			result = true;
 	}
 	
@@ -585,54 +586,20 @@ wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *pas
 
 
 
-wi_boolean_t wd_accounts_create_user(wd_account_t *account) {
-	wi_file_t		*file;
-	wi_array_t		*array;
-	wi_boolean_t	result = false;
+wi_boolean_t wd_accounts_create_user(wd_account_t *account, wd_user_t *user) {
+	wi_dictionary_set_data_for_key(account->values, wi_date(), WI_STR("wired.account.creation_time"));
+	wi_dictionary_set_data_for_key(account->values, wd_user_nick(user), WI_STR("wired.account.edited_by"));
 	
-	wi_recursive_lock_lock(wd_users_lock);
-
-	file = wi_file_for_updating(wd_users_path);
-
-	if(file) {
-		array = wd_account_array_with_type(account, WD_ACCOUNT_FIELD_USER);
-
-		wi_file_write_format(file, WI_STR("%@\n"), wi_array_components_joined_by_string(array, WI_STR(":")));
-		
-		result = true;
-	} else {
-		wi_log_err(WI_STR("Could not open %@: %m"), wd_users_path);
-	}
-
-	wi_recursive_lock_unlock(wd_users_lock);
-	
-	return result;
+	return wd_accounts_write_user_to_file(account);
 }
 
 
 
-wi_boolean_t wd_accounts_create_group(wd_account_t *account) {
-	wi_file_t		*file;
-	wi_array_t		*array;
-	wi_boolean_t	result = false;
+wi_boolean_t wd_accounts_create_group(wd_account_t *account, wd_user_t *user) {
+	wi_dictionary_set_data_for_key(account->values, wi_date(), WI_STR("wired.account.creation_time"));
+	wi_dictionary_set_data_for_key(account->values, wd_user_nick(user), WI_STR("wired.account.edited_by"));
 	
-	wi_recursive_lock_lock(wd_groups_lock);
-
-	file = wi_file_for_updating(wd_groups_path);
-
-	if(file) {
-		array = wd_account_array_with_type(account, WD_ACCOUNT_FIELD_GROUP);
-
-		wi_file_write_format(file, WI_STR("%@\n"), wi_array_components_joined_by_string(array, WI_STR(":")));
-		
-		result = true;
-	} else {
-		wi_log_err(WI_STR("Could not open %@: %m"), wd_groups_path);
-	}
-
-	wi_recursive_lock_unlock(wd_groups_lock);
-	
-	return result;
+	return wd_accounts_write_group_to_file(account);
 }
 
 
@@ -648,7 +615,7 @@ wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user, wi_p7
 	wi_recursive_lock_lock(wd_users_lock);
 	
 	if(wd_accounts_delete_user(wd_account_name(account))) {
-		if(wd_accounts_create_user(account))
+		if(wd_accounts_write_user_to_file(account))
 			result = true;
 	}
 	
@@ -670,7 +637,7 @@ wi_boolean_t wd_accounts_edit_group(wd_account_t *account, wd_user_t *user, wi_p
 	wi_recursive_lock_lock(wd_groups_lock);
 	
 	if(wd_accounts_delete_group(wd_account_name(account))) {
-		if(wd_accounts_create_group(account))
+		if(wd_accounts_write_group_to_file(account))
 			result = true;
 	}
 	
@@ -779,7 +746,7 @@ void wd_accounts_update_login_time(wd_account_t *account) {
 	wi_recursive_lock_lock(wd_users_lock);
 	
 	if(wd_accounts_delete_user(wd_account_name(account)))
-		wd_accounts_create_user(account);
+		wd_accounts_write_user_to_file(account);
 	
 	wi_recursive_lock_unlock(wd_users_lock);
 }
@@ -850,6 +817,58 @@ void wd_accounts_reload_all_accounts(void) {
 
 
 #pragma mark -
+
+static wi_boolean_t wd_accounts_write_user_to_file(wd_account_t *account) {
+	wi_file_t		*file;
+	wi_array_t		*array;
+	wi_boolean_t	result = false;
+	
+	wi_recursive_lock_lock(wd_users_lock);
+
+	file = wi_file_for_updating(wd_users_path);
+
+	if(file) {
+		array = wd_account_array_with_type(account, WD_ACCOUNT_FIELD_USER);
+
+		wi_file_write_format(file, WI_STR("%@\n"), wi_array_components_joined_by_string(array, WI_STR(":")));
+		
+		result = true;
+	} else {
+		wi_log_err(WI_STR("Could not open %@: %m"), wd_users_path);
+	}
+
+	wi_recursive_lock_unlock(wd_users_lock);
+	
+	return result;
+}
+
+
+
+static wi_boolean_t wd_accounts_write_group_to_file(wd_account_t *account) {
+	wi_file_t		*file;
+	wi_array_t		*array;
+	wi_boolean_t	result = false;
+	
+	wi_recursive_lock_lock(wd_groups_lock);
+
+	file = wi_file_for_updating(wd_groups_path);
+
+	if(file) {
+		array = wd_account_array_with_type(account, WD_ACCOUNT_FIELD_GROUP);
+
+		wi_file_write_format(file, WI_STR("%@\n"), wi_array_components_joined_by_string(array, WI_STR(":")));
+		
+		result = true;
+	} else {
+		wi_log_err(WI_STR("Could not open %@: %m"), wd_groups_path);
+	}
+
+	wi_recursive_lock_unlock(wd_groups_lock);
+	
+	return result;
+}
+
+
 
 static wi_boolean_t wd_accounts_delete_from_file(wi_file_t *file, wi_string_t *name) {
 	wi_file_t		*tmpfile;
@@ -1013,6 +1032,9 @@ static wd_account_t * wd_account_init_with_type(wd_account_t *account, wi_uinteg
 			name		= wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_NAME));
 			value		= (i < count) ? WI_ARRAY(array, i) : NULL;
 			required	= (wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_REQUIRED)) != NULL);
+			
+			if(value && wi_string_length(value) == 0)
+				value = NULL;
 			
 			switch(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)))) {
 				case WD_ACCOUNT_FIELD_STRING:
