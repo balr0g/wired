@@ -255,7 +255,7 @@ void wd_accounts_init(void) {
 		wi_dictionary_with_data_and_keys(
 			WI_STR("wired.account.login_time"),							WI_STR(WD_ACCOUNT_FIELD_NAME),
 			WI_INT32(WD_ACCOUNT_FIELD_DATE),							WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER_AND_GROUP),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
+			WI_INT32(WD_ACCOUNT_FIELD_USER),							WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
 			wi_number_with_bool(true),									WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
 			NULL),
 		wi_dictionary_with_data_and_keys(
@@ -1105,9 +1105,9 @@ static wd_account_t * wd_account_init_with_type(wd_account_t *account, wi_uinteg
 						wi_dictionary_set_data_for_key(account->values, instance, name);
 					break;
 			}
-		}
 		
-		i++;
+			i++;
+		}
 	}
 	
 	return account;
