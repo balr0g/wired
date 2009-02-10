@@ -1,4 +1,5 @@
-# groups
-#
-# This file contains a newline separated list of groups. See wired(8)
-# for a description of the exact format.
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <array/>
+</plist>
