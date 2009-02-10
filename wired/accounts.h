@@ -60,6 +60,8 @@ void								wd_accounts_reply_group_list(wd_user_t *, wi_p7_message_t *);
 wd_account_t *						wd_account_alloc(void);
 wd_account_t *						wd_account_init_with_message(wd_account_t *, wi_p7_message_t *);
 
+void								wd_account_update_from_message(wd_account_t *, wi_p7_message_t *);
+
 wi_p7_message_t *					wd_account_privileges_message(wd_account_t *);
 void								wd_account_reply_user_account(wd_account_t *, wd_user_t *, wi_p7_message_t *);
 void								wd_account_reply_group_account(wd_account_t *, wd_user_t *, wi_p7_message_t *);

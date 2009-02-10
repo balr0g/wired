@@ -1907,7 +1907,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 		return;
 	}
 	
-	account = wi_autorelease(wd_account_init_with_message(wd_account_alloc(), message));
+	wd_account_update_from_message(account, message);
 	
 	if(!wd_account_check_privileges(account, user)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1945,7 +1945,7 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 		return;
 	}
 	
-	account = wi_autorelease(wd_account_init_with_message(wd_account_alloc(), message));
+	wd_account_update_from_message(account, message);
 	
 	if(!wd_account_check_privileges(account, user)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);

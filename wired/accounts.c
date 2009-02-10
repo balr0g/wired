@@ -1316,11 +1316,13 @@ static void wd_account_read_from_message(wd_account_t *account, wi_p7_message_t 
 	wi_dictionary_t			*field;
 	wi_string_t				*name;
 	wi_runtime_instance_t	*instance;
+	wi_boolean_t			required;
 	
 	enumerator = wi_dictionary_key_enumerator(wd_account_fields);
 			
 	while((name = wi_enumerator_next_data(enumerator))) {
-		field = wi_dictionary_data_for_key(wd_account_fields, name);
+		field		= wi_dictionary_data_for_key(wd_account_fields, name);
+		required	= (wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_REQUIRED)) != NULL);
 
 		switch(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)))) {
 			case WD_ACCOUNT_FIELD_STRING:
@@ -1328,7 +1330,7 @@ static void wd_account_read_from_message(wd_account_t *account, wi_p7_message_t 
 				
 				if(instance)
 					wi_dictionary_set_data_for_key(account->values, instance, name);
-				else
+				else if(!required)
 					wi_dictionary_remove_data_for_key(account->values, name);
 				break;
 
@@ -1337,7 +1339,7 @@ static void wd_account_read_from_message(wd_account_t *account, wi_p7_message_t 
 				
 				if(instance)
 					wi_dictionary_set_data_for_key(account->values, instance, name);
-				else
+				else if(!required)
 					wi_dictionary_remove_data_for_key(account->values, name);
 				break;
 
@@ -1347,7 +1349,7 @@ static void wd_account_read_from_message(wd_account_t *account, wi_p7_message_t 
 				
 				if(instance)
 					wi_dictionary_set_data_for_key(account->values, instance, name);
-				else
+				else if(!required)
 					wi_dictionary_remove_data_for_key(account->values, name);
 				break;
 
@@ -1356,7 +1358,7 @@ static void wd_account_read_from_message(wd_account_t *account, wi_p7_message_t 
 				
 				if(instance)
 					wi_dictionary_set_data_for_key(account->values, instance, name);
-				else
+				else if(!required)
 					wi_dictionary_remove_data_for_key(account->values, name);
 				break;
 		}
@@ -1421,6 +1423,14 @@ static void wd_account_write_to_message(wd_account_t *account, wi_uinteger_t typ
 			}
 		}
 	}
+}
+
+
+
+#pragma mark -
+
+void wd_account_update_from_message(wd_account_t *account, wi_p7_message_t *message) {
+	wd_account_read_from_message(account, message);
 }
 
 
