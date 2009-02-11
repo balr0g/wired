@@ -77,6 +77,7 @@ static wi_array_t *									wd_accounts_convert_accounts(wi_string_t *, wi_array
 static void											wd_accounts_reload_account(wd_user_t *, wd_account_t *);
 
 static wd_account_t *								wd_account_init_with_values(wd_account_t *, wi_dictionary_t *);
+static wi_string_t *								wd_account_description(wi_runtime_instance_t *);
 static void											wd_account_dealloc(wi_runtime_instance_t *);
 
 static void											wd_account_read_from_message(wd_account_t *, wi_p7_message_t *);
@@ -98,7 +99,7 @@ static wi_runtime_class_t							wd_account_runtime_class = {
 	wd_account_dealloc,
 	NULL,
 	NULL,
-	NULL,
+	wd_account_description,
 	NULL
 };
 
@@ -411,10 +412,11 @@ void wd_accounts_init(void) {
 #pragma mark -
 
 wd_account_t * wd_accounts_read_user_and_group(wi_string_t *name) {
-	wi_enumerator_t		*enumerator;
-	wi_dictionary_t		*field;
-	wi_string_t			*field_name, *group_name;
-	wd_account_t		*user, *group;
+	wi_enumerator_t			*enumerator;
+	wi_dictionary_t			*field;
+	wi_string_t				*field_name, *group_name;
+	wi_runtime_instance_t	*value;
+	wd_account_t			*user, *group;
 	
 	user = wd_accounts_read_user(name);
 	
@@ -432,8 +434,13 @@ wd_account_t * wd_accounts_read_user_and_group(wi_string_t *name) {
 			while((field_name = wi_enumerator_next_data(enumerator))) {
 				field = wi_dictionary_data_for_key(wd_account_fields, field_name);
 				
-				if(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_ACCOUNT))) & WD_ACCOUNT_FIELD_PRIVILEGE)
-					wi_dictionary_set_data_for_key(user->values, wi_dictionary_data_for_key(group->values, field_name), field_name);
+				if(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_ACCOUNT))) & WD_ACCOUNT_FIELD_PRIVILEGE ||
+				   wi_is_equal(field_name, WI_STR("wired.account.files"))) {
+					value = wi_dictionary_data_for_key(group->values, field_name);
+					
+					if(value)
+						wi_dictionary_set_data_for_key(user->values, value, field_name);
+				}
 			}
 		}
 	}
@@ -1101,6 +1108,14 @@ wd_account_t * wd_account_init_with_message(wd_account_t *account, wi_p7_message
 	wd_account_read_from_message(account, message);
 	
 	return account;
+}
+
+
+
+static wi_string_t * wd_account_description(wi_runtime_instance_t *instance) {
+	wd_account_t		*account = instance;
+	
+	return wi_description(account->values);
 }
 
 
