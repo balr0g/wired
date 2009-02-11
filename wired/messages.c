@@ -1809,7 +1809,7 @@ static void wd_message_account_read_group(wd_user_t *user, wi_p7_message_t *mess
 static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t		*account;
 
-	if(!wd_account_account_create_accounts(wd_user_account(user))) {
+	if(!wd_account_account_create_users(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1851,7 +1851,7 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t		*account;
 
-	if(!wd_account_account_create_accounts(wd_user_account(user))) {
+	if(!wd_account_account_create_groups(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1893,7 +1893,7 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t	*account;
 
-	if(!wd_account_account_edit_accounts(wd_user_account(user))) {
+	if(!wd_account_account_edit_users(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1931,7 +1931,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t	*account;
 
-	if(!wd_account_account_edit_accounts(wd_user_account(user))) {
+	if(!wd_account_account_edit_groups(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1970,7 +1970,7 @@ static void wd_message_account_delete_user(wd_user_t *user, wi_p7_message_t *mes
 	wi_string_t		*name;
 	wd_account_t	*account;
 	
-	if(!wd_account_account_delete_accounts(wd_user_account(user))) {
+	if(!wd_account_account_delete_users(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -2000,7 +2000,7 @@ static void wd_message_account_delete_group(wd_user_t *user, wi_p7_message_t *me
 	wi_string_t		*name;
 	 wd_account_t	*account;
 	
-	if(!wd_account_account_delete_accounts(wd_user_account(user))) {
+	if(!wd_account_account_delete_groups(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;

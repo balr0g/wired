@@ -193,11 +193,17 @@ void wd_accounts_init(void) {
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.account.read_accounts"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
-			WI_STR("wired.account.account.create_accounts"),
+			WI_STR("wired.account.account.create_users"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
-			WI_STR("wired.account.account.edit_accounts"),
+			WI_STR("wired.account.account.edit_users"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
-			WI_STR("wired.account.account.delete_accounts"),
+			WI_STR("wired.account.account.delete_users"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
+			WI_STR("wired.account.account.create_groups"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
+			WI_STR("wired.account.account.edit_groups"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
+			WI_STR("wired.account.account.delete_groups"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.account.raise_account_privileges"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
@@ -275,9 +281,9 @@ void wd_accounts_init(void) {
 		WI_STR("wired.account.file.move_files"),
 		WI_STR("wired.account.file.delete_files"),
 		WI_STR("wired.account.file.access_all_dropboxes"),
-		WI_STR("wired.account.account.create_accounts"),
-		WI_STR("wired.account.account.edit_accounts"),
-		WI_STR("wired.account.account.delete_accounts"),
+		WI_STR("wired.account.account.create_users"),
+		WI_STR("wired.account.account.edit_users"),
+		WI_STR("wired.account.account.delete_users"),
 		WI_STR("wired.account.account.raise_account_privileges"),
 		WI_STR("wired.account.user.kick_users"),
 		WI_STR("wired.account.user.ban_users"),	
@@ -345,9 +351,9 @@ void wd_accounts_init(void) {
 		WI_STR("wired.account.file.move_files"),
 		WI_STR("wired.account.file.delete_files"),
 		WI_STR("wired.account.file.access_all_dropboxes"),
-		WI_STR("wired.account.account.create_accounts"),
-		WI_STR("wired.account.account.edit_accounts"),
-		WI_STR("wired.account.account.delete_accounts"),
+		WI_STR("wired.account.account.create_users"),
+		WI_STR("wired.account.account.edit_users"),
+		WI_STR("wired.account.account.delete_users"),
 		WI_STR("wired.account.account.raise_account_privileges"),
 		WI_STR("wired.account.user.kick_users"),
 		WI_STR("wired.account.user.ban_users"),	
@@ -1435,9 +1441,12 @@ WD_ACCOUNT_NUMBER_ACCESSOR(wd_account_transfer_upload_speed_limit, WI_STR("wired
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_change_password, WI_STR("wired.account.account.change_password"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_list_accounts, WI_STR("wired.account.account.list_accounts"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_read_accounts, WI_STR("wired.account.account.read_accounts"))
-WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_create_accounts, WI_STR("wired.account.account.create_accounts"))
-WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_edit_accounts, WI_STR("wired.account.account.edit_accounts"))
-WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_delete_accounts, WI_STR("wired.account.account.delete_accounts"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_create_users, WI_STR("wired.account.account.create_users"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_edit_users, WI_STR("wired.account.account.edit_users"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_delete_users, WI_STR("wired.account.account.delete_users"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_create_groups, WI_STR("wired.account.account.create_groups"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_edit_groups, WI_STR("wired.account.account.edit_groups"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_delete_groups, WI_STR("wired.account.account.delete_groups"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_raise_account_privileges, WI_STR("wired.account.account.raise_account_privileges"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_get_users, WI_STR("wired.account.user.get_users"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_log_view_log, WI_STR("wired.account.log.view_log"))
