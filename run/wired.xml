@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b17">
+			 version="2.0b18">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -936,6 +936,14 @@
 		<p7:message name="wired.account.user_list" id="8003">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.account.name" use="required" />
+			<p7:parameter field="wired.account.full_name" use="required" />
+			<p7:parameter field="wired.account.creation_time" use="required" />
+			<p7:parameter field="wired.account.modification_time" use="required" />
+			<p7:parameter field="wired.account.login_time" use="required" />
+			<p7:parameter field="wired.account.edited_by" use="required" />
+			<p7:parameter field="wired.account.group" use="required" />
+			<p7:parameter field="wired.account.groups" use="required" />
+			<p7:parameter field="wired.account.password" use="required" />
 		</p7:message>
 
 		<p7:message name="wired.account.user_list.done" id="8004">
@@ -949,6 +957,9 @@
 		<p7:message name="wired.account.group_list" id="8006">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.account.name" use="required" />
+			<p7:parameter field="wired.account.creation_time" use="required" />
+			<p7:parameter field="wired.account.modification_time" use="required" />
+			<p7:parameter field="wired.account.edited_by" use="required" />
 		</p7:message>
 
 		<p7:message name="wired.account.group_list.done" id="8007">
