@@ -39,14 +39,8 @@
 #include "settings.h"
 #include "users.h"
 
-#define WD_ACCOUNT_FIELD_NAME				"name"
 #define WD_ACCOUNT_FIELD_TYPE				"type"
 #define WD_ACCOUNT_FIELD_ACCOUNT			"account"
-#define WD_ACCOUNT_FIELD_USER					(1 << 0)
-#define WD_ACCOUNT_FIELD_GROUP					(1 << 1)
-#define WD_ACCOUNT_FIELD_PRIVILEGE				(1 << 2)
-#define WD_ACCOUNT_FIELD_USER_AND_GROUP			(WD_ACCOUNT_FIELD_USER | WD_ACCOUNT_FIELD_GROUP)
-#define WD_ACCOUNT_FIELD_ALL					(WD_ACCOUNT_FIELD_USER | WD_ACCOUNT_FIELD_GROUP | WD_ACCOUNT_FIELD_PRIVILEGE)
 #define WD_ACCOUNT_FIELD_REQUIRED			"required"
 
 
@@ -61,10 +55,18 @@ enum _wd_account_field_type {
 	WD_ACCOUNT_FIELD_DATE,
 	WD_ACCOUNT_FIELD_NUMBER,
 	WD_ACCOUNT_FIELD_BOOLEAN,
-	WD_ACCOUNT_FIELD_LIST,
+	WD_ACCOUNT_FIELD_LIST
 };
 typedef enum _wd_account_field_type			wd_account_field_type_t;
 
+enum _wd_account_field_account {
+	WD_ACCOUNT_FIELD_USER					= (1 << 0),
+	WD_ACCOUNT_FIELD_GROUP					= (1 << 1),
+	WD_ACCOUNT_FIELD_PRIVILEGE				= (1 << 2),
+	WD_ACCOUNT_FIELD_USER_AND_GROUP			= (WD_ACCOUNT_FIELD_USER | WD_ACCOUNT_FIELD_GROUP),
+	WD_ACCOUNT_FIELD_ALL					= (WD_ACCOUNT_FIELD_USER | WD_ACCOUNT_FIELD_GROUP | WD_ACCOUNT_FIELD_PRIVILEGE)
+};
+typedef enum _wd_account_field_account		wd_account_field_account_t;
 
 
 static wi_enumerator_t *					wd_accounts_instance_at_path(wi_string_t *);
@@ -98,6 +100,13 @@ static wi_runtime_class_t					wd_account_runtime_class = {
 };
 
 
+#define WD_ACCOUNT_FIELD_DICTIONARY(type, account, required)						\
+	wi_dictionary_with_data_and_keys(												\
+		WI_INT32((type)),					WI_STR(WD_ACCOUNT_FIELD_TYPE),			\
+		WI_INT32((account)),				WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),		\
+		wi_number_with_bool((required)),	WI_STR(WD_ACCOUNT_FIELD_REQUIRED),		\
+		NULL)
+
 void wd_accounts_init(void) {
 	wd_account_runtime_id = wi_runtime_register_class(&wd_account_runtime_class);
 
@@ -108,360 +117,144 @@ void wd_accounts_init(void) {
 	wd_groups_lock = wi_recursive_lock_init(wi_recursive_lock_alloc());
 	
 	wd_account_fields = wi_dictionary_init_with_data_and_keys(wi_dictionary_alloc(),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_STRING),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER_AND_GROUP),		WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			wi_number_with_bool(true),						WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
-			NULL),
-		WI_STR("wired.account.name"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_STRING),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER),				WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			wi_number_with_bool(true),						WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
-			NULL),
-		WI_STR("wired.account.password"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_STRING),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER),				WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			wi_number_with_bool(true),						WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
-			NULL),
-		WI_STR("wired.account.group"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.user.get_info"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.message.broadcast"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.add_posts"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.delete_posts"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.transfer.download_files"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.transfer.upload_files"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.transfer.upload_anywhere"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.create_directories"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.move_files"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.delete_files"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.access_all_dropboxes"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.account.create_accounts"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.account.edit_accounts"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.account.delete_accounts"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.account.raise_account_privileges"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.user.kick_users"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.user.ban_users"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.user.cannot_be_disconnected"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_NUMBER),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.transfer.download_speed_limit"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_NUMBER),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.transfer.upload_speed_limit"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_NUMBER),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.transfer.download_limit"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_NUMBER),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.transfer.upload_limit"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.chat.set_topic"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_STRING),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER_AND_GROUP),		WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.files"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_STRING),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER),				WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			wi_number_with_bool(true),						WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
-			NULL),
-		WI_STR("wired.account.full_name"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_DATE),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER_AND_GROUP),		WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			wi_number_with_bool(true),						WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
-			NULL),
-		WI_STR("wired.account.creation_time"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_DATE),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER_AND_GROUP),		WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			wi_number_with_bool(true),						WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
-			NULL),
-		WI_STR("wired.account.modification_time"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_DATE),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER),				WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			wi_number_with_bool(true),						WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
-			NULL),
-		WI_STR("wired.account.login_time"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_STRING),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER_AND_GROUP),		WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			wi_number_with_bool(true),						WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
-			NULL),
-		WI_STR("wired.account.edited_by"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_LIST),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_USER),				WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			wi_number_with_bool(true),						WI_STR(WD_ACCOUNT_FIELD_REQUIRED),
-			NULL),
-		WI_STR("wired.account.groups"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.chat.create_chats"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.message.send_messages"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.read_boards"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.list_files"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.get_info"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.create_links"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.rename_files"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.set_type"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.set_comment"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.set_permissions"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.set_executable"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_NUMBER),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.file.recursive_list_depth_limit"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.transfer.upload_directories"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.account.change_password"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.account.list_accounts"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.account.read_accounts"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.user.cannot_set_nick"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.user.get_users"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.log.view_log"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.settings.get_settings"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.settings.set_settings"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.banlist.get_bans"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.banlist.add_bans"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.banlist.delete_bans"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.tracker.list_servers"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.tracker.register_servers"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.add_boards"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.move_boards"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.rename_boards"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.delete_boards"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.set_permissions"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.add_threads"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.move_threads"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.delete_threads"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.edit_own_posts"),
-		wi_dictionary_with_data_and_keys(
-			WI_INT32(WD_ACCOUNT_FIELD_BOOLEAN),				WI_STR(WD_ACCOUNT_FIELD_TYPE),
-			WI_INT32(WD_ACCOUNT_FIELD_ALL),					WI_STR(WD_ACCOUNT_FIELD_ACCOUNT),
-			NULL),
-		WI_STR("wired.account.board.edit_all_posts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER_AND_GROUP, true),
+			WI_STR("wired.account.name"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER, true),
+			WI_STR("wired.account.full_name"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_DATE, WD_ACCOUNT_FIELD_USER_AND_GROUP, true),
+			WI_STR("wired.account.creation_time"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_DATE, WD_ACCOUNT_FIELD_USER_AND_GROUP, true),
+			WI_STR("wired.account.modification_time"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_DATE, WD_ACCOUNT_FIELD_USER, true),
+			WI_STR("wired.account.login_time"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER_AND_GROUP, true),
+			WI_STR("wired.account.edited_by"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER, true),
+			WI_STR("wired.account.group"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_LIST, WD_ACCOUNT_FIELD_USER, true),
+			WI_STR("wired.account.groups"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER, true),
+			WI_STR("wired.account.password"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER_AND_GROUP, false),
+			WI_STR("wired.account.files"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.user.get_info"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.user.kick_users"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.user.ban_users"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.user.cannot_be_disconnected"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.user.cannot_set_nick"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.user.get_users"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.chat.set_topic"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.chat.create_chats"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.message.send_messages"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.message.broadcast"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.list_files"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.get_info"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.create_links"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.rename_files"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.set_type"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.set_comment"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.set_permissions"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.set_executable"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_NUMBER, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.recursive_list_depth_limit"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.create_directories"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.move_files"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.delete_files"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.file.access_all_dropboxes"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.account.change_password"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.account.list_accounts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.account.read_accounts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.account.create_accounts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.account.edit_accounts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.account.delete_accounts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.account.raise_account_privileges"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.transfer.download_files"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.transfer.upload_files"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.transfer.upload_anywhere"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.transfer.upload_directories"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_NUMBER, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.transfer.download_speed_limit"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_NUMBER, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.transfer.upload_speed_limit"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_NUMBER, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.transfer.download_limit"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_NUMBER, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.transfer.upload_limit"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.read_boards"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.log.view_log"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.settings.get_settings"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.settings.set_settings"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.banlist.get_bans"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.banlist.add_bans"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.banlist.delete_bans"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.add_boards"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.move_boards"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.rename_boards"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.delete_boards"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.set_permissions"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.add_threads"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.move_threads"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.delete_threads"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.add_posts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.edit_own_posts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.edit_all_posts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.board.delete_posts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.tracker.list_servers"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_ALL, false),
+			WI_STR("wired.account.tracker.register_servers"),
 		NULL);
 	
 	wd_users_fields = wi_array_init_with_data(wi_array_alloc(),
@@ -1322,7 +1115,7 @@ static void wd_account_read_from_message(wd_account_t *account, wi_p7_message_t 
 			
 	while((name = wi_enumerator_next_data(enumerator))) {
 		field		= wi_dictionary_data_for_key(wd_account_fields, name);
-		required	= (wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_REQUIRED)) != NULL);
+		required	= wi_number_bool(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_REQUIRED)));
 
 		switch(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)))) {
 			case WD_ACCOUNT_FIELD_STRING:
@@ -1385,7 +1178,7 @@ static void wd_account_write_to_message(wd_account_t *account, wi_uinteger_t typ
 			if(type == WD_ACCOUNT_FIELD_PRIVILEGE)
 				required = true;
 			else
-				required = (wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_REQUIRED)) != NULL);
+				required = wi_number_bool(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_REQUIRED)));
 			
 			switch(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)))) {
 				case WD_ACCOUNT_FIELD_STRING:
