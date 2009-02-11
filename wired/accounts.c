@@ -1311,8 +1311,8 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 			}
 		}
 			
-		instance1 = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.files"));
-		instance2 = wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.files"));
+		instance1 = wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.files"));
+		instance2 = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.files"));
 		
 		if(!instance1)
 			instance1 = WI_STR("");
@@ -1320,8 +1320,16 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 		if(!instance2)
 			instance2 = WI_STR("");
 		
-		if(!wi_string_has_prefix(instance1, instance2))
+		if(!wi_string_has_prefix(instance2, instance1))
 			return false;
+		
+		if(!wi_is_equal(wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.group")),
+						wi_dictionary_data_for_key(account->values, WI_STR("wired.account.group")))
+		   return false;
+		
+		if(!wi_is_equal(wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.groups")),
+						wi_dictionary_data_for_key(account->values, WI_STR("wired.account.groups")))
+		   return false;
 	}
 	
 	return true;
