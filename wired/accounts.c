@@ -1324,11 +1324,11 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 			return false;
 		
 		if(!wi_is_equal(wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.group")),
-						wi_dictionary_data_for_key(account->values, WI_STR("wired.account.group")))
+						wi_dictionary_data_for_key(account->values, WI_STR("wired.account.group"))))
 		   return false;
 		
 		if(!wi_is_equal(wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.groups")),
-						wi_dictionary_data_for_key(account->values, WI_STR("wired.account.groups")))
+						wi_dictionary_data_for_key(account->values, WI_STR("wired.account.groups"))))
 		   return false;
 	}
 	
