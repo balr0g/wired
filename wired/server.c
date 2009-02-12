@@ -111,7 +111,6 @@ static wi_p7_message_t				*wd_ping_message;
 static wi_array_t					*wd_tcp_sockets, *wd_udp_sockets;
 static wi_rsa_t						*wd_rsa;
 static wi_x509_t					*wd_certificate;
-static wi_socket_tls_t				*wd_socket_tls;
 
 wi_uinteger_t						wd_port;
 wi_data_t							*wd_banner;
@@ -135,17 +134,6 @@ void wd_server_init(void) {
 
 	if(!wd_certificate)
 		wi_log_fatal(WI_STR("Could not create a certificate: %m"));
-	
-	wd_socket_tls = wi_socket_tls_init_with_type(wi_socket_tls_alloc(), WI_SOCKET_TLS_SERVER);
-	
-	if(!wd_socket_tls)
-		wi_log_fatal(WI_STR("Could not create an TLS context: %m"));
-
-	if(!wi_socket_tls_set_private_key(wd_socket_tls, wd_rsa))
-		wi_log_fatal(WI_STR("Could not set TLS private key: %m"));
-
-	if(!wi_socket_tls_set_certificate(wd_socket_tls, wd_certificate))
-		wi_log_fatal(WI_STR("Could not set TLS certificate: %m"));
 	
 	wi_p7_socket_password_provider = wd_accounts_password_for_user;
 	
@@ -630,7 +618,6 @@ static void wd_server_accept_thread(wi_runtime_instance_t *argument) {
 
 	p7_socket = wi_autorelease(wi_p7_socket_init_with_socket(wi_p7_socket_alloc(), socket, wd_p7_spec));
 	wi_p7_socket_set_private_key(p7_socket, wd_rsa);
-	wi_p7_socket_set_tls(p7_socket, wd_socket_tls);
 	
 	if(wi_p7_socket_accept(p7_socket, 30.0, WI_P7_ALL)) {
 		user = wd_user_with_p7_socket(p7_socket);
