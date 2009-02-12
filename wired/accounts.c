@@ -436,10 +436,14 @@ wd_account_t * wd_accounts_read_user_and_group(wi_string_t *name) {
 				
 				if(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_ACCOUNT))) & WD_ACCOUNT_FIELD_PRIVILEGE ||
 				   wi_is_equal(field_name, WI_STR("wired.account.files"))) {
-					value = wi_dictionary_data_for_key(group->values, field_name);
+					value = wi_dictionary_data_for_key(user->values, field_name);
 					
-					if(value)
-						wi_dictionary_set_data_for_key(user->values, value, field_name);
+					if(!value) {
+						value = wi_dictionary_data_for_key(group->values, field_name);
+						
+						if(value)
+							wi_dictionary_set_data_for_key(user->values, value, field_name);
+					}
 				}
 			}
 		}
