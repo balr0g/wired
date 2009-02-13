@@ -144,19 +144,24 @@ static void wd_transfers_update_waiting(wi_timer_t *timer) {
 		interval = wi_time_interval();
 
 		for(i = 0; i < count; i++) {
-			transfer = WI_ARRAY(wd_transfers, i);
-
-			if(wd_transfer_state(transfer) == WD_TRANSFER_WAITING) {
-				if(transfer->waiting_time + WD_TRANSFERS_WAITING_INTERVAL < interval) {
-					wd_transfers_add_or_remove_transfer(transfer, false);
-					
-					wi_array_remove_data_at_index(wd_transfers, i);
-					
-					count--;
-					i--;
-					update = true;
-				}
+			transfer = wi_retain(WI_ARRAY(wd_transfers, i));
+			
+			wi_condition_lock_lock(transfer->state_lock);
+			
+			if(transfer->state == WD_TRANSFER_WAITING &&
+			   transfer->waiting_time + WD_TRANSFERS_WAITING_INTERVAL < interval) {
+				wd_transfers_add_or_remove_transfer(transfer, false);
+				
+				wi_array_remove_data_at_index(wd_transfers, i);
+				
+				count--;
+				i--;
+				update = true;
 			}
+			
+			wi_condition_lock_unlock(transfer->state_lock);
+			
+			wi_release(transfer);
 		}
 	}
 
@@ -1067,10 +1072,8 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 
 		if(wi_fs_rename_path(transfer->realpath, path)) {
 			if(transfer->executable) {
-				if(!wi_fs_set_mode_for_path(path, 0755)) {
-					wi_log_warn(WI_STR("Could not set mode for %@: %m"),
-						path);
-				}
+				if(!wi_fs_set_mode_for_path(path, 0755))
+					wi_log_warn(WI_STR("Could not set mode for %@: %m"), path);
 			}
 
 			path = wi_string_by_appending_string(transfer->path, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION));
