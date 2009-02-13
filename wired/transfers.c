@@ -848,7 +848,7 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 		}
 
 		sendbytes = (transfer->remainingsize < (wi_file_offset_t) readbytes) ? transfer->remainingsize : (wi_file_offset_t) readbytes;
-		result = wi_p7_socket_write_oobdata(p7_socket, 0.0, buffer, sendbytes);
+		result = wi_p7_socket_write_oobdata(p7_socket, 30.0, buffer, sendbytes);
 		
 		if(!result) {
 			wi_log_err(WI_STR("Could not write download to %@: %m"),
@@ -986,7 +986,7 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 			break;
 		}
 		
-		readbytes = wi_p7_socket_read_oobdata(p7_socket, 0.0, &buffer);
+		readbytes = wi_p7_socket_read_oobdata(p7_socket, 30.0, &buffer);
 
 		if(readbytes <= 0) {
 			if(readbytes < 0) {
