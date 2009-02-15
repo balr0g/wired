@@ -284,12 +284,14 @@ void wd_server_apply_settings(wi_set_t *changes) {
 	   wi_set_contains_data(changes, WI_STR("description")) ||
 	   wi_set_contains_data(changes, WI_STR("banner"))) {
 		wd_chat_broadcast_message(wd_public_chat, wd_server_info_message());
+	}
 		
 #ifdef HAVE_DNS_SD_H
+	if(wi_set_contains_data(changes, WI_STR("name"))) {
 		if(wd_tcp_sockets && wd_udp_sockets)
 			wd_server_dnssd_register();
-#endif
 	}
+#endif
 }
 
 
