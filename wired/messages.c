@@ -2225,6 +2225,8 @@ static void wd_message_settings_set_settings(wd_user_t *user, wi_p7_message_t *m
 	}
 
 	wd_settings_set_settings(message);
+	
+	wi_log_info(WI_STR("%@ changed server settings"), wd_user_identifier(user));
 }
 
 
@@ -2255,6 +2257,8 @@ static void wd_message_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message
 	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
 	
 	wd_banlist_add_ban(user, message, ip, expiration_date);
+	
+	wi_log_info(WI_STR("%@ added ban for %@"), wd_user_identifier(user), ip);
 }
 
 
@@ -2273,6 +2277,8 @@ static void wd_message_banlist_delete_ban(wd_user_t *user, wi_p7_message_t *mess
 	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
 	
 	wd_banlist_delete_ban(user, message, ip, expiration_date);
+	
+	wi_log_info(WI_STR("%@ deleted ban for %@"), wd_user_identifier(user), ip);
 }
 
 
