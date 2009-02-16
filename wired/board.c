@@ -690,20 +690,42 @@ static wi_boolean_t wd_board_convert_news_to_board(wi_string_t *news_path, wi_st
 
 
 static wi_boolean_t wd_board_rename_board_path(wi_string_t *oldpath, wi_string_t *newpath, wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t			*path;
 	wi_boolean_t		renamed = false;
 	
 	wi_rwlock_wrlock(wd_board_lock);
 	
 	if(wi_fs_path_exists(oldpath, NULL)) {
-		if(!wi_fs_path_exists(newpath, NULL)) {
-			if(wi_fs_rename_path(oldpath, newpath)) {
-				renamed = true;
-			} else {
-				wi_log_err(WI_STR("Could not rename %@ to %@: %m"), oldpath, newpath);
-				wd_user_reply_internal_error(user, message);
+		if(wi_string_case_insensitive_compare(oldpath, newpath) == 0) {
+			path = wi_fs_temporary_path_with_template(
+				wi_string_with_format(WI_STR("%@/.%@.XXXXXXXX"),
+					  wi_string_by_deleting_last_path_component(oldpath),
+					  wi_string_last_path_component(newpath)));
+			
+			if(path) {
+				if(wi_fs_rename_path(oldpath, path)) {
+					if(wi_fs_rename_path(path, newpath)) {
+						renamed = true;
+					} else {
+						wi_log_err(WI_STR("Could not rename %@ to %@: %m"), path, newpath);
+						wd_user_reply_internal_error(user, message);
+					}
+				} else {
+					wi_log_err(WI_STR("Could not rename %@ to %@: %m"), oldpath, path);
+					wd_user_reply_internal_error(user, message);
+				}
 			}
 		} else {
-			wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
+			if(!wi_fs_path_exists(newpath, NULL)) {
+				if(wi_fs_rename_path(oldpath, newpath)) {
+					renamed = true;
+				} else {
+					wi_log_err(WI_STR("Could not rename %@ to %@: %m"), oldpath, newpath);
+					wd_user_reply_internal_error(user, message);
+				}
+			} else {
+				wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
+			}
 		}
 	} else {
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);

@@ -487,7 +487,7 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 		path = wi_fs_temporary_path_with_template(
 			wi_string_with_format(WI_STR("%@/.%@.XXXXXXXX"),
 				  wi_string_by_deleting_last_path_component(realfrompath),
-				  realfromname));
+				  wi_string_last_path_component(realfromname)));
 		
 		if(path) {
 			result = wi_fs_rename_path(realfrompath, path);
