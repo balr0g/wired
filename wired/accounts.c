@@ -1371,7 +1371,12 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 
 #define WD_ACCOUNT_STRING_ACCESSOR(name, field)									\
 	wi_string_t * (name)(wd_account_t *account) {								\
-		return wi_dictionary_data_for_key((account)->values, (field));			\
+		wi_string_t		*string;												\
+																				\
+		if((string = wi_dictionary_data_for_key((account)->values, (field))))	\
+			return string;														\
+																				\
+		return WI_STR("");														\
 	}
 
 #define WD_ACCOUNT_DATE_ACCESSOR(name, field)									\
@@ -1401,7 +1406,12 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 
 #define WD_ACCOUNT_LIST_ACCESSOR(name, field)									\
 	wi_array_t * (name)(wd_account_t *account) {								\
-		return wi_dictionary_data_for_key((account)->values, (field));			\
+		wi_array_t		*array;													\
+																				\
+		if((array = wi_dictionary_data_for_key((account)->values, (field))))	\
+			return array;														\
+																				\
+		return wi_array();														\
 	}
 
 WD_ACCOUNT_STRING_ACCESSOR(wd_account_name, WI_STR("wired.account.name"))
