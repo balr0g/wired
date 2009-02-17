@@ -2143,7 +2143,8 @@ static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_
 		return;
 	}
 
-	if(!wd_files_drop_box_path_is_writable(path, user)) {
+	if(!wd_account_transfer_upload_directories(account) ||
+	   !wd_files_drop_box_path_is_writable(path, user)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
 		return;
@@ -2153,7 +2154,7 @@ static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_
 	realparentpath	= wi_string_by_deleting_last_path_component(realpath);
 	parenttype		= wd_files_type(realparentpath);
 	
-	if(parenttype == WD_FILE_TYPE_DIR || !wd_account_transfer_upload_directories(account)) {
+	if(parenttype == WD_FILE_TYPE_DIR && !wd_account_transfer_upload_anywhere(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
 		return;
