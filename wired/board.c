@@ -77,7 +77,6 @@ static wd_board_privileges_t *					wd_board_privileges_with_string(wi_string_t *
 static wi_string_t *							wd_board_privileges_string(wd_board_privileges_t *);
 static wi_boolean_t								wd_board_privileges_is_readable_by_user(wd_board_privileges_t *, wd_user_t *);
 static wi_boolean_t								wd_board_privileges_is_writable_by_user(wd_board_privileges_t *, wd_user_t *);
-static wi_boolean_t								wd_board_privileges_is_xable_by_user(wd_board_privileges_t *, wd_user_t *, wi_uinteger_t);
 
 
 static wi_string_t								*wd_board_path;
@@ -1066,31 +1065,42 @@ static wi_string_t * wd_board_privileges_string(wd_board_privileges_t *privilege
 
 
 static wi_boolean_t wd_board_privileges_is_readable_by_user(wd_board_privileges_t *privileges, wd_user_t *user) {
-	return wd_board_privileges_is_xable_by_user(privileges, user, WD_BOARD_OWNER_READ | WD_BOARD_GROUP_READ | WD_BOARD_EVERYONE_READ);
+	wd_account_t	*account;
+	
+	if(privileges->mode & WD_BOARD_EVERYONE_READ)
+		return true;
+	
+	account = wd_user_account(user);
+	
+	if(privileges->mode & WD_BOARD_GROUP_READ && wi_string_length(privileges->group) > 0) {
+		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
+			return true;
+	}
+	
+	if(privileges->mode & WD_BOARD_OWNER_READ && wi_string_length(privileges->owner) > 0) {
+		if(wi_is_equal(privileges->owner, wd_account_name(account)))
+			return true;
+	}
+	
+	return false;
 }
 
 
 
 static wi_boolean_t wd_board_privileges_is_writable_by_user(wd_board_privileges_t *privileges, wd_user_t *user) {
-	return wd_board_privileges_is_xable_by_user(privileges, user, WD_BOARD_OWNER_WRITE | WD_BOARD_GROUP_WRITE | WD_BOARD_EVERYONE_WRITE);
-}
-
-
-
-static wi_boolean_t wd_board_privileges_is_xable_by_user(wd_board_privileges_t *privileges, wd_user_t *user, wi_uinteger_t mode) {
 	wd_account_t	*account;
 	
-	if(privileges->mode & mode)
+	if(privileges->mode & WD_BOARD_EVERYONE_WRITE)
 		return true;
 	
 	account = wd_user_account(user);
 	
-	if(privileges->mode & mode && wi_string_length(privileges->group) > 0) {
+	if(privileges->mode & WD_BOARD_GROUP_WRITE && wi_string_length(privileges->group) > 0) {
 		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
 			return true;
 	}
 	
-	if(privileges->mode & mode && wi_string_length(privileges->owner) > 0) {
+	if(privileges->mode & WD_BOARD_OWNER_WRITE && wi_string_length(privileges->owner) > 0) {
 		if(wi_is_equal(privileges->owner, wd_account_name(account)))
 			return true;
 	}

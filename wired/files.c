@@ -91,7 +91,6 @@ static wd_file_type_t							wd_files_type_with_stat(wi_string_t *, wi_fs_stat_t 
 static void										wd_files_clear_comment(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 static wi_boolean_t								wd_files_read_comment(wi_file_t *, wi_string_t **, wi_string_t **);
 
-static wi_boolean_t								wd_files_drop_box_path_is_xable(wi_string_t *, wd_user_t *, wi_uinteger_t);
 static wi_boolean_t								wd_files_drop_box_path_is_listable(wi_string_t *, wd_account_t *);
 static wi_string_t *							wd_files_drop_box_path_in_path(wi_string_t *, wd_user_t *);
 static wi_boolean_t								wd_files_name_matches_query(wi_string_t *, wi_string_t *);
@@ -1440,22 +1439,18 @@ wi_boolean_t wd_files_path_is_valid(wi_string_t *path) {
 
 
 wi_boolean_t wd_files_drop_box_path_is_readable(wi_string_t *path, wd_user_t *user) {
-	return wd_files_drop_box_path_is_xable(path, user, WD_FILE_OWNER_READ | WD_FILE_GROUP_READ | WD_FILE_EVERYONE_READ);
-}
-
-
-
-wi_boolean_t wd_files_drop_box_path_is_writable(wi_string_t *path, wd_user_t *user) {
-	return wd_files_drop_box_path_is_xable(path, user, WD_FILE_OWNER_WRITE | WD_FILE_GROUP_WRITE | WD_FILE_EVERYONE_WRITE);
-}
-
-
-
-static wi_boolean_t wd_files_drop_box_path_is_listable(wi_string_t *realpath, wd_account_t *account) {
-	wi_string_t		*owner, *group;
+	wi_string_t		*realpath, *owner, *group;
+	wd_account_t	*account;
 	wi_uinteger_t	mode;
 	
+	account = wd_user_account(user);
+	
 	if(wd_account_file_access_all_dropboxes(account))
+		return true;
+	
+	realpath = wd_files_drop_box_path_in_path(path, user);
+	
+	if(!realpath)
 		return true;
 	
 	if(!wd_files_get_permissions(realpath, &owner, &group, &mode))
@@ -1479,7 +1474,7 @@ static wi_boolean_t wd_files_drop_box_path_is_listable(wi_string_t *realpath, wd
 
 
 
-static wi_boolean_t wd_files_drop_box_path_is_xable(wi_string_t *path, wd_user_t *user, wi_uinteger_t inmode) {
+wi_boolean_t wd_files_drop_box_path_is_writable(wi_string_t *path, wd_user_t *user) {
 	wi_string_t		*realpath, *owner, *group;
 	wd_account_t	*account;
 	wi_uinteger_t	mode;
@@ -1494,22 +1489,46 @@ static wi_boolean_t wd_files_drop_box_path_is_xable(wi_string_t *path, wd_user_t
 	if(!realpath)
 		return true;
 	
-	if(!wd_files_get_permissions(realpath, &owner, &group, &mode)) {
-		if(inmode & WD_FILE_EVERYONE_WRITE)
-			return true;
-		
+	if(!wd_files_get_permissions(realpath, &owner, &group, &mode))
 		return false;
-	}
 	
-	if(mode & inmode)
+	if(mode & WD_FILE_EVERYONE_WRITE)
 		return true;
 	
-	if(mode & inmode && wi_string_length(group) > 0) {
+	if(mode & WD_FILE_GROUP_WRITE && wi_string_length(group) > 0) {
 		if(wi_is_equal(group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), group))
 			return true;
 	}
 	
-	if(mode & inmode && wi_string_length(owner) > 0) {
+	if(mode & WD_FILE_OWNER_WRITE && wi_string_length(owner) > 0) {
+		if(wi_is_equal(owner, wd_account_name(account)))
+			return true;
+	}
+	
+	return false;
+}
+
+
+
+static wi_boolean_t wd_files_drop_box_path_is_listable(wi_string_t *realpath, wd_account_t *account) {
+	wi_string_t		*owner, *group;
+	wi_uinteger_t	mode;
+	
+	if(wd_account_file_access_all_dropboxes(account))
+		return true;
+	
+	if(!wd_files_get_permissions(realpath, &owner, &group, &mode))
+		return false;
+	
+	if(mode & WD_FILE_EVERYONE_READ)
+		return true;
+	
+	if(mode & WD_FILE_GROUP_READ && wi_string_length(group) > 0) {
+		if(wi_is_equal(group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), group))
+			return true;
+	}
+	
+	if(mode & WD_FILE_OWNER_READ && wi_string_length(owner) > 0) {
 		if(wi_is_equal(owner, wd_account_name(account)))
 			return true;
 	}
