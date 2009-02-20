@@ -818,11 +818,11 @@ void wd_board_move_thread(wi_string_t *oldboard, wi_uuid_t *thread, wi_string_t 
 					newreadable = wd_board_privileges_is_readable_by_user(newprivileges, peer);
 					
 					if(oldreadable && newreadable)
-						wd_user_send_message(user, movedmessage);
+						wd_user_send_message(peer, movedmessage);
 					else if(oldreadable)
-						wd_user_send_message(user, deletedmessage);
+						wd_user_send_message(peer, deletedmessage);
 					else if(newreadable)
-						wd_board_send_thread_added(newboard, thread, user);
+						wd_board_send_thread_added(newboard, thread, peer);
 				}
 			}
 			
