@@ -1219,7 +1219,7 @@ static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message
 	
 	account = wd_user_account(user);
 	
-	if(!wd_account_board_edit_own_posts(account) || !wd_account_board_edit_all_posts(account)) {
+	if(!wd_account_board_edit_own_posts(account) && !wd_account_board_edit_all_posts(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
