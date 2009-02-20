@@ -241,7 +241,7 @@ void wd_transfers_queue_download(wi_string_t *path, wi_file_offset_t offset, wd_
 	}
 	
 	if(offset > (wi_file_offset_t) sb.size) {
-		wi_log_err(WI_STR("Could not seek to %llu which is beyond file size %llu in %@: %m"), offset, (wi_file_offset_t) sb.size, realpath);
+		wi_log_err(WI_STR("Could not seek to %llu which is beyond file size %llu in %@"), offset, (wi_file_offset_t) sb.size, realpath);
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 		
 		return;
