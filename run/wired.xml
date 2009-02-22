@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b20">
+			 version="2.0b21">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -928,6 +928,9 @@
 
 		<p7:message name="wired.account.privileges" id="8000">
 			<p7:parameter field="wired.transaction" />
+			<p7:parameter field="wired.account.name" use="required" />
+			<p7:parameter field="wired.account.group" use="required" />
+			<p7:parameter field="wired.account.groups" use="required" />
 			<p7:parameter collection="wired.account.privileges" use="required" />
 		</p7:message>
 		
