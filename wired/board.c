@@ -58,7 +58,7 @@ static void										wd_board_broadcast_message(wi_p7_message_t *, wd_board_priv
 static void										wd_board_send_thread_added(wi_string_t *, wi_uuid_t *, wd_user_t *);
 
 static wi_dictionary_t *						wd_board_dictionary_with_post(wd_user_t *, wi_string_t *, wi_string_t *);
-static wi_p7_message_t *						wd_board_message_with_post(wi_string_t *, wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_dictionary_t *);
+static wi_p7_message_t *						wd_board_message_with_post_for_user(wi_string_t *, wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_dictionary_t *, wd_user_t *);
 static wi_string_t *							wd_board_board_path(wi_string_t *);
 static wi_string_t *							wd_board_thread_path(wi_string_t *board, wi_uuid_t *);
 static wi_string_t *							wd_board_post_path(wi_string_t *, wi_uuid_t *, wi_uuid_t *);
@@ -210,7 +210,7 @@ void wd_board_reply_posts(wd_user_t *user, wi_p7_message_t *message) {
 				privileges	= wd_board_privileges(board);
 				
 				if(privileges && wd_board_privileges_is_readable_by_user(privileges, user)) {
-					reply = wd_board_message_with_post(WI_STR("wired.board.post_list"), board, thread, post, instance);
+					reply = wd_board_message_with_post_for_user(WI_STR("wired.board.post_list"), board, thread, post, instance, user);
 					wd_user_reply_message(user, reply, message);
 				}
 			}
@@ -460,7 +460,7 @@ static void wd_board_send_thread_added(wi_string_t *board, wi_uuid_t *thread, wd
 		if(instance && wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
 			post = wi_uuid_with_string(wi_string_by_deleting_path_extension(wi_string_last_path_component(path)));
 
-			message = wd_board_message_with_post(WI_STR("wired.board.post_added"), board, thread, post, instance);
+			message = wd_board_message_with_post_for_user(WI_STR("wired.board.post_added"), board, thread, post, instance, user);
 			wd_user_send_message(user, message);
 		}
 	}
@@ -482,9 +482,10 @@ static wi_dictionary_t * wd_board_dictionary_with_post(wd_user_t *user, wi_strin
 
 
 
-static wi_p7_message_t * wd_board_message_with_post(wi_string_t *name, wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, wi_dictionary_t *dictionary) {
+static wi_p7_message_t * wd_board_message_with_post_for_user(wi_string_t *name, wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, wi_dictionary_t *dictionary, wd_user_t *user) {
 	wi_p7_message_t		*message;
 	wi_date_t			*edit_date;
+	wi_string_t			*login;
 	
 	message = wi_p7_message_with_name(name, wd_p7_spec);
 	wi_p7_message_set_string_for_name(message, board, WI_STR("wired.board.board"));
@@ -498,7 +499,11 @@ static wi_p7_message_t * wd_board_message_with_post(wi_string_t *name, wi_string
 		wi_p7_message_set_date_for_name(message, edit_date, WI_STR("wired.board.edit_date"));
 	
 	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.nick")), WI_STR("wired.user.nick"));
-	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.login")), WI_STR("wired.user.login"));
+	
+	login = wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.login"));
+
+	wi_p7_message_set_bool_for_name(message, wi_is_equal(login, wd_user_login(user)), WI_STR("wired.board.own_post"));
+	
 	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.subject")), WI_STR("wired.board.subject"));
 	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.text")), WI_STR("wired.board.text"));
 
@@ -740,11 +745,14 @@ static wi_boolean_t wd_board_rename_board_path(wi_string_t *oldpath, wi_string_t
 #pragma mark -
 
 void wd_board_add_thread(wi_string_t *board, wi_string_t *subject, wi_string_t *text, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*broadcast;
+	wi_p7_message_t			*reply;
+	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
 	wi_uuid_t				*thread, *post;
+	wi_array_t				*users;
 	wi_string_t				*path;
 	wd_board_privileges_t	*privileges;
+	wd_user_t				*peer;
 	
 	wi_rwlock_wrlock(wd_board_lock);
 	
@@ -759,8 +767,20 @@ void wd_board_add_thread(wi_string_t *board, wi_string_t *subject, wi_string_t *
 			path		= wd_board_post_path(board, thread, post);
 			
 			if(wi_plist_write_instance_to_file(dictionary, path)) {
-				broadcast = wd_board_message_with_post(WI_STR("wired.board.post_added"), board, thread, post, dictionary);
-				wd_board_broadcast_message(broadcast, privileges);
+				users = wd_chat_users(wd_public_chat);
+				
+				wi_array_rdlock(users);
+				
+				enumerator = wi_array_data_enumerator(users);
+				
+				while((peer = wi_enumerator_next_data(enumerator))) {
+					if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_board_privileges_is_readable_by_user(privileges, peer)) {
+						reply = wd_board_message_with_post_for_user(WI_STR("wired.board.post_added"), board, thread, post, dictionary, peer);
+						wd_user_send_message(user, reply);
+					}
+				}
+				
+				wi_array_unlock(users);
 			} else {
 				wi_log_err(WI_STR("Could not create %@: %m"), path);
 				wd_user_reply_internal_error(user, message);
@@ -873,11 +893,14 @@ void wd_board_delete_thread(wi_string_t *board, wi_uuid_t *thread, wd_user_t *us
 #pragma mark -
 
 void wd_board_add_post(wi_string_t *board, wi_uuid_t *thread, wi_string_t *subject, wi_string_t *text, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*broadcast;
+	wi_p7_message_t			*reply;
+	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
 	wi_string_t				*path;
 	wi_uuid_t				*post;
+	wi_array_t				*users;
 	wd_board_privileges_t	*privileges;
+	wd_user_t				*peer;
 	
 	wi_rwlock_wrlock(wd_board_lock);
 	
@@ -889,8 +912,20 @@ void wd_board_add_post(wi_string_t *board, wi_uuid_t *thread, wi_string_t *subje
 		dictionary	= wd_board_dictionary_with_post(user, subject, text);
 		
 		if(wi_plist_write_instance_to_file(dictionary, path)) {
-			broadcast = wd_board_message_with_post(WI_STR("wired.board.post_added"), board, thread, post, dictionary);
-			wd_board_broadcast_message(broadcast, privileges);
+			users = wd_chat_users(wd_public_chat);
+			
+			wi_array_rdlock(users);
+			
+			enumerator = wi_array_data_enumerator(users);
+			
+			while((peer = wi_enumerator_next_data(enumerator))) {
+				if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_board_privileges_is_readable_by_user(privileges, peer)) {
+					reply = wd_board_message_with_post_for_user(WI_STR("wired.board.post_added"), board, thread, post, dictionary, peer);
+					wd_user_send_message(user, reply);
+				}
+			}
+			
+			wi_array_unlock(users);
 		} else {
 			wi_log_err(WI_STR("Could not create %@: %m"), path);
 			wd_user_reply_internal_error(user, message);
