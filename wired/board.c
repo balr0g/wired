@@ -75,6 +75,7 @@ static wd_board_privileges_t *					wd_board_privileges_with_owner(wi_string_t *,
 static wd_board_privileges_t *					wd_board_privileges_with_string(wi_string_t *);
 
 static wi_string_t *							wd_board_privileges_string(wd_board_privileges_t *);
+static wi_boolean_t								wd_board_privileges_is_listable_by_user(wd_board_privileges_t *, wd_user_t *);
 static wi_boolean_t								wd_board_privileges_is_readable_by_user(wd_board_privileges_t *, wd_user_t *);
 static wi_boolean_t								wd_board_privileges_is_writable_by_user(wd_board_privileges_t *, wd_user_t *);
 
@@ -143,7 +144,7 @@ void wd_board_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 			board = wi_string_substring_from_index(path, pathlength + 1);
 			privileges = wd_board_privileges(board);
 			
-			if(privileges && wd_board_privileges_is_readable_by_user(privileges, user)) {
+			if(privileges && wd_board_privileges_is_listable_by_user(privileges, user)) {
 				reply = wi_p7_message_with_name(WI_STR("wired.board.board_list"), wd_p7_spec);
 				wi_p7_message_set_string_for_name(reply, board, WI_STR("wired.board.board"));
 				wi_p7_message_set_string_for_name(reply, privileges->owner, WI_STR("wired.board.owner"));
@@ -1095,6 +1096,29 @@ static wi_string_t * wd_board_privileges_string(wd_board_privileges_t *privilege
 	   privileges->owner,		WD_BOARD_PERMISSIONS_FIELD_SEPARATOR,
 	   privileges->group,		WD_BOARD_PERMISSIONS_FIELD_SEPARATOR,
 	   privileges->mode);
+}
+
+
+
+static wi_boolean_t wd_board_privileges_is_listable_by_user(wd_board_privileges_t *privileges, wd_user_t *user) {
+	wd_account_t	*account;
+	
+	if(privileges->mode & (WD_BOARD_EVERYONE_READ | WD_BOARD_EVERYONE_WRITE))
+		return true;
+	
+	account = wd_user_account(user);
+	
+	if(privileges->mode & (WD_BOARD_GROUP_READ | WD_BOARD_GROUP_WRITE) && wi_string_length(privileges->group) > 0) {
+		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
+			return true;
+	}
+	
+	if(privileges->mode & (WD_BOARD_OWNER_READ | WD_BOARD_OWNER_WRITE) && wi_string_length(privileges->owner) > 0) {
+		if(wi_is_equal(privileges->owner, wd_account_name(account)))
+			return true;
+	}
+	
+	return false;
 }
 
 
