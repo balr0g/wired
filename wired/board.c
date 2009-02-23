@@ -54,7 +54,7 @@ struct _wd_board_privileges {
 typedef struct _wd_board_privileges				wd_board_privileges_t;
 
 
-static void										wd_board_broadcast_message(wi_p7_message_t *, wd_board_privileges_t *);
+static void										wd_board_broadcast_message(wi_p7_message_t *, wd_board_privileges_t *, wi_boolean_t);
 static void										wd_board_send_thread_added(wi_string_t *, wi_uuid_t *, wd_user_t *);
 
 static wi_dictionary_t *						wd_board_dictionary_with_post(wd_user_t *, wi_string_t *, wi_string_t *);
@@ -256,7 +256,7 @@ wi_boolean_t wd_board_add_board(wi_string_t *board, wi_string_t *owner, wi_strin
 				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
 				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
 				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
-				wd_board_broadcast_message(broadcast, privileges);
+				wd_board_broadcast_message(broadcast, privileges, false);
 				
 				added = true;
 			} else {
@@ -291,7 +291,7 @@ wi_boolean_t wd_board_rename_board(wi_string_t *oldboard, wi_string_t *newboard,
 		broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_renamed"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
 		wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
-		wd_board_broadcast_message(broadcast, privileges);
+		wd_board_broadcast_message(broadcast, privileges, false);
 		
 		return true;
 	}
@@ -315,7 +315,7 @@ wi_boolean_t wd_board_move_board(wi_string_t *oldboard, wi_string_t *newboard, w
 		broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_moved"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
 		wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
-		wd_board_broadcast_message(broadcast, privileges);
+		wd_board_broadcast_message(broadcast, privileges, false);
 		
 		return true;
 	}
@@ -342,7 +342,7 @@ wi_boolean_t wd_board_set_permissions(wi_string_t *board, wi_string_t *owner, wi
 		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
 		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
 		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
-		wd_board_broadcast_message(broadcast, privileges);
+		wd_board_broadcast_message(broadcast, privileges, false);
 		
 		return true;
 	} else {
@@ -370,7 +370,7 @@ wi_boolean_t wd_board_delete_board(wi_string_t *board, wd_user_t *user, wi_p7_me
 		if(wi_fs_delete_path(path)) {
 			broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_deleted"), wd_p7_spec);
 			wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-			wd_board_broadcast_message(broadcast, privileges);
+			wd_board_broadcast_message(broadcast, privileges, false);
 			
 			deleted = true;
 		} else {
@@ -407,7 +407,7 @@ wi_boolean_t wd_board_name_is_valid(wi_string_t *board) {
 
 #pragma mark -
 
-static void wd_board_broadcast_message(wi_p7_message_t *message, wd_board_privileges_t *privileges) {
+static void wd_board_broadcast_message(wi_p7_message_t *message, wd_board_privileges_t *privileges, wi_boolean_t readable) {
 	wi_enumerator_t		*enumerator;
 	wi_array_t			*users;
 	wd_user_t			*user;
@@ -419,8 +419,11 @@ static void wd_board_broadcast_message(wi_p7_message_t *message, wd_board_privil
 	enumerator = wi_array_data_enumerator(users);
 	
 	while((user = wi_enumerator_next_data(enumerator))) {
-		if(wd_user_state(user) == WD_USER_LOGGED_IN && wd_board_privileges_is_readable_by_user(privileges, user))
-			wd_user_send_message(user, message);
+		if(wd_user_state(user) == WD_USER_LOGGED_IN) {
+			if((readable && wd_board_privileges_is_readable_by_user(privileges, user)) ||
+			   (!readable && wd_board_privileges_is_listable_by_user(privileges, user)))
+				wd_user_send_message(user, message);
+		}
 	}
 	
 	wi_array_unlock(users);
@@ -877,7 +880,7 @@ void wd_board_delete_thread(wi_string_t *board, wi_uuid_t *thread, wd_user_t *us
 			broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_deleted"), wd_p7_spec);
 			wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
 			wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
-			wd_board_broadcast_message(broadcast, privileges);
+			wd_board_broadcast_message(broadcast, privileges, true);
 		} else {
 			wi_log_err(WI_STR("Could not delete %@: %m"), path);
 			wd_user_reply_internal_error(user, message);
@@ -986,7 +989,7 @@ void wd_board_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, 
 						wi_p7_message_set_date_for_name(broadcast, edit_date, WI_STR("wired.board.edit_date"));
 						wi_p7_message_set_string_for_name(broadcast, subject, WI_STR("wired.board.subject"));
 						wi_p7_message_set_string_for_name(broadcast, text, WI_STR("wired.board.text"));
-						wd_board_broadcast_message(broadcast, privileges);
+						wd_board_broadcast_message(broadcast, privileges, true);
 					} else {
 						wi_log_err(WI_STR("Could not edit %@: %m"), path);
 						wd_user_reply_internal_error(user, message);
@@ -1028,7 +1031,7 @@ void wd_board_delete_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post
 			wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
 			wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
 			wi_p7_message_set_uuid_for_name(broadcast, post, WI_STR("wired.board.post"));
-			wd_board_broadcast_message(broadcast, privileges);
+			wd_board_broadcast_message(broadcast, privileges, true);
 		} else {
 			wi_log_err(WI_STR("Could not delete %@: %m"), path);
 			wd_user_reply_internal_error(user, message);
