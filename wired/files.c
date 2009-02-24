@@ -1332,7 +1332,7 @@ static wd_file_label_t wd_files_label(wi_string_t *path) {
 	dirpath			= wi_string_by_deleting_last_path_component(path);
 	labelspath		= wi_string_by_appending_path_component(dirpath, WI_STR(WD_FILES_META_LABELS_PATH));
 	instance		= wi_plist_read_instance_from_file(labelspath);
-	label			= wi_dictionary_data_for_key(instance, name);
+	label			= instance ? wi_dictionary_data_for_key(instance, name) : NULL;
 	
 	return label ? wi_number_int32(label) : WD_FILE_LABEL_NONE;
 #endif
