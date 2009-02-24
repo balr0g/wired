@@ -180,6 +180,8 @@ void wd_accounts_init(void) {
 			WI_STR("wired.account.file.set_permissions"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.file.set_executable"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
+			WI_STR("wired.account.file.set_label"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_NUMBER, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.file.recursive_list_depth_limit"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
@@ -1512,6 +1514,7 @@ WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_set_type, WI_STR("wired.account.file
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_set_comment, WI_STR("wired.account.file.set_comment"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_set_permissions, WI_STR("wired.account.file.set_permissions"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_set_executable, WI_STR("wired.account.file.set_executable"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_set_label, WI_STR("wired.account.file.set_label"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_delete_files, WI_STR("wired.account.file.delete_files"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_access_all_dropboxes, WI_STR("wired.account.file.access_all_dropboxes"))
 WD_ACCOUNT_NUMBER_ACCESSOR(wd_account_file_recursive_list_depth_limit, WI_STR("wired.account.file.recursive_list_depth_limit"))

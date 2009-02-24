@@ -33,6 +33,9 @@
 
 #include "users.h"
 
+#define WD_FILES_META_PATH				".wired"
+
+
 enum _wd_file_type {
 	WD_FILE_TYPE_FILE					= 0,
 	WD_FILE_TYPE_DIR,
@@ -40,6 +43,18 @@ enum _wd_file_type {
 	WD_FILE_TYPE_DROPBOX
 };
 typedef enum _wd_file_type				wd_file_type_t;
+
+enum _wd_file_label {
+	WD_FILE_LABEL_NONE					= WI_FS_FINDER_LABEL_NONE,
+	WD_FILE_LABEL_RED					= WI_FS_FINDER_LABEL_RED,
+	WD_FILE_LABEL_ORANGE				= WI_FS_FINDER_LABEL_ORANGE,
+	WD_FILE_LABEL_YELLOW				= WI_FS_FINDER_LABEL_YELLOW,
+	WD_FILE_LABEL_GREEN					= WI_FS_FINDER_LABEL_GREEN,
+	WD_FILE_LABEL_BLUE					= WI_FS_FINDER_LABEL_BLUE,
+	WD_FILE_LABEL_PURPLE				= WI_FS_FINDER_LABEL_PURPLE,
+	WD_FILE_LABEL_GRAY					= WI_FS_FINDER_LABEL_GRAY,
+};
+typedef enum _wd_file_label				wd_file_label_t;
 
 enum _wd_file_permissions {
 	WD_FILE_OWNER_WRITE					= (2 << 6),
@@ -72,9 +87,11 @@ void									wd_files_set_type(wi_string_t *, wd_file_type_t, wd_user_t *, wi_p7
 
 void									wd_files_set_executable(wi_string_t *, wi_boolean_t, wd_user_t *, wi_p7_message_t *);
 
-wi_string_t *							wd_files_comment(wi_string_t *, wd_user_t *);
 void									wd_files_set_comment(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
 void									wd_files_move_comment(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+
+void									wd_files_set_label(wi_string_t *, wd_file_label_t, wd_user_t *, wi_p7_message_t *);
+void									wd_files_move_label(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
 wi_boolean_t							wd_files_get_permissions(wi_string_t *, wi_string_t **, wi_string_t **, wi_uinteger_t *);
 void									wd_files_set_permissions(wi_string_t *, wi_string_t *, wi_string_t *, wi_uinteger_t, wd_user_t *, wi_p7_message_t *);

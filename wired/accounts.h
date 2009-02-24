@@ -111,6 +111,7 @@ wi_boolean_t 						wd_account_file_set_type(wd_account_t *);
 wi_boolean_t 						wd_account_file_set_comment(wd_account_t *);
 wi_boolean_t 						wd_account_file_set_permissions(wd_account_t *);
 wi_boolean_t 						wd_account_file_set_executable(wd_account_t *);
+wi_boolean_t 						wd_account_file_set_label(wd_account_t *);
 wi_boolean_t 						wd_account_file_delete_files(wd_account_t *);
 wi_boolean_t 						wd_account_file_access_all_dropboxes(wd_account_t *);
 wi_uinteger_t 						wd_account_file_recursive_list_depth_limit(wd_account_t *);

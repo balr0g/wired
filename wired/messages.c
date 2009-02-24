@@ -86,6 +86,7 @@ static void							wd_message_file_set_type(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_set_comment(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_set_executable(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_set_permissions(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_file_set_label(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_delete(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_create_directory(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_search(wd_user_t *, wi_p7_message_t *);
@@ -171,6 +172,7 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.set_comment"), wd_message_file_set_comment);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.set_executable"), wd_message_file_set_executable);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.set_permissions"), wd_message_file_set_permissions);
+	WD_MESSAGE_HANDLER(WI_STR("wired.file.set_label"), wd_message_file_set_label);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.delete"), wd_message_file_delete);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.create_directory"), wd_message_file_create_directory);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.search"), wd_message_file_search);
@@ -1475,7 +1477,7 @@ static void wd_message_file_set_executable(wd_user_t *user, wi_p7_message_t *mes
 	wi_string_t			*path;
 	wi_p7_boolean_t		executable;
 	
-	if(!wd_account_transfer_upload_files(wd_user_account(user))) {
+	if(!wd_account_file_set_executable(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
 		return;
@@ -1561,6 +1563,37 @@ static void wd_message_file_set_permissions(wd_user_t *user, wi_p7_message_t *me
 		mode |= WD_FILE_EVERYONE_WRITE;
 	
 	wd_files_set_permissions(wi_string_by_normalizing_path(path), owner, group, mode, user, message);
+}
+
+
+
+static void wd_message_file_set_label(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t			*path;
+	wi_p7_enum_t		label;
+	
+	if(!wd_account_file_set_label(wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+
+		return;
+	}
+
+	path = wi_p7_message_string_for_name(message, WI_STR("wired.file.path"));
+
+	if(!wd_files_path_is_valid(path)) {
+		wd_user_reply_error(user, WI_STR("wired.error.file_not_found"), message);
+
+		return;
+	}
+
+	if(!wd_files_drop_box_path_is_writable(path, user)) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+
+		return;
+	}
+	
+	wi_p7_message_get_enum_for_name(message, &label, WI_STR("wired.file.label"));
+
+	wd_files_set_label(wi_string_by_normalizing_path(path), label, user, message);
 }
 
 

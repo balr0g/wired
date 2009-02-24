@@ -48,10 +48,10 @@
 #include "transfers.h"
 #include "users.h"
 
-#define WD_FILES_META_PATH								".wired"
 #define WD_FILES_META_TYPE_PATH							".wired/type"
 #define WD_FILES_META_COMMENTS_PATH						".wired/comments"
 #define WD_FILES_META_PERMISSIONS_PATH					".wired/permissions"
+#define WD_FILES_META_LABELS_PATH						".wired/labels"
 
 #define WD_FILES_PERMISSIONS_FIELD_SEPARATOR			"\34"
 
@@ -61,7 +61,7 @@
 #define WD_FILES_MAX_LEVEL								20
 
 #define WD_FILES_INDEX_MAGIC							"WDIX"
-#define WD_FILES_INDEX_VERSION							1
+#define WD_FILES_INDEX_VERSION							2
 
 
 struct _wd_files_index_header {
@@ -82,12 +82,16 @@ static void												wd_files_index_update(wi_timer_t *);
 static wi_boolean_t										wd_files_index_update_size(void);
 static void												wd_files_index_thread(wi_runtime_instance_t *);
 static void												wd_files_index_path_to_file(wi_string_t *, wi_file_t *, wi_string_t *);
-static void												wd_files_index_write_entry(wi_file_t *, wi_string_t *, wd_file_type_t, uint64_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t);
+static void												wd_files_index_write_entry(wi_file_t *, wi_string_t *, wd_file_type_t, uint64_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t, uint32_t);
 
 static void												wd_files_fsevents_thread(wi_runtime_instance_t *);
 static void												wd_files_fsevents_callback(wi_string_t *);
 
 static wd_file_type_t									wd_files_type_with_stat(wi_string_t *, wi_fs_stat_t *);
+
+static wi_string_t *									wd_files_comment(wi_string_t *);
+
+static wd_file_label_t									wd_files_label(wi_string_t *);
 
 static wi_boolean_t										wd_files_drop_box_path_is_listable(wi_string_t *, wd_account_t *);
 static wi_string_t *									wd_files_drop_box_path_in_path(wi_string_t *, wd_user_t *);
@@ -166,6 +170,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 	wi_fs_stat_t				sb, lsb;
 	wi_fsenumerator_status_t	status;
 	wi_file_offset_t			size, available;
+	wd_file_label_t				label;
 	wi_uinteger_t				pathlength, depthlimit;
 	wd_file_type_t				type, pathtype;
 	wi_boolean_t				root, upload, alias, readable;
@@ -257,6 +262,8 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 				break;
 		}
 		
+		label = wd_files_label(filepath);
+		
 		reply = wi_p7_message_init_with_name(wi_p7_message_alloc(), WI_STR("wired.file.list"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(reply, virtualpath, WI_STR("wired.file.path"));
 		wi_p7_message_set_uint64_for_name(reply, size, WI_STR("wired.file.size"));
@@ -265,6 +272,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		wi_p7_message_set_enum_for_name(reply, type, WI_STR("wired.file.type"));
 		wi_p7_message_set_bool_for_name(reply, alias || S_ISLNK(lsb.mode), WI_STR("wired.file.link"));
 		wi_p7_message_set_bool_for_name(reply, (type == WD_FILE_TYPE_FILE && sb.mode & 0111), WI_STR("wired.file.executable"));
+		wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
 		wd_user_reply_message(user, reply, message);
 		wi_release(reply);
 		
@@ -329,16 +337,17 @@ static wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, 
 
 
 void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t		*reply;
-	wi_string_t			*realpath, *comment, *owner, *group;
-	wi_file_offset_t	size;
-	wd_file_type_t		type;
-	wi_fs_stat_t		sb, lsb;
-	wi_uinteger_t		mode;
-	wi_boolean_t		alias, readable;
+	wi_p7_message_t			*reply;
+	wi_string_t				*realpath, *comment, *owner, *group;
+	wi_file_offset_t		size;
+	wd_file_type_t			type;
+	wi_fs_stat_t			sb, lsb;
+	wd_file_label_t			label;
+	wi_uinteger_t			mode;
+	wi_boolean_t			alias, readable;
 	
-	realpath = wd_files_real_path(path, user);
-	alias = wi_fs_path_is_alias(realpath);
+	realpath	= wd_files_real_path(path, user);
+	alias		= wi_fs_path_is_alias(realpath);
 	
 	if(alias)
 		wi_string_resolve_aliases_in_path(realpath);
@@ -360,7 +369,7 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	else
 		readable = true;
 	
-	comment = wd_files_comment(path, user);
+	comment = wd_files_comment(realpath);
 	
 	switch(type) {
 		case WD_FILE_TYPE_DIR:
@@ -377,6 +386,8 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 			size = sb.size;
 			break;
 	}
+
+	label = wd_files_label(realpath);
 	
 	reply = wi_p7_message_with_name(WI_STR("wired.file.info"), wd_p7_spec);
 	wi_p7_message_set_string_for_name(reply, path, WI_STR("wired.file.path"));
@@ -387,6 +398,7 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	wi_p7_message_set_string_for_name(reply, comment, WI_STR("wired.file.comment"));
 	wi_p7_message_set_bool_for_name(reply, (alias || S_ISLNK(lsb.mode)), WI_STR("wired.file.link"));
 	wi_p7_message_set_bool_for_name(reply, (type == WD_FILE_TYPE_FILE && sb.mode & 0111), WI_STR("wired.file.executable"));
+	wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
 	
 	if(type == WD_FILE_TYPE_DROPBOX) {
 		if(!wd_files_get_permissions(realpath, &owner, &group, &mode)) {
@@ -834,6 +846,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 	wi_file_offset_t			size;
 	wi_fs_stat_t				sb, lsb;
 	wi_fsenumerator_status_t	status;
+	wd_file_label_t				label;
 	wi_uinteger_t				i = 0, pathlength;
 	wi_boolean_t				alias, recurse;
 	wd_file_type_t				type;
@@ -916,6 +929,8 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 						break;
 				}
 				
+				label = wd_files_label(filepath);
+				
 				virtualpath	= wi_string_substring_from_index(filepath, pathlength);
 				
 				if(pathprefix)
@@ -928,7 +943,8 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 										   sb.birthtime,
 										   sb.mtime,
 										   (alias || S_ISLNK(lsb.mode)),
-										   (type == WD_FILE_TYPE_FILE && sb.mode & 0111));
+										   (type == WD_FILE_TYPE_FILE && sb.mode & 0111),
+										   label);
 
 				if(S_ISDIR(sb.mode)) {
 					wd_directories_count++;
@@ -964,10 +980,10 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 
 
 
-static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_file_type_t type, uint64_t size, wi_time_interval_t creationtime, wi_time_interval_t modificationtime, wi_boolean_t link, wi_boolean_t executable) {
+static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_file_type_t type, uint64_t size, wi_time_interval_t creationtime, wi_time_interval_t modificationtime, wi_boolean_t link, wi_boolean_t executable, uint32_t label) {
 	static char				*buffer;
 	static wi_uinteger_t	bufferlength;
-	static uint32_t			searchlistid, pathid, typeid, sizeid, creationid, modificationid, linkid, executableid;
+	static uint32_t			searchlistid, pathid, typeid, sizeid, creationid, modificationid, linkid, executableid, labelid;
 	wi_string_t				*name, *creationstring, *modificationstring;
 	uint32_t				entrylength, namelength, pathlength, creationlength, modificationlength;
 	char					*p;
@@ -981,6 +997,7 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 		modificationid	= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.modification_time")));
 		linkid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.link")));
 		executableid	= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.executable")));
+		labelid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.label")));
 	}
 
 	name				= wi_string_last_path_component(path);
@@ -1000,7 +1017,8 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 						  sizeof(creationid) + creationlength +
 						  sizeof(modificationid) + modificationlength +
 						  sizeof(linkid) + 1 +
-						  sizeof(executableid) + 1;
+						  sizeof(executableid) + 1 +
+						  sizeof(labelid) + sizeof(label);
 	
 	if(!buffer) {
 		bufferlength = entrylength * 2;
@@ -1032,6 +1050,8 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	memcpy(p, link ? "\1" : "\0", 1);										p += 1;
 	wi_write_swap_host_to_big_int32(p, 0, executableid);					p += sizeof(executableid);
 	memcpy(p, executable ? "\1" : "\0", 1);									p += 1;
+	wi_write_swap_host_to_big_int32(p, 0, labelid);							p += sizeof(labelid);
+	wi_write_swap_host_to_big_int32(p, 0, label);							p += sizeof(label);
 	
 	wi_file_write_buffer(file, buffer, sizeof(entrylength) + entrylength);
 }
@@ -1073,6 +1093,9 @@ static void wd_files_fsevents_callback(wi_string_t *path) {
 		virtualpath = WI_STR("/");
 	else
 		virtualpath = wi_string_substring_from_index(path, pathlength);
+	
+	if(wi_is_equal(wi_string_last_path_component(virtualpath), WI_STR(WD_FILES_META_PATH)))
+		virtualpath = wi_string_by_deleting_last_path_component(virtualpath);
 	
 	wi_dictionary_rdlock(wd_users);
 
@@ -1185,31 +1208,22 @@ void wd_files_set_executable(wi_string_t *path, wi_boolean_t executable, wd_user
 
 #pragma mark -
 
-wi_string_t * wd_files_comment(wi_string_t *path, wd_user_t *user) {
+static wi_string_t * wd_files_comment(wi_string_t *path) {
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	return wi_fs_finder_comment_for_path(path);
+#else
 	wi_runtime_instance_t	*instance;
 	wi_file_t				*file;
 	wi_array_t				*array;
-#ifdef HAVE_CORESERVICES_CORESERVICES_H
-	wi_string_t				*realpath, *comment;
-#endif
-	wi_string_t				*name, *dirpath, *realdirpath, *commentpath, *string;
-
-#ifdef HAVE_CORESERVICES_CORESERVICES_H
-	realpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
-	comment			= wi_fs_finder_comment_for_path(realpath);
-	
-	if(comment)
-		return comment;
-#endif
+	wi_string_t				*name, *dirpath, *commentspath, *string;
 
 	name			= wi_string_last_path_component(path);
 	dirpath			= wi_string_by_deleting_last_path_component(path);
-	realdirpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(dirpath, user));
-	commentpath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
-	instance		= wi_plist_read_instance_from_file(commentpath);
+	commentspath	= wi_string_by_appending_path_component(dirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
+	instance		= wi_plist_read_instance_from_file(commentspath);
 	
 	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id()) {
-		file = wi_file_for_reading(commentpath);
+		file = wi_file_for_reading(commentspath);
 		
 		if(!file)
 			return NULL;
@@ -1223,6 +1237,7 @@ wi_string_t * wd_files_comment(wi_string_t *path, wd_user_t *user) {
 	}
 
 	return wi_dictionary_data_for_key(instance, name);
+#endif
 }
 
 
@@ -1232,13 +1247,13 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	wi_string_t				*realpath;
 #endif
-	wi_string_t				*name, *dirpath, *realdirpath, *metapath, *commentpath;
+	wi_string_t				*name, *dirpath, *realdirpath, *metapath, *commentspath;
 	
 	name			= wi_string_last_path_component(path);
 	dirpath			= wi_string_by_deleting_last_path_component(path);
 	realdirpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(dirpath, user));
 	metapath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_PATH));
-	commentpath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
+	commentspath	= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
 	
 	if(comment && wi_string_length(comment) > 0) {
 		if(!wi_fs_create_directory(metapath, 0777)) {
@@ -1253,7 +1268,7 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 		}
 	}
 	
-	instance = wi_plist_read_instance_from_file(commentpath);
+	instance = wi_plist_read_instance_from_file(commentspath);
 	
 	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
 		instance = wi_dictionary();
@@ -1264,8 +1279,8 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 		wi_dictionary_remove_data_for_key(instance, name);
 	
 	if(wi_dictionary_count(instance) > 0) {
-		if(!wi_plist_write_instance_to_file(instance, commentpath)) {
-			wi_log_warn(WI_STR("Could not write to %@: %m"), commentpath);
+		if(!wi_plist_write_instance_to_file(instance, commentspath)) {
+			wi_log_warn(WI_STR("Could not write to %@: %m"), commentspath);
 			
 			if(user)
 				wd_user_reply_file_errno(user, message);
@@ -1273,10 +1288,10 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 			return;
 		}
 	} else {
-		if(wi_fs_delete_path(commentpath))
+		if(wi_fs_delete_path(commentspath))
 			(void) rmdir(wi_string_cstring(metapath));
 	}
-	
+
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 
@@ -1290,13 +1305,113 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 
 
 void wd_files_move_comment(wi_string_t *frompath, wi_string_t *topath, wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*comment;
+	wi_string_t		*realfrompath, *comment;
 	
-	comment = wd_files_comment(frompath, user);
+	realfrompath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(frompath, user));
+	comment			= wd_files_comment(realfrompath);
 	
 	if(comment) {
 		wd_files_set_comment(frompath, NULL, user, message);
 		wd_files_set_comment(topath, comment, user, message);
+	}
+}
+
+
+
+#pragma mark -
+
+static wd_file_label_t wd_files_label(wi_string_t *path) {
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	return wi_fs_finder_label_for_path(path);
+#else
+	wi_runtime_instance_t	*instance;
+	wi_number_t				*label;
+	wi_string_t				*name, *dirpath, *labelspath;
+
+	name			= wi_string_last_path_component(path);
+	dirpath			= wi_string_by_deleting_last_path_component(path);
+	labelspath		= wi_string_by_appending_path_component(dirpath, WI_STR(WD_FILES_META_LABELS_PATH));
+	instance		= wi_plist_read_instance_from_file(labelspath);
+	label			= wi_dictionary_data_for_key(instance, name);
+	
+	return label ? wi_number_int32(label) : WD_FILE_LABEL_NONE;
+#endif
+}
+
+
+
+void wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_user_t *user, wi_p7_message_t *message) {
+	wi_runtime_instance_t	*instance;
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	wi_string_t				*realpath;
+#endif
+	wi_string_t				*name, *dirpath, *realdirpath, *metapath, *labelspath;
+	
+	name			= wi_string_last_path_component(path);
+	dirpath			= wi_string_by_deleting_last_path_component(path);
+	realdirpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(dirpath, user));
+	metapath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_PATH));
+	labelspath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_LABELS_PATH));
+	
+	if(label != WD_FILE_LABEL_NONE) {
+		if(!wi_fs_create_directory(metapath, 0777)) {
+			if(wi_error_code() != EEXIST) {
+				wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
+				
+				if(user)
+					wd_user_reply_file_errno(user, message);
+				
+				return;
+			}
+		}
+	}
+	
+	instance = wi_plist_read_instance_from_file(labelspath);
+	
+	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
+		instance = wi_dictionary();
+	
+	if(label != WD_FILE_LABEL_NONE)
+		wi_dictionary_set_data_for_key(instance, WI_INT32(label), name);
+	else
+		wi_dictionary_remove_data_for_key(instance, name);
+	
+	if(wi_dictionary_count(instance) > 0) {
+		if(!wi_plist_write_instance_to_file(instance, labelspath)) {
+			wi_log_warn(WI_STR("Could not write to %@: %m"), labelspath);
+			
+			if(user)
+				wd_user_reply_file_errno(user, message);
+			
+			return;
+		}
+	} else {
+		if(wi_fs_delete_path(labelspath))
+			(void) rmdir(wi_string_cstring(metapath));
+	}
+	
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
+
+	if(wi_fs_path_exists(realpath, NULL)) {
+		if(!wi_fs_set_finder_label_for_path(realpath, label))
+			wi_log_err(WI_STR("Could not set Finder label: %m"));
+	}
+#endif
+}
+
+
+
+void wd_files_move_label(wi_string_t *frompath, wi_string_t *topath, wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t			*realfrompath;
+	wd_file_label_t		label;
+	
+	realfrompath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(frompath, user));
+	label			= wd_files_label(realfrompath);
+	
+	if(label != WD_FILE_LABEL_NONE) {
+		wd_files_set_label(frompath, WD_FILE_LABEL_NONE, user, message);
+		wd_files_set_label(topath, label, user, message);
 	}
 }
 
