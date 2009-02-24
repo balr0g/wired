@@ -48,6 +48,7 @@ wi_boolean_t						wd_accounts_edit_user(wd_account_t *, wd_user_t *);
 wi_boolean_t						wd_accounts_edit_group(wd_account_t *, wd_user_t *);
 wi_boolean_t						wd_accounts_delete_user(wi_string_t *);
 wi_boolean_t						wd_accounts_delete_group(wi_string_t *);
+wi_boolean_t						wd_accounts_rename_group(wi_string_t *, wi_string_t *);
 wi_boolean_t						wd_accounts_clear_group(wi_string_t *);
 void								wd_accounts_update_login_time(wd_account_t *);
 void								wd_accounts_reload_user_account(wi_string_t *);
