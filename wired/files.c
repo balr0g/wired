@@ -48,69 +48,67 @@
 #include "transfers.h"
 #include "users.h"
 
-#define WD_FILES_META_PATH						".wired"
-#define WD_FILES_META_TYPE_PATH					".wired/type"
-#define WD_FILES_META_COMMENTS_PATH				".wired/comments"
-#define WD_FILES_META_PERMISSIONS_PATH			".wired/permissions"
+#define WD_FILES_META_PATH								".wired"
+#define WD_FILES_META_TYPE_PATH							".wired/type"
+#define WD_FILES_META_COMMENTS_PATH						".wired/comments"
+#define WD_FILES_META_PERMISSIONS_PATH					".wired/permissions"
 
-#define WD_FILES_COMMENT_FIELD_SEPARATOR		"\34"
-#define WD_FILES_COMMENT_SEPARATOR				"\35"
-#define WD_FILES_PERMISSIONS_FIELD_SEPARATOR	"\34"
+#define WD_FILES_PERMISSIONS_FIELD_SEPARATOR			"\34"
 
-#define WD_FILES_MAX_LEVEL						20
+#define WD_FILES_OLDSTYLE_COMMENT_FIELD_SEPARATOR		"\34"
+#define WD_FILES_OLDSTYLE_COMMENT_SEPARATOR				"\35"
 
-#define WD_FILES_INDEX_MAGIC					"WDIX"
-#define WD_FILES_INDEX_VERSION					1
+#define WD_FILES_MAX_LEVEL								20
+
+#define WD_FILES_INDEX_MAGIC							"WDIX"
+#define WD_FILES_INDEX_VERSION							1
 
 
 struct _wd_files_index_header {
-	char										magic[4];
-	uint32_t									version;
-	uint32_t									files_count;
-	uint32_t									directories_count;
-	uint64_t									files_size;
+	char												magic[4];
+	uint32_t											version;
+	uint32_t											files_count;
+	uint32_t											directories_count;
+	uint64_t											files_size;
 };
-typedef struct _wd_files_index_header			wd_files_index_header_t;
+typedef struct _wd_files_index_header					wd_files_index_header_t;
 
 
-static wi_file_offset_t							wd_files_count_path(wi_string_t *, wd_user_t *, wi_p7_message_t *);
+static wi_file_offset_t									wd_files_count_path(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
-static void										wd_files_move_thread(wi_runtime_instance_t *);
+static void												wd_files_move_thread(wi_runtime_instance_t *);
 
-static void										wd_files_index_update(wi_timer_t *);
-static wi_boolean_t								wd_files_index_update_size(void);
-static void										wd_files_index_thread(wi_runtime_instance_t *);
-static void										wd_files_index_path_to_file(wi_string_t *, wi_file_t *, wi_string_t *);
-static void										wd_files_index_write_entry(wi_file_t *, wi_string_t *, wd_file_type_t, uint64_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t);
+static void												wd_files_index_update(wi_timer_t *);
+static wi_boolean_t										wd_files_index_update_size(void);
+static void												wd_files_index_thread(wi_runtime_instance_t *);
+static void												wd_files_index_path_to_file(wi_string_t *, wi_file_t *, wi_string_t *);
+static void												wd_files_index_write_entry(wi_file_t *, wi_string_t *, wd_file_type_t, uint64_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t);
 
-static void										wd_files_fsevents_thread(wi_runtime_instance_t *);
-static void										wd_files_fsevents_callback(wi_string_t *);
+static void												wd_files_fsevents_thread(wi_runtime_instance_t *);
+static void												wd_files_fsevents_callback(wi_string_t *);
 
-static wd_file_type_t							wd_files_type_with_stat(wi_string_t *, wi_fs_stat_t *);
+static wd_file_type_t									wd_files_type_with_stat(wi_string_t *, wi_fs_stat_t *);
 
-static void										wd_files_clear_comment(wi_string_t *, wd_user_t *, wi_p7_message_t *);
-static wi_boolean_t								wd_files_read_comment(wi_file_t *, wi_string_t **, wi_string_t **);
-
-static wi_boolean_t								wd_files_drop_box_path_is_listable(wi_string_t *, wd_account_t *);
-static wi_string_t *							wd_files_drop_box_path_in_path(wi_string_t *, wd_user_t *);
-static wi_boolean_t								wd_files_name_matches_query(wi_string_t *, wi_string_t *);
+static wi_boolean_t										wd_files_drop_box_path_is_listable(wi_string_t *, wd_account_t *);
+static wi_string_t *									wd_files_drop_box_path_in_path(wi_string_t *, wd_user_t *);
+static wi_boolean_t										wd_files_name_matches_query(wi_string_t *, wi_string_t *);
 
 
-static wi_string_t								*wd_files;
+static wi_string_t										*wd_files;
 
-static wi_time_interval_t						wd_files_index_time;
-static wi_string_t								*wd_files_index_path;
-static wi_timer_t								*wd_files_index_timer;
-static wi_rwlock_t								*wd_files_index_lock;
-static wi_lock_t								*wd_files_indexer_lock;
-static wi_uinteger_t							wd_files_index_level;
-static wi_dictionary_t							*wd_files_index_dictionary;
+static wi_time_interval_t								wd_files_index_time;
+static wi_string_t										*wd_files_index_path;
+static wi_timer_t										*wd_files_index_timer;
+static wi_rwlock_t										*wd_files_index_lock;
+static wi_lock_t										*wd_files_indexer_lock;
+static wi_uinteger_t									wd_files_index_level;
+static wi_dictionary_t									*wd_files_index_dictionary;
 
-wi_fsevents_t									*wd_files_fsevents;
+wi_fsevents_t											*wd_files_fsevents;
 
-wi_uinteger_t									wd_files_count;
-wi_uinteger_t									wd_directories_count;
-wi_file_offset_t								wd_files_size;
+wi_uinteger_t											wd_files_count;
+wi_uinteger_t											wd_directories_count;
+wi_file_offset_t										wd_files_size;
 
 
 void wd_files_init(void) {
@@ -446,7 +444,7 @@ wi_boolean_t wd_files_delete_path(wi_string_t *path, wd_user_t *user, wi_p7_mess
 	result = wi_fs_delete_path(realpath);
 	
 	if(result) {
-		wd_files_clear_comment(path, user, message);
+		wd_files_set_comment(path, NULL, user, message);
 	} else {
 		wi_log_warn(WI_STR("Could not delete %@: %m"), realpath);
 		wd_user_reply_file_errno(user, message);
@@ -1188,54 +1186,59 @@ void wd_files_set_executable(wi_string_t *path, wi_boolean_t executable, wd_user
 #pragma mark -
 
 wi_string_t * wd_files_comment(wi_string_t *path, wd_user_t *user) {
-	wi_file_t		*file;
+	wi_runtime_instance_t	*instance;
+	wi_file_t				*file;
+	wi_array_t				*array;
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
-	wi_string_t		*realpath, *comment;
+	wi_string_t				*realpath, *comment;
 #endif
-	wi_string_t		*name, *dirpath, *realdirpath, *commentpath;
-	wi_string_t		*eachname, *eachcomment;
+	wi_string_t				*name, *dirpath, *realdirpath, *commentpath, *string;
 
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
-	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
-	comment		= wi_fs_finder_comment_for_path(realpath);
+	realpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
+	comment			= wi_fs_finder_comment_for_path(realpath);
 	
 	if(comment)
 		return comment;
 #endif
 
-	name		= wi_string_last_path_component(path);
-	dirpath		= wi_string_by_deleting_last_path_component(path);
-	realdirpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(dirpath, user));
-	commentpath	= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
-	file		= wi_file_for_reading(commentpath);
+	name			= wi_string_last_path_component(path);
+	dirpath			= wi_string_by_deleting_last_path_component(path);
+	realdirpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(dirpath, user));
+	commentpath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
+	instance		= wi_plist_read_instance_from_file(commentpath);
 	
-	if(!file)
-		return NULL;
-
-	while(wd_files_read_comment(file, &eachname, &eachcomment)) {
-		if(wi_is_equal(name, eachname))
-			return eachcomment;
+	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id()) {
+		file = wi_file_for_reading(commentpath);
+		
+		if(!file)
+			return NULL;
+		
+		while((string = wi_file_read_to_string(file, WI_STR(WD_FILES_OLDSTYLE_COMMENT_SEPARATOR)))) {
+			array = wi_string_components_separated_by_string(string, WI_STR(WD_FILES_OLDSTYLE_COMMENT_FIELD_SEPARATOR));
+			  
+			if(wi_array_count(array) == 2 && wi_is_equal(WI_ARRAY(array, 0), name))
+				return WI_ARRAY(array, 1);
+		}
 	}
-	
-	return NULL;
+
+	return wi_dictionary_data_for_key(instance, name);
 }
 
 
 
 void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *user, wi_p7_message_t *message) {
-	wi_file_t		*file, *tmpfile;
+	wi_runtime_instance_t	*instance;
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
-	wi_string_t		*realpath;
+	wi_string_t				*realpath;
 #endif
-	wi_string_t		*name, *dirpath, *realdirpath, *metapath, *commentpath;
-	wi_string_t		*string, *eachname, *eachcomment;
-	wi_uinteger_t	comments = 0;
+	wi_string_t				*name, *dirpath, *realdirpath, *metapath, *commentpath;
 	
-	name		= wi_string_last_path_component(path);
-	dirpath		= wi_string_by_deleting_last_path_component(path);
-	realdirpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(dirpath, user));
-	metapath	= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_PATH));
-	commentpath	= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
+	name			= wi_string_last_path_component(path);
+	dirpath			= wi_string_by_deleting_last_path_component(path);
+	realdirpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(dirpath, user));
+	metapath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_PATH));
+	commentpath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
 	
 	if(comment && wi_string_length(comment) > 0) {
 		if(!wi_fs_create_directory(metapath, 0777)) {
@@ -1250,56 +1253,30 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 		}
 	}
 	
-	file = wi_file_for_updating(commentpath);
+	instance = wi_plist_read_instance_from_file(commentpath);
 	
-	if(!file)
-		return;
+	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
+		instance = wi_dictionary();
 	
-	tmpfile = wi_file_temporary_file();
+	if(comment && wi_string_length(comment))
+		wi_dictionary_set_data_for_key(instance, comment, name);
+	else
+		wi_dictionary_remove_data_for_key(instance, name);
 	
-	if(!tmpfile) {
-		wi_log_warn(WI_STR("Could not create a temporary file: %m"));
-		
-		if(user)
-			wd_user_reply_file_errno(user, message);
-
-		return;
-	}
-	
-	if(comment && wi_string_length(comment) > 0) {
-		wi_file_write_format(tmpfile, WI_STR("%#@%s%#@%s"),
-							 name,		WD_FILES_COMMENT_FIELD_SEPARATOR,
-							 comment,	WD_FILES_COMMENT_SEPARATOR);
-		comments++;
-	}
-	
-	while(wd_files_read_comment(file, &eachname, &eachcomment)) {
-		if(!wi_is_equal(name, eachname)) {
-			wi_file_write_format(tmpfile, WI_STR("%#@%s%#@%s"),
-								 eachname,		WD_FILES_COMMENT_FIELD_SEPARATOR,
-								 eachcomment,	WD_FILES_COMMENT_SEPARATOR);
+	if(wi_dictionary_count(instance) > 0) {
+		if(!wi_plist_write_instance_to_file(instance, commentpath)) {
+			wi_log_warn(WI_STR("Could not write to %@: %m"), commentpath);
+			
+			if(user)
+				wd_user_reply_file_errno(user, message);
+			
+			return;
 		}
-		
-		comments++;
-	}
-	
-	if(comments > 0) {
-		wi_file_truncate(file, 0);
-		wi_file_seek(tmpfile, 0);
-	
-		while((string = wi_file_read(tmpfile, WI_FILE_BUFFER_SIZE)))
-			wi_file_write_format(file, WI_STR("%@"), string);
-
-		wi_file_close(file);
-		wi_file_close(tmpfile);
 	} else {
-		wi_file_close(file);
-		wi_file_close(tmpfile);
-		
 		if(wi_fs_delete_path(commentpath))
 			(void) rmdir(wi_string_cstring(metapath));
 	}
-
+	
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 
@@ -1308,12 +1285,6 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 			wi_log_err(WI_STR("Could not set Finder comment: %m"));
 	}
 #endif
-}
-
-
-
-static void wd_files_clear_comment(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
-	wd_files_set_comment(path, NULL, user, message);
 }
 
 
@@ -1327,28 +1298,6 @@ void wd_files_move_comment(wi_string_t *frompath, wi_string_t *topath, wd_user_t
 		wd_files_set_comment(frompath, NULL, user, message);
 		wd_files_set_comment(topath, comment, user, message);
 	}
-}
-
-
-
-static wi_boolean_t wd_files_read_comment(wi_file_t *file, wi_string_t **name, wi_string_t **comment) {
-	wi_array_t		*array;
-	wi_string_t		*string;
-
-	string = wi_file_read_to_string(file, WI_STR(WD_FILES_COMMENT_SEPARATOR));
-	
-	if(string) {
-		array = wi_string_components_separated_by_string(string, WI_STR(WD_FILES_COMMENT_FIELD_SEPARATOR));
-	
-		if(wi_array_count(array) == 2) {
-			*name		= WI_ARRAY(array, 0);
-			*comment	= WI_ARRAY(array, 1);
-			
-			return true;
-		}
-	}
-	
-	return false;
 }
 
 
