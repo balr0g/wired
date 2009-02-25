@@ -529,7 +529,7 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 			
 			if(!result) {
 				wi_log_err(WI_STR("Could not create a copy thread: %m"));
-				wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+				wd_user_reply_internal_error(user, message);
 			}
 			
 			wi_release(array);
@@ -1296,8 +1296,10 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 
 	if(wi_fs_path_exists(realpath, NULL)) {
-		if(!wi_fs_set_finder_comment_for_path(realpath, comment))
+		if(!wi_fs_set_finder_comment_for_path(realpath, comment)) {
 			wi_log_err(WI_STR("Could not set Finder comment: %m"));
+			wd_user_reply_internal_error(user, message);
+		}
 	}
 #endif
 }
@@ -1394,8 +1396,10 @@ void wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_user_t *use
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 
 	if(wi_fs_path_exists(realpath, NULL)) {
-		if(!wi_fs_set_finder_label_for_path(realpath, label))
+		if(!wi_fs_set_finder_label_for_path(realpath, label)) {
 			wi_log_err(WI_STR("Could not set Finder label: %m"));
+			wd_user_reply_internal_error(user, message);
+		}
 	}
 #endif
 }
