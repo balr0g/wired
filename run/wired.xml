@@ -509,12 +509,17 @@
 			<p7:parameter field="wired.user.icon" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.user.get_info" id="4003">
+		<p7:message name="wired.user.set_idle" id="4003">
+			<p7:parameter field="wired.transaction" />
+			<p7:parameter field="wired.user.idle" use="required" />
+		</p7:message>
+
+		<p7:message name="wired.user.get_info" id="4004">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.user.id" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.user.info" id="4004">
+		<p7:message name="wired.user.info" id="4005">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter collection="wired.user.info" use="required" />
 			<p7:parameter field="wired.user.ip" use="required" />
@@ -525,12 +530,12 @@
 			<p7:parameter collection="wired.info.host_info" />
 		</p7:message>
 
-		<p7:message name="wired.user.icon" id="4005">
+		<p7:message name="wired.user.icon" id="4006">
 			<p7:parameter field="wired.user.id" use="required" />
 			<p7:parameter field="wired.user.icon" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.user.status" id="4006">
+		<p7:message name="wired.user.status" id="4007">
 			<p7:parameter field="wired.user.id" use="required" />
 			<p7:parameter field="wired.user.admin" use="required" />
 			<p7:parameter field="wired.user.idle" use="required" />
@@ -539,38 +544,38 @@
 			<p7:parameter field="wired.user.idle_time" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.chat.kick_user" id="4007">
+		<p7:message name="wired.chat.kick_user" id="4008">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.chat.id" use="required" />
 			<p7:parameter field="wired.user.id" use="required" />
 			<p7:parameter field="wired.user.disconnect_message" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.chat.user_kick" id="4008">
+		<p7:message name="wired.chat.user_kick" id="4009">
 			<p7:parameter field="wired.user.id" use="required" />
 			<p7:parameter field="wired.chat.id" use="required" />
 			<p7:parameter field="wired.user.disconnected_id" use="required" />
 			<p7:parameter field="wired.user.disconnect_message" use="required" />
 		</p7:message>
 
-		<p7:message name="wired.user.ban_user" id="4009">
+		<p7:message name="wired.user.ban_user" id="4010">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.user.id" use="required" />
 			<p7:parameter field="wired.user.disconnect_message" use="required" />
 			<p7:parameter field="wired.banlist.expiration_date" />
 		</p7:message>
 
-		<p7:message name="wired.user.user_ban" id="4010">
+		<p7:message name="wired.user.user_ban" id="4011">
 			<p7:parameter field="wired.user.id" use="required" />
 			<p7:parameter field="wired.user.disconnected_id" use="required" />
 			<p7:parameter field="wired.user.disconnect_message" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.user.get_users" id="4011">
+		<p7:message name="wired.user.get_users" id="4012">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 		
-		<p7:message name="wired.user.user_list" id="4012">
+		<p7:message name="wired.user.user_list" id="4013">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.user.idle_time" use="required" />
 			<p7:parameter field="wired.user.state" use="required" />
@@ -582,7 +587,7 @@
 			<p7:parameter field="wired.transfer.queue_position" />
 		</p7:message>
 		
-		<p7:message name="wired.user.user_list.done" id="4013">
+		<p7:message name="wired.user.user_list.done" id="4014">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 
@@ -1275,6 +1280,8 @@
 		
 		<p7:transaction message="wired.user.set_icon" originator="client" />
 		
+		<p7:transaction message="wired.user.set_idle" originator="client" />
+		
 		<p7:transaction message="wired.user.get_info" originator="client">
 			<p7:or>
 				<p7:reply message="wired.user.info" count="1" use="required" />
@@ -1390,6 +1397,10 @@
 		</p7:transaction>
 
 		<p7:transaction message="wired.file.set_executable" originator="client">
+			<p7:reply message="wired.error" count="?" use="required" />
+		</p7:transaction>
+
+		<p7:transaction message="wired.file.set_label" originator="client">
 			<p7:reply message="wired.error" count="?" use="required" />
 		</p7:transaction>
 

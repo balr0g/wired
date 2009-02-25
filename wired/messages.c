@@ -61,6 +61,7 @@ static void							wd_message_user_get_info(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_user_set_icon(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_user_set_nick(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_user_set_status(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_user_set_idle(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_user_ban_user(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_user_get_users(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_message_send_message(wd_user_t *, wi_p7_message_t *);
@@ -147,6 +148,7 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.user.set_icon"), wd_message_user_set_icon);
 	WD_MESSAGE_HANDLER(WI_STR("wired.user.set_nick"), wd_message_user_set_nick);
 	WD_MESSAGE_HANDLER(WI_STR("wired.user.set_status"), wd_message_user_set_status);
+	WD_MESSAGE_HANDLER(WI_STR("wired.user.set_idle"), wd_message_user_set_idle);
 	WD_MESSAGE_HANDLER(WI_STR("wired.user.ban_user"), wd_message_user_ban_user);
 	WD_MESSAGE_HANDLER(WI_STR("wired.user.get_users"), wd_message_user_get_users);
 	WD_MESSAGE_HANDLER(WI_STR("wired.message.send_message"), wd_message_message_send_message);
@@ -297,7 +299,8 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 		
 		(*handler)(user, message);
 		
-		if(handler != wd_message_send_ping) {
+		if(handler != wd_message_send_ping &&
+		   handler != wd_message_user_set_idle) {
 			wd_user_set_idle_time(user, wi_date());
 			
 			if(wd_user_is_idle(user)) {
@@ -756,6 +759,21 @@ static void wd_message_user_set_status(wd_user_t *user, wi_p7_message_t *message
 	
 	if(!wi_is_equal(status, wd_user_status(user))) {
 		wd_user_set_status(user, status);
+
+		if(wd_user_state(user) == WD_USER_LOGGED_IN)
+			wd_user_broadcast_status(user);
+	}
+}
+
+
+
+static void wd_message_user_set_idle(wd_user_t *user, wi_p7_message_t *message) {
+	wi_p7_boolean_t		idle;
+	
+	wi_p7_message_get_bool_for_name(message, &idle, WI_STR("wired.user.idle"));
+	
+	if(idle != wd_user_is_idle(user)) {
+		wd_user_set_idle(user, idle);
 
 		if(wd_user_state(user) == WD_USER_LOGGED_IN)
 			wd_user_broadcast_status(user);
