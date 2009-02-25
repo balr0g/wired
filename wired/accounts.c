@@ -811,11 +811,14 @@ wi_boolean_t wd_accounts_rename_group(wi_string_t *name, wi_string_t *new_name) 
 		if(wi_is_equal(wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.group")), name))
 			wi_dictionary_set_data_for_key(dictionary, new_name, WI_STR("wired.account.group"));
 		
-		groups		= wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.groups"));
-		index		= wi_array_index_of_data(groups, name);
+		groups = wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.groups"));
 		
-		if(index != WI_NOT_FOUND)
-			wi_array_replace_data_at_index(groups, new_name, index);
+		if(groups) {
+			index = wi_array_index_of_data(groups, name);
+			
+			if(index != WI_NOT_FOUND)
+				wi_array_replace_data_at_index(groups, new_name, index);
+		}
 	}
 
 	result = wi_plist_write_instance_to_file(instance, wd_users_path);
