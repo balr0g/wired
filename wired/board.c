@@ -116,7 +116,7 @@ void wd_board_init(void) {
 void wd_board_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 	wi_fsenumerator_t			*fsenumerator;
 	wi_p7_message_t				*reply;
-	wi_string_t					*path, *board;
+	wi_string_t					*path, *board, *extension;
 	wd_board_privileges_t		*privileges;
 	wi_fsenumerator_status_t	status;
 	wi_uinteger_t				pathlength;
@@ -135,7 +135,9 @@ void wd_board_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 				continue;
 			}
 			
-			if(wi_string_length(wi_string_path_extension(path)) > 0) {
+			extension = wi_string_path_extension(path);
+			
+			if(wi_is_equal(extension, WI_STR("WiredPost")) || wi_is_equal(extension, WI_STR("WiredThread"))) {
 				wi_fsenumerator_skip_descendents(fsenumerator);
 				
 				continue;
