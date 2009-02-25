@@ -61,7 +61,7 @@
 #define WD_FILES_MAX_LEVEL								20
 
 #define WD_FILES_INDEX_MAGIC							"WDIX"
-#define WD_FILES_INDEX_VERSION							2
+#define WD_FILES_INDEX_VERSION							3
 
 
 struct _wd_files_index_header {
@@ -985,7 +985,7 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	static wi_uinteger_t	bufferlength;
 	static uint32_t			searchlistid, pathid, typeid, sizeid, creationid, modificationid, linkid, executableid, labelid;
 	wi_string_t				*name, *creationstring, *modificationstring;
-	uint32_t				entrylength, namelength, pathlength, creationlength, modificationlength;
+	uint32_t				totalentrylength, entrylength, namelength, pathlength, creationlength, modificationlength;
 	char					*p;
 	
 	if(searchlistid == 0) {
@@ -1008,8 +1008,7 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	pathlength			= wi_string_length(path) + 1;
 	creationlength		= wi_string_length(creationstring) + 1;
 	modificationlength	= wi_string_length(modificationstring) + 1;
-	entrylength			= sizeof(entrylength) +
-						  sizeof(namelength) + namelength +
+	entrylength			= sizeof(namelength) + namelength +
 						  sizeof(searchlistid) + 
 						  sizeof(pathid) + sizeof(pathlength) + pathlength +
 						  sizeof(typeid) + sizeof(type) + 
@@ -1019,13 +1018,14 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 						  sizeof(linkid) + 1 +
 						  sizeof(executableid) + 1 +
 						  sizeof(labelid) + sizeof(label);
+	totalentrylength	= sizeof(entrylength) + entrylength;
 	
 	if(!buffer) {
-		bufferlength = entrylength * 2;
+		bufferlength = totalentrylength * 2;
 		buffer = wi_malloc(bufferlength);
 	}
-	else if(bufferlength < entrylength) {
-		bufferlength = entrylength * 2;
+	else if(bufferlength < totalentrylength) {
+		bufferlength = totalentrylength * 2;
 		buffer = wi_realloc(buffer, bufferlength);
 	}
 	
@@ -1053,7 +1053,7 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	wi_write_swap_host_to_big_int32(p, 0, labelid);							p += sizeof(labelid);
 	wi_write_swap_host_to_big_int32(p, 0, label);							p += sizeof(label);
 	
-	wi_file_write_buffer(file, buffer, sizeof(entrylength) + entrylength);
+	wi_file_write_buffer(file, buffer, totalentrylength);
 }
 
 
