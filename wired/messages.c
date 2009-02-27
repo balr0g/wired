@@ -257,7 +257,7 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 			break;
 		}
 
-		if(!wi_p7_spec_verify_message(wd_p7_spec, message)) {
+		if(!wi_p7_socket_verify_message(p7_socket, message)) {
 			wi_log_debug(WI_STR("Could not verify message: %m"));
 			wd_user_reply_error(user, WI_STR("wired.error.invalid_message"), message);
 			
