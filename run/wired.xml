@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b24">
+			 version="2.0b25">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -645,6 +645,7 @@
 			<p7:parameter field="wired.board.post_date" use="required" />
 			<p7:parameter field="wired.board.edit_date" />
 			<p7:parameter field="wired.user.nick" use="required" />
+			<p7:parameter field="wired.user.icon" use="required" />
 			<p7:parameter field="wired.board.own_post" use="required" />
 			<p7:parameter field="wired.board.subject" use="required" />
 			<p7:parameter field="wired.board.text" use="required" />
@@ -780,6 +781,7 @@
 			<p7:parameter field="wired.board.post" use="required" />
 			<p7:parameter field="wired.board.post_date" use="required" />
 			<p7:parameter field="wired.user.nick" use="required" />
+			<p7:parameter field="wired.user.icon" use="required" />
 			<p7:parameter field="wired.board.own_post" use="required" />
 			<p7:parameter field="wired.board.subject" use="required" />
 			<p7:parameter field="wired.board.text" use="required" />

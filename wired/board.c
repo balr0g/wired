@@ -477,13 +477,23 @@ static void wd_board_send_thread_added(wi_string_t *board, wi_uuid_t *thread, wd
 #pragma mark -
 
 static wi_dictionary_t * wd_board_dictionary_with_post(wd_user_t *user, wi_string_t *subject, wi_string_t *text) {
-	return wi_dictionary_with_data_and_keys(
+	wi_dictionary_t		*dictionary;
+	wi_data_t			*icon;
+	
+	dictionary = wi_dictionary_with_data_and_keys(
 		wd_user_nick(user),		WI_STR("wired.user.nick"),
 		wd_user_login(user),	WI_STR("wired.user.login"),
 		wi_date(),				WI_STR("wired.board.post_date"),
 		subject,				WI_STR("wired.board.subject"),
 		text,					WI_STR("wired.board.text"),
 		NULL);
+	
+	icon = wd_user_icon(user);
+	
+	if(icon)
+		wi_dictionary_set_data_for_key(dictionary, icon, WI_STR("wired.user.icon"));
+	
+	return dictionary;
 }
 
 
@@ -509,6 +519,7 @@ static wi_p7_message_t * wd_board_message_with_post_for_user(wi_string_t *name, 
 	login = wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.login"));
 
 	wi_p7_message_set_bool_for_name(message, wi_is_equal(login, wd_user_login(user)), WI_STR("wired.board.own_post"));
+	wi_p7_message_set_data_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.icon")), WI_STR("wired.user.icon"));
 	
 	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.subject")), WI_STR("wired.board.subject"));
 	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.text")), WI_STR("wired.board.text"));
