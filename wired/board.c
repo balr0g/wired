@@ -1026,27 +1026,55 @@ void wd_board_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, 
 
 
 void wd_board_delete_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, wd_user_t *user, wi_p7_message_t *message) {
+	wi_runtime_instance_t	*instance;
 	wi_p7_message_t			*broadcast;
-	wi_string_t				*path;
+	wi_string_t				*path, *login;
+	wd_account_t			*account;
 	wd_board_privileges_t	*privileges;
+	wi_boolean_t			delete = true;
 	
 	wi_rwlock_wrlock(wd_board_lock);
 	
 	privileges = wd_board_privileges(board);
 	
 	if(privileges && wd_board_privileges_is_writable_by_user(privileges, user)) {
-		path = wd_board_post_path(board, thread, post);
-		
-		if(wi_fs_delete_path(path)) {
-			(void) rmdir(wi_string_cstring(wi_string_by_deleting_last_path_component(path)));
+		path		= wd_board_post_path(board, thread, post);
+		instance	= wi_plist_read_instance_from_file(path);
 
-			broadcast = wi_p7_message_with_name(WI_STR("wired.board.post_deleted"), wd_p7_spec);
-			wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-			wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
-			wi_p7_message_set_uuid_for_name(broadcast, post, WI_STR("wired.board.post"));
-			wd_board_broadcast_message(broadcast, privileges, true);
+		if(instance) {
+			if(wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
+				account = wd_user_account(user);
+				
+				if(!wd_account_board_delete_all_posts(account)) {
+					login = wi_dictionary_data_for_key(instance, WI_STR("wired.user.login"));
+					
+					if(!wi_is_equal(login, wd_user_login(user))) {
+						wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+						
+						delete = false;
+					}
+				}
+				
+				if(delete) {
+					if(wi_fs_delete_path(path)) {
+						(void) rmdir(wi_string_cstring(wi_string_by_deleting_last_path_component(path)));
+
+						broadcast = wi_p7_message_with_name(WI_STR("wired.board.post_deleted"), wd_p7_spec);
+						wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+						wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+						wi_p7_message_set_uuid_for_name(broadcast, post, WI_STR("wired.board.post"));
+						wd_board_broadcast_message(broadcast, privileges, true);
+					} else {
+						wi_log_err(WI_STR("Could not delete %@: %m"), path);
+						wd_user_reply_internal_error(user, message);
+					}
+				}
+			} else {
+				wi_log_err(WI_STR("Could not delete %@: File is not a dictionary"), path);
+				wd_user_reply_internal_error(user, message);
+			}
 		} else {
-			wi_log_err(WI_STR("Could not delete %@: %m"), path);
+			wi_log_err(WI_STR("Could not open %@: %m"), path);
 			wd_user_reply_internal_error(user, message);
 		}
 	} else {

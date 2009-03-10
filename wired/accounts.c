@@ -265,7 +265,9 @@ void wd_accounts_init(void) {
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.board.edit_all_posts"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
-			WI_STR("wired.account.board.delete_posts"),
+			WI_STR("wired.account.board.delete_own_posts"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
+			WI_STR("wired.account.board.delete_all_posts"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.tracker.list_servers"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
@@ -279,7 +281,7 @@ void wd_accounts_init(void) {
 		WI_STR("wired.account.user.get_info"),
 		WI_STR("wired.account.message.broadcast"),
 		WI_STR("wired.account.board.add_posts"),
-		WI_STR("wired.account.board.delete_posts"),
+		WI_STR("wired.account.board.delete_all_posts"),
 		WI_STR("wired.account.transfer.download_files"),
 		WI_STR("wired.account.transfer.upload_files"),
 		WI_STR("wired.account.transfer.upload_anywhere"),
@@ -349,7 +351,7 @@ void wd_accounts_init(void) {
 		WI_STR("wired.account.user.get_info"),
 		WI_STR("wired.account.message.broadcast"),
 		WI_STR("wired.account.board.add_posts"),
-		WI_STR("wired.account.board.delete_posts"),
+		WI_STR("wired.account.board.delete_all_posts"),
 		WI_STR("wired.account.transfer.download_files"),
 		WI_STR("wired.account.transfer.upload_files"),
 		WI_STR("wired.account.transfer.upload_anywhere"),
@@ -1506,7 +1508,8 @@ WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_board_delete_threads, WI_STR("wired.accou
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_board_add_posts, WI_STR("wired.account.board.add_posts"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_board_edit_own_posts, WI_STR("wired.account.board.edit_own_posts"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_board_edit_all_posts, WI_STR("wired.account.board.edit_all_posts"))
-WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_board_delete_posts, WI_STR("wired.account.board.delete_posts"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_board_delete_own_posts, WI_STR("wired.account.board.delete_own_posts"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_board_delete_all_posts, WI_STR("wired.account.board.delete_all_posts"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_list_files, WI_STR("wired.account.file.list_files"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_get_info, WI_STR("wired.account.file.get_info"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_create_directories, WI_STR("wired.account.file.create_directories"))
