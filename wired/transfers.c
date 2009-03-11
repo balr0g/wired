@@ -66,7 +66,7 @@ static wi_string_t *					wd_transfer_description(wi_runtime_instance_t *);
 
 static void								wd_transfer_set_state(wd_transfer_t *, wd_transfer_state_t);
 static wd_transfer_state_t				wd_transfer_state(wd_transfer_t *);
-static inline void						wd_transfer_limit_speed(wd_transfer_t *, wi_uinteger_t, wi_uinteger_t, ssize_t, wi_time_interval_t, wi_time_interval_t);
+static inline void						wd_transfer_limit_speed(wd_transfer_t *, wi_uinteger_t, wi_uinteger_t, wi_uinteger_t, ssize_t, wi_time_interval_t, wi_time_interval_t);
 
 static void								wd_transfer_thread(wi_runtime_instance_t *);
 static wi_boolean_t						wd_transfer_open(wd_transfer_t *);
@@ -637,12 +637,12 @@ static wd_transfer_state_t wd_transfer_state(wd_transfer_t *transfer) {
 
 
 
-static inline void wd_transfer_limit_speed(wd_transfer_t *transfer, wi_uinteger_t totalspeed, wi_uinteger_t accountspeed, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
+static inline void wd_transfer_limit_speed(wd_transfer_t *transfer, wi_uinteger_t totalspeed, wi_uinteger_t accountspeed, wi_uinteger_t count, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
 	wi_uinteger_t	limit, totallimit;
 	
 	if(totalspeed > 0 || accountspeed > 0) {
-		totallimit = (totalspeed > 0)
-			? (float) totalspeed / (float) wd_current_downloads
+		totallimit = (totalspeed > 0 && count > 0)
+			? (float) totalspeed / (float) count
 			: 0;
 		
 		if(totallimit > 0 && accountspeed > 0)
@@ -868,6 +868,7 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 		wd_transfer_limit_speed(transfer,
 								wd_transfers_total_download_speed,
 								wd_account_transfer_download_speed_limit(account),
+								wd_current_downloads,
 								speedbytes,
 								interval,
 								speedinterval);
@@ -1019,6 +1020,7 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 		wd_transfer_limit_speed(transfer,
 								wd_transfers_total_upload_speed,
 								wd_account_transfer_upload_speed_limit(account),
+								wd_current_uploads,
 								speedbytes,
 								interval,
 								speedinterval);
