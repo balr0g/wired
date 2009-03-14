@@ -473,7 +473,7 @@ wi_boolean_t wd_files_delete_path(wi_string_t *path, wd_user_t *user, wi_p7_mess
 
 
 static void wd_files_delete_path_callback(wi_string_t *path) {
-	wi_log_info(WI_STR("path = %@"), path);
+	wd_files_index_delete_file(wi_string_substring_from_index(path, wi_string_length(wd_files)));
 }
 
 
@@ -674,7 +674,7 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 																pathlength,
 																false);
 			
-			if(true) {
+			if(!wi_set_contains_data(wd_files_index_deleted_files, path)) {
 				if(accountpath && accountpathlength > 0) {
 					if(wi_string_has_prefix(path, accountpath)) {
 						newpath = wi_string_substring_from_index(path, accountpathlength);
@@ -722,7 +722,6 @@ static void wd_files_search_reply_list(const char *buffer, wi_uinteger_t length,
 
 
 static void wd_files_search_reply_list_by_replacing_path(const char *buffer, wi_uinteger_t length, wi_string_t *oldpath, wi_string_t *newpath, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t		*reply;
 	char				*newbuffer;
 	wi_uinteger_t		newlength;
 	uint32_t			oldpathlength, newpathlength;
@@ -737,10 +736,7 @@ static void wd_files_search_reply_list_by_replacing_path(const char *buffer, wi_
 	memcpy(newbuffer + (3 * sizeof(int32_t)), wi_string_cstring(newpath), newpathlength);
 	memcpy(newbuffer + (3 * sizeof(int32_t)) + newpathlength, buffer + (3 * sizeof(int32_t)) + oldpathlength, length - (3 * sizeof(int32_t)) - oldpathlength);
 	
-	reply = wi_p7_message_with_bytes(newbuffer, newlength, WI_P7_BINARY, wd_p7_spec);
-
-	if(reply)
-		wd_user_reply_message(user, reply, message);
+	wd_files_search_reply_list(newbuffer, newlength, user, message);
 	
 	wi_free(newbuffer);
 }
@@ -1124,6 +1120,7 @@ void wd_files_index_add_file(wi_string_t *path) {
 
 
 void wd_files_index_delete_file(wi_string_t *path) {
+	wi_set_add_data(wd_files_index_deleted_files, path);
 }
 
 
