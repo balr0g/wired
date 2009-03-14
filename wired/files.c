@@ -882,6 +882,10 @@ static void wd_files_index_thread(wi_runtime_instance_t *argument) {
 					path, wd_files_index_path);
 			}
 			
+			wi_set_wrlock(wd_files_index_deleted_files);
+			wi_set_remove_all_data(wd_files_index_deleted_files);
+			wi_set_unlock(wd_files_index_deleted_files);
+			
 			wi_rwlock_unlock(wd_files_index_lock);
 			
 			wd_broadcast_message(wd_server_info_message());
