@@ -630,6 +630,7 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 	char				*buffer = NULL, *messagebuffer;
 	wi_uinteger_t		i = 0, bufferlength = 0, messagelength, accountpathlength;
 	uint32_t			entrylength, namelength, pathlength;
+	wi_boolean_t		deleted;
 	
 	wi_rwlock_rdlock(wd_files_index_lock);
 	
@@ -674,7 +675,11 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 																pathlength,
 																false);
 			
-			if(!wi_set_contains_data(wd_files_index_deleted_files, path)) {
+			wi_set_rdlock(wd_files_index_deleted_files);
+			deleted = wi_set_contains_data(wd_files_index_deleted_files, path);
+			wi_set_unlock(wd_files_index_deleted_files);
+			
+			if(!deleted) {
 				if(accountpath && accountpathlength > 0) {
 					if(wi_string_has_prefix(path, accountpath)) {
 						newpath = wi_string_substring_from_index(path, accountpathlength);
@@ -1120,7 +1125,9 @@ void wd_files_index_add_file(wi_string_t *path) {
 
 
 void wd_files_index_delete_file(wi_string_t *path) {
+	wi_set_wrlock(wd_files_index_deleted_files);
 	wi_set_add_data(wd_files_index_deleted_files, path);
+	wi_set_unlock(wd_files_index_deleted_files);
 }
 
 
