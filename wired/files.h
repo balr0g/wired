@@ -81,6 +81,8 @@ wi_boolean_t							wd_files_link_path(wi_string_t *, wi_string_t *, wd_user_t *,
 void									wd_files_search(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
 void									wd_files_index(wi_boolean_t);
+void									wd_files_index_add_file(wi_string_t *);
+void									wd_files_index_delete_file(wi_string_t *);
 
 wd_file_type_t							wd_files_type(wi_string_t *);
 void									wd_files_set_type(wi_string_t *, wd_file_type_t, wd_user_t *, wi_p7_message_t *);

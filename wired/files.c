@@ -75,8 +75,11 @@ typedef struct _wd_files_index_header					wd_files_index_header_t;
 
 
 static wi_file_offset_t									wd_files_count_path(wi_string_t *, wd_user_t *, wi_p7_message_t *);
-
+static void												wd_files_delete_path_callback(wi_string_t *);
 static void												wd_files_move_thread(wi_runtime_instance_t *);
+
+static void												wd_files_search_reply_list(const char *, wi_uinteger_t, wd_user_t *, wi_p7_message_t *);
+static void												wd_files_search_reply_list_by_replacing_path(const char *, wi_uinteger_t, wi_string_t *, wi_string_t *,wd_user_t *, wi_p7_message_t *);
 
 static void												wd_files_index_update(wi_timer_t *);
 static wi_boolean_t										wd_files_index_update_size(void);
@@ -107,6 +110,8 @@ static wi_rwlock_t										*wd_files_index_lock;
 static wi_lock_t										*wd_files_indexer_lock;
 static wi_uinteger_t									wd_files_index_level;
 static wi_dictionary_t									*wd_files_index_dictionary;
+static wi_dictionary_t									*wd_files_index_added_files;
+static wi_set_t											*wd_files_index_deleted_files;
 
 wi_fsevents_t											*wd_files_fsevents;
 
@@ -116,17 +121,17 @@ wi_file_offset_t										wd_files_size;
 
 
 void wd_files_init(void) {
-	wd_files_index_path = WI_STR("index");
+	wd_files_index_path				= WI_STR("index");
+	wd_files_index_lock				= wi_rwlock_init(wi_rwlock_alloc());
+	wd_files_indexer_lock			= wi_lock_init(wi_lock_alloc());
+	wd_files_index_timer			= wi_timer_init_with_function(wi_timer_alloc(),
+																  wd_files_index_update,
+																  0.0,
+																  true);
+	wd_files_index_added_files		= wi_dictionary_init(wi_dictionary_alloc());
+	wd_files_index_deleted_files	= wi_set_init(wi_set_alloc());
 	
-	wd_files_index_lock = wi_rwlock_init(wi_rwlock_alloc());
-	wd_files_indexer_lock = wi_lock_init(wi_lock_alloc());
-	
-	wd_files_index_timer = wi_timer_init_with_function(wi_timer_alloc(),
-													   wd_files_index_update,
-													   0.0,
-													   true);
-	
-	wd_files_fsevents = wi_fsevents_init(wi_fsevents_alloc());
+	wd_files_fsevents				= wi_fsevents_init(wi_fsevents_alloc());
 	
 	if(wd_files_fsevents)
 		wi_fsevents_set_callback(wd_files_fsevents, wd_files_fsevents_callback);
@@ -453,7 +458,7 @@ wi_boolean_t wd_files_delete_path(wi_string_t *path, wd_user_t *user, wi_p7_mess
 	wi_string_resolve_aliases_in_path(realpath);
 	wi_string_append_path_component(realpath, component);
 	
-	result = wi_fs_delete_path(realpath);
+	result = wi_fs_delete_path_with_callback(realpath, wd_files_delete_path_callback);
 	
 	if(result) {
 		wd_files_set_comment(path, NULL, user, message);
@@ -463,6 +468,12 @@ wi_boolean_t wd_files_delete_path(wi_string_t *path, wd_user_t *user, wi_p7_mess
 	}
 	
 	return result;
+}
+
+
+
+static void wd_files_delete_path_callback(wi_string_t *path) {
+	wi_log_info(WI_STR("path = %@"), path);
 }
 
 
@@ -615,11 +626,10 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 	wi_pool_t			*pool;
 	wi_p7_message_t		*reply;
 	wi_file_t			*file;
-	wi_string_t			*name;
-	wd_account_t		*account;
-	char				*buffer = NULL;
-	wi_uinteger_t		i = 0, pathlength, bufferlength = 0, messagelength;
-	uint32_t			entrylength, namelength;
+	wi_string_t			*name, *path, *accountpath, *newpath;
+	char				*buffer = NULL, *messagebuffer;
+	wi_uinteger_t		i = 0, bufferlength = 0, messagelength, accountpathlength;
+	uint32_t			entrylength, namelength, pathlength;
 	
 	wi_rwlock_rdlock(wd_files_index_lock);
 	
@@ -632,12 +642,8 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 		goto end;
 	}
 	
-	account = wd_user_account(user);
-
-	if(wd_account_files(account))
-		pathlength = wi_string_length(wd_account_files(account));
-	else
-		pathlength = 0;
+	accountpath			= wd_account_files(wd_user_account(user));
+	accountpathlength	= accountpath ? wi_string_length(accountpath) : 0;
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
@@ -657,14 +663,31 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 			break;
 		
 		namelength		= *(uint32_t *) (uintptr_t) buffer;
-		name			= wi_string_init_with_bytes(wi_string_alloc(), buffer + sizeof(namelength), namelength);
+		name			= wi_string_init_with_bytes_no_copy(wi_string_alloc(), buffer + sizeof(namelength), namelength, false);
 		messagelength	= entrylength - sizeof(namelength) - namelength;
-
+		
 		if(wd_files_name_matches_query(name, query)) {
-			reply = wi_p7_message_with_bytes(buffer + sizeof(namelength) + namelength, messagelength, WI_P7_BINARY, wd_p7_spec);
-
-			if(reply)
-				wd_user_reply_message(user, reply, message);
+			messagebuffer	= buffer + sizeof(namelength) + namelength;
+			pathlength		= wi_read_swap_big_to_host_int32(messagebuffer, sizeof(int32_t) + sizeof(int32_t));
+			path			= wi_string_init_with_bytes_no_copy(wi_string_alloc(),
+																messagebuffer + sizeof(int32_t) + sizeof(int32_t) + sizeof(int32_t),
+																pathlength,
+																false);
+			
+			if(true) {
+				if(accountpath && accountpathlength > 0) {
+					if(wi_string_has_prefix(path, accountpath)) {
+						newpath = wi_string_substring_from_index(path, accountpathlength);
+						
+						if(wi_string_has_prefix(newpath, WI_STR("/")))
+							wd_files_search_reply_list_by_replacing_path(messagebuffer, messagelength, path, newpath, user, message);
+					}
+				} else {
+					wd_files_search_reply_list(messagebuffer, messagelength, user, message);
+				}
+			}
+			
+			wi_release(path);
 		}
 		
 		wi_release(name);
@@ -683,6 +706,43 @@ end:
 	wd_user_reply_message(user, reply, message);
 	
 	wi_rwlock_unlock(wd_files_index_lock);
+}
+
+
+
+static void wd_files_search_reply_list(const char *buffer, wi_uinteger_t length, wd_user_t *user, wi_p7_message_t *message) {
+	wi_p7_message_t		*reply;
+	
+	reply = wi_p7_message_with_bytes(buffer, length, WI_P7_BINARY, wd_p7_spec);
+
+	if(reply)
+		wd_user_reply_message(user, reply, message);
+}
+
+
+
+static void wd_files_search_reply_list_by_replacing_path(const char *buffer, wi_uinteger_t length, wi_string_t *oldpath, wi_string_t *newpath, wd_user_t *user, wi_p7_message_t *message) {
+	wi_p7_message_t		*reply;
+	char				*newbuffer;
+	wi_uinteger_t		newlength;
+	uint32_t			oldpathlength, newpathlength;
+	
+	oldpathlength	= wi_string_length(oldpath);
+	newpathlength	= wi_string_length(newpath);
+	newlength		= length - oldpathlength + newpathlength;
+	newbuffer		= wi_malloc(newlength);
+	
+	memcpy(newbuffer, buffer, 2 * sizeof(int32_t));
+	wi_write_swap_host_to_big_int32(newbuffer, 2 * sizeof(int32_t), newpathlength + 1);
+	memcpy(newbuffer + (3 * sizeof(int32_t)), wi_string_cstring(newpath), newpathlength);
+	memcpy(newbuffer + (3 * sizeof(int32_t)) + newpathlength, buffer + (3 * sizeof(int32_t)) + oldpathlength, length - (3 * sizeof(int32_t)) - oldpathlength);
+	
+	reply = wi_p7_message_with_bytes(newbuffer, newlength, WI_P7_BINARY, wd_p7_spec);
+
+	if(reply)
+		wd_user_reply_message(user, reply, message);
+	
+	wi_free(newbuffer);
 }
 
 
@@ -1054,6 +1114,16 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	wi_write_swap_host_to_big_int32(p, 0, label);							p += sizeof(label);
 	
 	wi_file_write_buffer(file, buffer, totalentrylength);
+}
+
+
+
+void wd_files_index_add_file(wi_string_t *path) {
+}
+
+
+
+void wd_files_index_delete_file(wi_string_t *path) {
 }
 
 
@@ -1629,12 +1699,13 @@ static wi_string_t * wd_files_drop_box_path_in_path(wi_string_t *path, wd_user_t
 
 
 wi_string_t * wd_files_virtual_path(wi_string_t *path, wd_user_t *user) {
-	wi_string_t		*virtualpath;
+	wi_string_t		*accountpath, *virtualpath;
 	wd_account_t	*account;
 	
-	account = user ? wd_user_account(user) : NULL;
+	account			= user ? wd_user_account(user) : NULL;
+	accountpath		= account ? wd_account_files(account) : NULL;
 	
-	if(account && wd_account_files(account))
+	if(accountpath && wi_string_length(accountpath) > 0)
 		virtualpath = wi_string_by_normalizing_path(wi_string_with_format(WI_STR("%@/%@"), wd_account_files(account), path));
 	else
 		virtualpath = path;
@@ -1645,12 +1716,13 @@ wi_string_t * wd_files_virtual_path(wi_string_t *path, wd_user_t *user) {
 
 
 wi_string_t * wd_files_real_path(wi_string_t *path, wd_user_t *user) {
-	wi_string_t		*realpath;
+	wi_string_t		*accountpath, *realpath;
 	wd_account_t	*account;
 	
-	account = user ? wd_user_account(user) : NULL;
+	account			= user ? wd_user_account(user) : NULL;
+	accountpath		= account ? wd_account_files(account) : NULL;
 	
-	if(account && wd_account_files(account))
+	if(accountpath && wi_string_length(accountpath) > 0)
 		realpath = wi_string_with_format(WI_STR("%@/%@/%@"), wd_files, wd_account_files(account), path);
 	else
 		realpath = wi_string_with_format(WI_STR("%@/%@"), wd_files, path);

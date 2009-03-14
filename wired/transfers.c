@@ -1081,6 +1081,8 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 			path = wi_string_by_appending_string(transfer->path, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION));
 
 			wd_files_move_comment(path, transfer->path, NULL, NULL);
+			
+			wd_files_index_add_file(transfer->path);
 		} else {
 			wi_log_warn(WI_STR("Could not move %@ to %@: %m"),
 				transfer->realpath, path);
