@@ -63,6 +63,7 @@ static void							wd_server_cf_thread(wi_runtime_instance_t *);
 #endif
 
 #ifdef HAVE_DNS_SD_H
+static wi_string_t *				wd_server_dnssd_error_string(int);
 static void							wd_server_dnssd_register(void);
 static void							wd_server_dnssd_register_service_callback(DNSServiceRef, DNSServiceFlags, DNSServiceErrorType, const char *, const char *, const char *, void *);
 
@@ -374,6 +375,43 @@ static void wd_server_cf_thread(wi_runtime_instance_t *argument) {
 
 #ifdef HAVE_DNS_SD_H
 
+static wi_string_t * wd_server_dnssd_error_string(int code) {
+	switch(code) {
+		case -65537:	return WI_STR("kDNSServiceErr_Unknown");					break;
+		case -65538:	return WI_STR("kDNSServiceErr_NoSuchName");					break;
+		case -65539:	return WI_STR("kDNSServiceErr_NoMemory");					break;
+		case -65540:	return WI_STR("kDNSServiceErr_BadParam");					break;
+		case -65541:	return WI_STR("kDNSServiceErr_BadReference");				break;
+		case -65542:	return WI_STR("kDNSServiceErr_BadState");					break;
+		case -65543:	return WI_STR("kDNSServiceErr_BadFlags");					break;
+		case -65544:	return WI_STR("kDNSServiceErr_Unsupported");				break;
+		case -65545:	return WI_STR("kDNSServiceErr_NotInitialized");				break;
+		case -65547:	return WI_STR("kDNSServiceErr_AlreadyRegistered");			break;
+		case -65548:	return WI_STR("kDNSServiceErr_NameConflict");				break;
+		case -65549:	return WI_STR("kDNSServiceErr_Invalid");					break;
+		case -65550:	return WI_STR("kDNSServiceErr_Firewall");					break;
+		case -65551:	return WI_STR("kDNSServiceErr_Incompatible");				break;
+		case -65552:	return WI_STR("kDNSServiceErr_BadInterfaceIndex");			break;
+		case -65553:	return WI_STR("kDNSServiceErr_Refused");					break;
+		case -65554:	return WI_STR("kDNSServiceErr_NoSuchRecord");				break;
+		case -65555:	return WI_STR("kDNSServiceErr_NoAuth");						break;
+		case -65556:	return WI_STR("kDNSServiceErr_NoSuchKey");					break;
+		case -65557:	return WI_STR("kDNSServiceErr_NATTraversal");				break;
+		case -65558:	return WI_STR("kDNSServiceErr_DoubleNAT");					break;
+		case -65559:	return WI_STR("kDNSServiceErr_BadTime");					break;
+		case -65560:	return WI_STR("kDNSServiceErr_BadSig");						break;
+		case -65561:	return WI_STR("kDNSServiceErr_BadKey");						break;
+		case -65562:	return WI_STR("kDNSServiceErr_Transient");					break;
+		case -65563:	return WI_STR("kDNSServiceErr_ServiceNotRunning");			break;
+		case -65564:	return WI_STR("kDNSServiceErr_NATPortMappingUnsupported");	break;
+		case -65565:	return WI_STR("kDNSServiceErr_NATPortMappingDisabled");		break;
+	}
+
+	return wi_string_with_format(WI_STR("%d"), code);
+}
+
+
+
 static void wd_server_dnssd_register(void) {
 	DNSServiceErrorType		error;
 	
@@ -414,7 +452,8 @@ static void wd_server_dnssd_register(void) {
 							   NULL);
 	
 	if(error != kDNSServiceErr_NoError) {
-		wi_log_warn(WI_STR("Could not register for DNS service discovery: %d"), error);
+		wi_log_warn(WI_STR("Could not register for DNS service discovery: %@"),
+			wd_server_dnssd_error_string(error));
 		
 		return;
 	}
@@ -452,10 +491,13 @@ static void wd_server_dnssd_register(void) {
 
 
 static void wd_server_dnssd_register_service_callback(DNSServiceRef client, DNSServiceFlags flags, DNSServiceErrorType error, const char *name, const char *regtype, const char *domain, void *context) {
-	if(error == kDNSServiceErr_NoError)
-		wi_log_info(WI_STR("Registered using DNS service discovery as %s.%s%s"), name, regtype, domain);
-	else
-		wi_log_warn(WI_STR("Could not register using DNS service discovery: %d"), error);
+	if(error == kDNSServiceErr_NoError) {
+		wi_log_info(WI_STR("Registered using DNS service discovery as %s.%s%s"),
+			name, regtype, domain);
+	} else {
+		wi_log_warn(WI_STR("Could not register using DNS service discovery: %@"),
+			wd_server_dnssd_error_string(error));
+	}
 }
 
 
@@ -467,8 +509,10 @@ static void wd_server_dnssd_register_socket_callback(CFSocketRef socket, CFSocke
 	
 	error = DNSServiceProcessResult(wd_dnssd_register_service);
 	
-	if(error != kDNSServiceErr_NoError)
-		wi_log_warn(WI_STR("Could not process result for DNS service discovery: %d"), error);
+	if(error != kDNSServiceErr_NoError) {
+		wi_log_warn(WI_STR("Could not process result for DNS service discovery: %@"),
+			wd_server_dnssd_error_string(error));
+	}
 }
 
 #endif
@@ -492,7 +536,8 @@ static void wd_server_dnssd_portmap(void) {
 										   NULL);
 	
 	if(error != kDNSServiceErr_NoError) {
-		wi_log_warn(WI_STR("Could not create port mapping: %d"), error);
+		wi_log_warn(WI_STR("Could not create port mapping: %@"),
+			wd_server_dnssd_error_string(error));
 		
 		return;
 	}
@@ -536,10 +581,10 @@ static void wd_server_dnssd_portmap_service_callback(DNSServiceRef service, DNSS
 	
 	if(error == kDNSServiceErr_NoError && public_port != 0) {
 		wi_log_info(WI_STR("Mapped internal port %u to external port %u on %@"),
-			ntohs(private_port), ntohs(public_port), wi_address_string(address), error);
+			ntohs(private_port), ntohs(public_port), wi_address_string(address));
 	} else {
-		wi_log_warn(WI_STR("Could not create port mapping on %@: %d"),
-			wi_address_string(address), error);
+		wi_log_warn(WI_STR("Could not create port mapping on %@: %@"),
+			wi_address_string(address), wd_server_dnssd_error_string(error));
 	}
 	
 	wi_release(address);
@@ -554,8 +599,10 @@ static void wd_server_dnssd_portmap_socket_callback(CFSocketRef socket, CFSocket
 	
 	error = DNSServiceProcessResult(wd_dnssd_portmap_service);
 	
-	if(error != kDNSServiceErr_NoError)
-		wi_log_warn(WI_STR("Could not process result for port mapping: %d"), error);
+	if(error != kDNSServiceErr_NoError) {
+		wi_log_warn(WI_STR("Could not process result for port mapping: %@"),
+			wd_server_dnssd_error_string(error));
+	}
 }
 
 #endif
