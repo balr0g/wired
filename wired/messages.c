@@ -108,6 +108,7 @@ static void							wd_message_transfer_download_file(wd_user_t *, wi_p7_message_t
 static void							wd_message_transfer_upload_file(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_transfer_upload(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_transfer_upload_directory(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_log_get_log(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_log_subscribe(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_log_unsubscribe(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_settings_get_settings(wd_user_t *, wi_p7_message_t *);
@@ -195,6 +196,7 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.transfer.upload_file"), wd_message_transfer_upload_file);
 	WD_MESSAGE_HANDLER(WI_STR("wired.transfer.upload"), wd_message_transfer_upload);
 	WD_MESSAGE_HANDLER(WI_STR("wired.transfer.upload_directory"), wd_message_transfer_upload_directory);
+	WD_MESSAGE_HANDLER(WI_STR("wired.log.get_log"), wd_message_log_get_log);
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.subscribe"), wd_message_log_subscribe);
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.unsubscribe"), wd_message_log_unsubscribe);
 	WD_MESSAGE_HANDLER(WI_STR("wired.settings.get_settings"), wd_message_settings_get_settings);
@@ -2258,6 +2260,18 @@ static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_
 			wd_user_identifier(user),
 			wd_files_virtual_path(properpath, user));
 	}
+}
+
+
+
+static void wd_message_log_get_log(wd_user_t *user, wi_p7_message_t *message) {
+	if(!wd_account_log_view_log(wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return;
+	}
+
+	wd_server_log_reply_log(user, message);
 }
 
 

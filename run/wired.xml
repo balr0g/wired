@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b24">
+			 version="2.0b25">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -1129,26 +1129,41 @@
 			<p7:parameter field="wired.transfer.data" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.log.subscribe" id="10000">
+		<p7:message name="wired.log.get_log" id="10000">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 		
-		<p7:message name="wired.log.unsubscribe" id="10001">
-			<p7:parameter field="wired.transaction" />
-		</p7:message>
-		
-		<p7:message name="wired.log.message" id="10002">
+		<p7:message name="wired.log.log_list" id="10001">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.log.time" use="required" />
 			<p7:parameter field="wired.log.level" use="required" />
 			<p7:parameter field="wired.log.message" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.settings.get_settings" id="10003">
+		<p7:message name="wired.log.log_list.done" id="10002">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 		
-		<p7:message name="wired.settings.settings" id="10004">
+		<p7:message name="wired.log.subscribe" id="10003">
+			<p7:parameter field="wired.transaction" />
+		</p7:message>
+		
+		<p7:message name="wired.log.unsubscribe" id="10004">
+			<p7:parameter field="wired.transaction" />
+		</p7:message>
+		
+		<p7:message name="wired.log.message" id="10005">
+			<p7:parameter field="wired.transaction" />
+			<p7:parameter field="wired.log.time" use="required" />
+			<p7:parameter field="wired.log.level" use="required" />
+			<p7:parameter field="wired.log.message" use="required" />
+		</p7:message>
+		
+		<p7:message name="wired.settings.get_settings" id="10006">
+			<p7:parameter field="wired.transaction" />
+		</p7:message>
+		
+		<p7:message name="wired.settings.settings" id="10007">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter collection="wired.info.server_info" use="required" />
 			<p7:parameter field="wired.settings.register_with_trackers" use="required" />
@@ -1157,7 +1172,7 @@
 			<p7:parameter field="wired.tracker.categories" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.settings.set_settings" id="10005">
+		<p7:message name="wired.settings.set_settings" id="10008">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter collection="wired.info.server_info" use="required" />
 			<p7:parameter field="wired.settings.register_with_trackers" use="required" />
@@ -1166,27 +1181,27 @@
 			<p7:parameter field="wired.tracker.categories" use="required" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.get_bans" id="10006">
+		<p7:message name="wired.banlist.get_bans" id="10009">
 			<p7:parameter field="wired.transaction" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.list" id="10007">
-			<p7:parameter field="wired.transaction" />
-			<p7:parameter field="wired.banlist.ip" use="required" />
-			<p7:parameter field="wired.banlist.expiration_date" />
-		</p7:message>
-		
-		<p7:message name="wired.banlist.list.done" id="10008">
-			<p7:parameter field="wired.transaction" />
-		</p7:message>
-		
-		<p7:message name="wired.banlist.add_ban" id="10009">
+		<p7:message name="wired.banlist.list" id="10010">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.banlist.ip" use="required" />
 			<p7:parameter field="wired.banlist.expiration_date" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.delete_ban" id="10010">
+		<p7:message name="wired.banlist.list.done" id="10011">
+			<p7:parameter field="wired.transaction" />
+		</p7:message>
+		
+		<p7:message name="wired.banlist.add_ban" id="10012">
+			<p7:parameter field="wired.transaction" />
+			<p7:parameter field="wired.banlist.ip" use="required" />
+			<p7:parameter field="wired.banlist.expiration_date" />
+		</p7:message>
+		
+		<p7:message name="wired.banlist.delete_ban" id="10013">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter field="wired.banlist.ip" use="required" />
 			<p7:parameter field="wired.banlist.expiration_date" />
@@ -1535,6 +1550,16 @@
 
 		<p7:transaction message="wired.transfer.upload_directory" originator="client">
 			<p7:reply message="wired.error" count="?" use="required" />
+		</p7:transaction>
+		
+		<p7:transaction message="wired.log.get_log" originator="client">
+			<p7:or>
+				<p7:and>
+					<p7:reply message="wired.log.log_list" count="*" use="required" />
+					<p7:reply message="wired.log.log_list.done" count="1" use="required" />
+				</p7:and>
+				<p7:reply message="wired.error" count="1" use="required" />
+			</p7:or>
 		</p7:transaction>
 		
 		<p7:transaction message="wired.log.subscribe" originator="client">

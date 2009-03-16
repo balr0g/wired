@@ -53,6 +53,7 @@
 #include "transfers.h"
 
 #define WD_SERVER_PING_INTERVAL		60.0
+#define WD_SERVER_MAX_LOG_ENTRIES	500
 
 #if defined(HAVE_DNS_SD_H) && defined(MAC_OS_X_VERSION_MIN_REQUIRED) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
 extern DNSServiceErrorType			DNSServiceNATPortMappingCreate(DNSServiceRef *, DNSServiceFlags, uint32_t, uint32_t, uint16_t, uint16_t, uint32_t, void *, void *) __attribute__((weak_import));
@@ -112,6 +113,7 @@ static wi_p7_message_t				*wd_ping_message;
 static wi_array_t					*wd_tcp_sockets, *wd_udp_sockets;
 static wi_rsa_t						*wd_rsa;
 static wi_x509_t					*wd_certificate;
+static wi_array_t					*wd_log_entries;
 
 wi_uinteger_t						wd_port;
 wi_data_t							*wd_banner;
@@ -151,6 +153,8 @@ void wd_server_init(void) {
 	wd_ping_message = wi_retain(wi_p7_message_with_name(WI_STR("wired.send_ping"), wd_p7_spec));
 	
 	wi_log_callback = wd_server_log_callback;
+	
+	wd_log_entries = wi_array_init_with_capacity(wi_array_alloc(), WD_SERVER_MAX_LOG_ENTRIES);
 	
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	wd_cf_lock = wi_condition_lock_init_with_condition(wi_condition_lock_alloc(), 0);
@@ -744,22 +748,75 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 
 
 
+static void wd_server_ping_users(wi_timer_t *timer) {
+	wd_broadcast_message(wd_ping_message);
+}
+
+
+
+#pragma mark -
+
+void wd_server_log_reply_log(wd_user_t *user, wi_p7_message_t *message) {
+	wi_dictionary_t		*entry;
+	wi_p7_message_t		*reply;
+	wi_uinteger_t		i, count;
+	
+	wi_array_rdlock(wd_log_entries);
+
+	count = wi_array_count(wd_log_entries);
+	
+	for(i = 0; i < count; i++) {
+		entry = WI_ARRAY(wd_log_entries, i);
+		
+		reply = wi_p7_message_with_name(WI_STR("wired.log.log_list"), wd_p7_spec);
+		wi_p7_message_set_date_for_name(reply, wi_dictionary_data_for_key(entry, WI_STR("wired.log.time")), WI_STR("wired.log.time"));
+		wi_p7_message_set_number_for_name(reply, wi_dictionary_data_for_key(entry, WI_STR("wired.log.level")), WI_STR("wired.log.level"));
+		wi_p7_message_set_string_for_name(reply, wi_dictionary_data_for_key(entry, WI_STR("wired.log.message")), WI_STR("wired.log.message"));
+		
+		wd_user_reply_message(user, reply, message);
+	}
+	
+	wi_array_unlock(wd_log_entries);
+	
+	reply = wi_p7_message_with_name(WI_STR("wired.log.log_list.done"), wd_p7_spec);
+	wd_user_reply_message(user, reply, message);
+}
+
+
+
 static void wd_server_log_callback(wi_log_level_t level, wi_string_t *string) {
 	wi_enumerator_t		*enumerator;
+	wi_dictionary_t		*entry;
 	wi_p7_message_t		*message;
+	wi_date_t			*date;
 	wd_user_t			*user;
 	wi_p7_uint32_t		transaction;
+	wi_uinteger_t		count;
 	
-	if(!wd_users)
-		return;
+	date	= wi_date();
+	entry	= wi_dictionary_with_data_and_keys(
+		date,					WI_STR("wired.log.time"),
+		string,					WI_STR("wired.log.message"),
+		WI_INT32(4 - level),	WI_STR("wired.log.level"),
+		NULL);
 	
-	if(wi_dictionary_tryrdlock(wd_users)) {
+	wi_array_wrlock(wd_log_entries);
+	
+	count = wi_array_count(wd_log_entries);
+	
+	if(count > WD_SERVER_MAX_LOG_ENTRIES + 100)
+		wi_array_remove_data_in_range(wd_log_entries, wi_make_range(0, 100));
+	
+	wi_array_add_data(wd_log_entries, entry);
+	wi_array_unlock(wd_log_entries);
+	
+	if(wd_users && wi_dictionary_tryrdlock(wd_users)) {
 		enumerator = wi_dictionary_data_enumerator(wd_users);
 		
 		while((user = wi_enumerator_next_data(enumerator))) {
 			if(wd_user_state(user) == WD_USER_LOGGED_IN && wd_user_is_subscribed_log(user, &transaction)) {
 				message = wi_p7_message_with_name(WI_STR("wired.log.message"), wd_p7_spec);
-				wi_p7_message_set_date_for_name(message, wi_date(), WI_STR("wired.log.time"));
+				wi_p7_message_set_date_for_name(message, date, WI_STR("wired.log.time"));
 				wi_p7_message_set_enum_for_name(message, 4 - level, WI_STR("wired.log.level"));
 				wi_p7_message_set_string_for_name(message, string, WI_STR("wired.log.message"));
 				
@@ -772,12 +829,6 @@ static void wd_server_log_callback(wi_log_level_t level, wi_string_t *string) {
 		
 		wi_dictionary_unlock(wd_users);
 	}
-}
-
-
-
-static void wd_server_ping_users(wi_timer_t *timer) {
-	wd_broadcast_message(wd_ping_message);
 }
 
 
