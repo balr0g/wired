@@ -93,6 +93,7 @@ static wi_runtime_class_t				wd_server_runtime_class = {
 };
 
 
+
 void wd_servers_init(void) {
 	wd_server_runtime_id = wi_runtime_register_class(&wd_server_runtime_class);
 

@@ -179,6 +179,7 @@ static wi_runtime_class_t				wd_client_info_runtime_class = {
 };
 
 
+
 void wd_users_init(void) {
 	wd_user_runtime_id = wi_runtime_register_class(&wd_user_runtime_class);
 	wd_client_info_runtime_id = wi_runtime_register_class(&wd_client_info_runtime_class);

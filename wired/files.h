@@ -66,6 +66,8 @@ enum _wd_file_permissions {
 };
 typedef enum _wd_file_permissions		wd_file_permissions_t;
 
+typedef struct _wd_files_privileges		wd_files_privileges_t;
+
 
 void									wd_files_init(void);
 void									wd_files_apply_settings(wi_set_t *);
@@ -95,17 +97,20 @@ void									wd_files_move_comment(wi_string_t *, wi_string_t *, wd_user_t *, wi
 void									wd_files_set_label(wi_string_t *, wd_file_label_t, wd_user_t *, wi_p7_message_t *);
 void									wd_files_move_label(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
-wi_boolean_t							wd_files_get_permissions(wi_string_t *, wi_string_t **, wi_string_t **, wi_uinteger_t *);
-void									wd_files_set_permissions(wi_string_t *, wi_string_t *, wi_string_t *, wi_uinteger_t, wd_user_t *, wi_p7_message_t *);
+void									wd_files_set_privileges(wi_string_t *, wd_files_privileges_t *, wd_user_t *, wi_p7_message_t *);
+wd_files_privileges_t *					wd_files_privileges(wi_string_t *, wd_user_t *);
 
 wi_boolean_t							wd_files_path_is_valid(wi_string_t *);
-wi_boolean_t							wd_files_drop_box_path_is_writable(wi_string_t *, wd_user_t *);
-wi_boolean_t							wd_files_drop_box_path_is_readable(wi_string_t *, wd_user_t *);
 wi_string_t *							wd_files_virtual_path(wi_string_t *, wd_user_t *);
 wi_string_t *							wd_files_real_path(wi_string_t *, wd_user_t *);
 
 wi_string_t *							wd_files_string_for_bytes(wi_file_offset_t);
 
+wd_files_privileges_t *					wd_files_privileges_with_message(wi_p7_message_t *);
+
+wi_boolean_t							wd_files_privileges_is_readable_by_account(wd_files_privileges_t *, wd_account_t *);
+wi_boolean_t							wd_files_privileges_is_writable_by_account(wd_files_privileges_t *, wd_account_t *);
+wi_boolean_t							wd_files_privileges_is_readable_and_writable_by_account(wd_files_privileges_t *, wd_account_t *);
 
 extern wi_fsevents_t					*wd_files_fsevents;
 

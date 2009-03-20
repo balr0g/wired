@@ -51,7 +51,6 @@ struct _wd_board_privileges {
 	wi_string_t									*group;
 	wi_uinteger_t								mode;
 };
-typedef struct _wd_board_privileges				wd_board_privileges_t;
 
 
 static void										wd_board_broadcast_message(wi_p7_message_t *, wd_board_privileges_t *, wi_boolean_t);
@@ -75,9 +74,9 @@ static wd_board_privileges_t *					wd_board_privileges_with_owner(wi_string_t *,
 static wd_board_privileges_t *					wd_board_privileges_with_string(wi_string_t *);
 
 static wi_string_t *							wd_board_privileges_string(wd_board_privileges_t *);
-static wi_boolean_t								wd_board_privileges_is_listable_by_user(wd_board_privileges_t *, wd_user_t *);
 static wi_boolean_t								wd_board_privileges_is_readable_by_user(wd_board_privileges_t *, wd_user_t *);
 static wi_boolean_t								wd_board_privileges_is_writable_by_user(wd_board_privileges_t *, wd_user_t *);
+static wi_boolean_t								wd_board_privileges_is_readable_and_writable_by_user(wd_board_privileges_t *, wd_user_t *);
 
 
 static wi_string_t								*wd_board_path;
@@ -146,7 +145,7 @@ void wd_board_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 			board = wi_string_substring_from_index(path, pathlength + 1);
 			privileges = wd_board_privileges(board);
 			
-			if(privileges && wd_board_privileges_is_listable_by_user(privileges, user)) {
+			if(privileges && wd_board_privileges_is_readable_and_writable_by_user(privileges, user)) {
 				reply = wi_p7_message_with_name(WI_STR("wired.board.board_list"), wd_p7_spec);
 				wi_p7_message_set_string_for_name(reply, board, WI_STR("wired.board.board"));
 				wi_p7_message_set_string_for_name(reply, privileges->owner, WI_STR("wired.board.owner"));
@@ -233,10 +232,9 @@ void wd_board_reply_posts(wd_user_t *user, wi_p7_message_t *message) {
 
 #pragma mark -
 
-wi_boolean_t wd_board_add_board(wi_string_t *board, wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode, wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_board_add_board(wi_string_t *board, wd_board_privileges_t *privileges, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t			*broadcast;
 	wi_string_t				*path;
-	wd_board_privileges_t	*privileges;
 	wi_boolean_t			added = false;
 	
 	path = wd_board_board_path(board);
@@ -245,8 +243,6 @@ wi_boolean_t wd_board_add_board(wi_string_t *board, wi_string_t *owner, wi_strin
 	
 	if(!wi_fs_path_exists(path, NULL)) {
 		if(wi_fs_create_directory(path, 0755)) {
-			privileges = wd_board_privileges_with_owner(owner, group, mode);
-			
 			if(wd_board_set_privileges(board, privileges)) {
 				broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_added"), wd_p7_spec);
 				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
@@ -327,11 +323,8 @@ wi_boolean_t wd_board_move_board(wi_string_t *oldboard, wi_string_t *newboard, w
 
 
 
-wi_boolean_t wd_board_set_permissions(wi_string_t *board, wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode, wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_board_set_permissions(wi_string_t *board, wd_board_privileges_t *privileges, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t			*broadcast;
-	wd_board_privileges_t	*privileges;
-	
-	privileges = wd_board_privileges_with_owner(owner, group, mode);
 	
 	if(wd_board_set_privileges(board, privileges)) {
 		broadcast = wi_p7_message_with_name(WI_STR("wired.board.permissions_changed"), wd_p7_spec);
@@ -423,7 +416,7 @@ static void wd_board_broadcast_message(wi_p7_message_t *message, wd_board_privil
 	while((user = wi_enumerator_next_data(enumerator))) {
 		if(wd_user_state(user) == WD_USER_LOGGED_IN) {
 			if((readable && wd_board_privileges_is_readable_by_user(privileges, user)) ||
-			   (!readable && wd_board_privileges_is_listable_by_user(privileges, user)))
+			   (!readable && wd_board_privileges_is_readable_and_writable_by_user(privileges, user)))
 				wd_user_send_message(user, message);
 		}
 	}
@@ -1105,6 +1098,44 @@ static void wd_board_privileges_dealloc(wi_runtime_instance_t *instance) {
 
 #pragma mark -
 
+wd_board_privileges_t * wd_board_privileges_with_message(wi_p7_message_t *message) {
+	wd_board_privileges_t		*privileges;
+	wi_p7_boolean_t				value;
+	
+	privileges = wd_board_privileges_alloc();
+	privileges->owner = wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.board.owner")));
+
+	if(!privileges->owner)
+		privileges->owner = wi_retain(WI_STR(""));
+	
+	privileges->group = wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.board.group")));
+	
+	if(!privileges->group)
+		privileges->group = wi_retain(WI_STR(""));
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.owner.read")) && value)
+		privileges->mode |= WD_BOARD_OWNER_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.owner.write")) && value)
+		privileges->mode |= WD_BOARD_OWNER_WRITE;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.group.read")) && value)
+		privileges->mode |= WD_BOARD_GROUP_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.group.write")) && value)
+		privileges->mode |= WD_BOARD_GROUP_WRITE;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.everyone.read")) && value)
+		privileges->mode |= WD_BOARD_EVERYONE_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.board.everyone.write")) && value)
+		privileges->mode |= WD_BOARD_EVERYONE_WRITE;
+
+	return wi_autorelease(privileges);
+}
+
+
+
 static wd_board_privileges_t * wd_board_privileges_with_owner(wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode) {
 	wd_board_privileges_t		*privileges;
 	
@@ -1140,29 +1171,6 @@ static wi_string_t * wd_board_privileges_string(wd_board_privileges_t *privilege
 	   privileges->owner,		WD_BOARD_PERMISSIONS_FIELD_SEPARATOR,
 	   privileges->group,		WD_BOARD_PERMISSIONS_FIELD_SEPARATOR,
 	   privileges->mode);
-}
-
-
-
-static wi_boolean_t wd_board_privileges_is_listable_by_user(wd_board_privileges_t *privileges, wd_user_t *user) {
-	wd_account_t	*account;
-	
-	if(privileges->mode & (WD_BOARD_EVERYONE_READ | WD_BOARD_EVERYONE_WRITE))
-		return true;
-	
-	account = wd_user_account(user);
-	
-	if(privileges->mode & (WD_BOARD_GROUP_READ | WD_BOARD_GROUP_WRITE) && wi_string_length(privileges->group) > 0) {
-		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
-			return true;
-	}
-	
-	if(privileges->mode & (WD_BOARD_OWNER_READ | WD_BOARD_OWNER_WRITE) && wi_string_length(privileges->owner) > 0) {
-		if(wi_is_equal(privileges->owner, wd_account_name(account)))
-			return true;
-	}
-	
-	return false;
 }
 
 
@@ -1204,6 +1212,29 @@ static wi_boolean_t wd_board_privileges_is_writable_by_user(wd_board_privileges_
 	}
 	
 	if(privileges->mode & WD_BOARD_OWNER_WRITE && wi_string_length(privileges->owner) > 0) {
+		if(wi_is_equal(privileges->owner, wd_account_name(account)))
+			return true;
+	}
+	
+	return false;
+}
+
+
+
+static wi_boolean_t wd_board_privileges_is_readable_and_writable_by_user(wd_board_privileges_t *privileges, wd_user_t *user) {
+	wd_account_t	*account;
+	
+	if(privileges->mode & (WD_BOARD_EVERYONE_READ | WD_BOARD_EVERYONE_WRITE))
+		return true;
+	
+	account = wd_user_account(user);
+	
+	if(privileges->mode & (WD_BOARD_GROUP_READ | WD_BOARD_GROUP_WRITE) && wi_string_length(privileges->group) > 0) {
+		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
+			return true;
+	}
+	
+	if(privileges->mode & (WD_BOARD_OWNER_READ | WD_BOARD_OWNER_WRITE) && wi_string_length(privileges->owner) > 0) {
 		if(wi_is_equal(privileges->owner, wd_account_name(account)))
 			return true;
 	}

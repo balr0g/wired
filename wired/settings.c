@@ -40,6 +40,7 @@
 wi_config_t						*wd_config;
 
 
+
 void wd_settings_init(void) {
 	wi_dictionary_t		*types, *defaults;
 	

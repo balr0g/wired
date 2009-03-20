@@ -105,6 +105,7 @@ static wi_runtime_class_t							wd_account_runtime_class = {
 };
 
 
+
 #define WD_ACCOUNT_FIELD_DICTIONARY(type, account, required)						\
 	wi_dictionary_with_data_and_keys(												\
 		WI_INT32((type)),					WI_STR(WD_ACCOUNT_FIELD_TYPE),			\

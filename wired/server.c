@@ -120,6 +120,7 @@ wi_data_t							*wd_banner;
 wi_p7_spec_t						*wd_p7_spec;
 
 
+
 void wd_server_init(void) {
 	wi_string_t		*path;
 	

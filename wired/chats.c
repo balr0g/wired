@@ -101,6 +101,7 @@ static wi_runtime_class_t			wd_topic_runtime_class = {
 };
 
 
+
 void wd_chats_init(void) {
 	wi_runtime_instance_t	*instance;
 	

@@ -71,6 +71,7 @@ static wi_runtime_class_t				wd_ban_runtime_class = {
 };
 
 
+
 void wd_banlist_init(void) {
 	wd_ban_runtime_id = wi_runtime_register_class(&wd_ban_runtime_class);
 

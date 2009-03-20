@@ -44,6 +44,7 @@ wi_string_t					*wd_protocol_version_string;
 wi_string_t					*wd_server_version_string;
 
 
+
 void wd_version_init(void) {
 	wd_version_string			= wi_string_init_with_format(wi_string_alloc(), WI_STR("%s (%u)"), WD_VERSION, WI_REVISION);
 	wd_protocol_version_string	= wi_string_init_with_cstring(wi_string_alloc(), WD_PROTOCOL_VERSION);

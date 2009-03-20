@@ -73,6 +73,14 @@ struct _wd_files_index_header {
 };
 typedef struct _wd_files_index_header					wd_files_index_header_t;
 
+struct _wd_files_privileges {
+	wi_runtime_base_t									base;
+	
+	wi_string_t											*owner;
+	wi_string_t											*group;
+	wi_uinteger_t										mode;
+};
+
 
 static wi_file_offset_t									wd_files_count_path(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 static void												wd_files_delete_path_callback(wi_string_t *);
@@ -96,9 +104,16 @@ static wi_string_t *									wd_files_comment(wi_string_t *);
 
 static wd_file_label_t									wd_files_label(wi_string_t *);
 
-static wi_boolean_t										wd_files_drop_box_path_is_listable(wi_string_t *, wd_account_t *);
+static wd_files_privileges_t *							wd_files_drop_box_privileges(wi_string_t *);
 static wi_string_t *									wd_files_drop_box_path_in_path(wi_string_t *, wd_user_t *);
 static wi_boolean_t										wd_files_name_matches_query(wi_string_t *, wi_string_t *);
+
+static wd_files_privileges_t *							wd_files_privileges_alloc(void);
+static void												wd_files_privileges_dealloc(wi_runtime_instance_t *);
+
+static wd_files_privileges_t *							wd_files_privileges_with_string(wi_string_t *);
+
+static wi_string_t *									wd_files_privileges_string(wd_files_privileges_t *);
 
 
 static wi_string_t										*wd_files;
@@ -113,11 +128,22 @@ static wi_dictionary_t									*wd_files_index_dictionary;
 static wi_dictionary_t									*wd_files_index_added_files;
 static wi_set_t											*wd_files_index_deleted_files;
 
+static wi_runtime_id_t									wd_files_privileges_runtime_id = WI_RUNTIME_ID_NULL;
+static wi_runtime_class_t								wd_files_privileges_runtime_class = {
+	"wd_files_privileges_t",
+	wd_files_privileges_dealloc,
+	NULL,
+	NULL,
+	NULL,
+	NULL
+};
+
 wi_fsevents_t											*wd_files_fsevents;
 
 wi_uinteger_t											wd_files_count;
 wi_uinteger_t											wd_directories_count;
 wi_file_offset_t										wd_files_size;
+
 
 
 void wd_files_init(void) {
@@ -137,6 +163,8 @@ void wd_files_init(void) {
 		wi_fsevents_set_callback(wd_files_fsevents, wd_files_fsevents_callback);
 	else
 		wi_log_warn(WI_STR("Could not create fsevents: %m"));
+
+	wd_files_privileges_runtime_id = wi_runtime_register_class(&wd_files_privileges_runtime_class);
 }
 
 
@@ -171,6 +199,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 	wi_string_t					*realpath, *filepath, *resolvedpath, *virtualpath;
 	wi_fsenumerator_t			*fsenumerator;
 	wd_account_t				*account;
+	wd_files_privileges_t		*privileges;
 	wi_fs_statfs_t				sfb;
 	wi_fs_stat_t				sb, lsb;
 	wi_fsenumerator_status_t	status;
@@ -183,11 +212,12 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 	root		= wi_is_equal(path, WI_STR("/"));
 	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	account		= wd_user_account(user);
-	
-	pathtype = wd_files_type(realpath);
+	pathtype	= wd_files_type(realpath);
 	
 	if(pathtype == WD_FILE_TYPE_DROPBOX) {
-		if(!wd_files_drop_box_path_is_listable(realpath, account))
+		privileges = wd_files_drop_box_privileges(realpath);
+		
+		if(!privileges || !wd_files_privileges_is_readable_by_account(privileges, account))
 			goto done;
 	}
 	
@@ -246,10 +276,16 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 
 		type = wd_files_type_with_stat(resolvedpath, &sb);
 		
-		if(type == WD_FILE_TYPE_DROPBOX)
-			readable = wd_files_drop_box_path_is_listable(resolvedpath, account);
-		else
+		if(type == WD_FILE_TYPE_DROPBOX) {
+			privileges = wd_files_drop_box_privileges(resolvedpath);
+			
+			if(privileges)
+				readable = wd_files_privileges_is_readable_by_account(privileges, account);
+			else
+				readable = false;
+		} else {
 			readable = true;
+		}
 
 		switch(type) {
 			case WD_FILE_TYPE_DIR:
@@ -343,12 +379,12 @@ static wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, 
 
 void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t			*reply;
-	wi_string_t				*realpath, *comment, *owner, *group;
+	wi_string_t				*realpath, *comment;
+	wd_files_privileges_t	*privileges = NULL;
 	wi_file_offset_t		size;
 	wd_file_type_t			type;
 	wi_fs_stat_t			sb, lsb;
 	wd_file_label_t			label;
-	wi_uinteger_t			mode;
 	wi_boolean_t			alias, readable;
 	
 	realpath	= wd_files_real_path(path, user);
@@ -369,10 +405,19 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 
 	type = wd_files_type_with_stat(realpath, &sb);
 	
-	if(type == WD_FILE_TYPE_DROPBOX)
-		readable = wd_files_drop_box_path_is_listable(realpath, wd_user_account(user));
-	else
+	if(type == WD_FILE_TYPE_DROPBOX) {
+		privileges = wd_files_drop_box_privileges(realpath);
+		
+		if(!privileges) {
+			wd_user_reply_internal_error(user, message);
+			
+			return;
+		}
+
+		readable = wd_files_privileges_is_readable_by_account(privileges, wd_user_account(user));
+	} else {
 		readable = true;
+	}
 	
 	comment = wd_files_comment(realpath);
 	
@@ -406,20 +451,14 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
 	
 	if(type == WD_FILE_TYPE_DROPBOX) {
-		if(!wd_files_get_permissions(realpath, &owner, &group, &mode)) {
-			owner = WI_STR("");
-			group = WI_STR("");
-			mode = WD_FILE_EVERYONE_WRITE;
-		}
-		
-		wi_p7_message_set_string_for_name(reply, owner, WI_STR("wired.file.owner"));
-		wi_p7_message_set_bool_for_name(reply, (mode & WD_FILE_OWNER_WRITE), WI_STR("wired.file.owner.write"));
-		wi_p7_message_set_bool_for_name(reply, (mode & WD_FILE_OWNER_READ), WI_STR("wired.file.owner.read"));
-		wi_p7_message_set_string_for_name(reply, group, WI_STR("wired.file.group"));
-		wi_p7_message_set_bool_for_name(reply, (mode & WD_FILE_GROUP_WRITE), WI_STR("wired.file.group.write"));
-		wi_p7_message_set_bool_for_name(reply, (mode & WD_FILE_GROUP_READ), WI_STR("wired.file.group.read"));
-		wi_p7_message_set_bool_for_name(reply, (mode & WD_FILE_EVERYONE_WRITE), WI_STR("wired.file.everyone.write"));
-		wi_p7_message_set_bool_for_name(reply, (mode & WD_FILE_EVERYONE_READ), WI_STR("wired.file.everyone.read"));
+		wi_p7_message_set_string_for_name(reply, privileges->owner, WI_STR("wired.file.owner"));
+		wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_FILE_OWNER_WRITE), WI_STR("wired.file.owner.write"));
+		wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_FILE_OWNER_READ), WI_STR("wired.file.owner.read"));
+		wi_p7_message_set_string_for_name(reply, privileges->group, WI_STR("wired.file.group"));
+		wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_FILE_GROUP_WRITE), WI_STR("wired.file.group.write"));
+		wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_FILE_GROUP_READ), WI_STR("wired.file.group.read"));
+		wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_FILE_EVERYONE_WRITE), WI_STR("wired.file.everyone.write"));
+		wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_FILE_EVERYONE_READ), WI_STR("wired.file.everyone.read"));
 	}
 	
 	wd_user_reply_message(user, reply, message);
@@ -1501,68 +1540,42 @@ void wd_files_move_label(wi_string_t *frompath, wi_string_t *topath, wd_user_t *
 
 #pragma mark -
 
-wi_boolean_t wd_files_get_permissions(wi_string_t *realpath, wi_string_t **owner, wi_string_t **group, wi_uinteger_t *mode) {
-	wi_string_t		*permissionspath, *string;
-	wi_array_t		*array;
-	wi_fs_stat_t	sb;
+void wd_files_set_privileges(wi_string_t *path, wd_files_privileges_t *privileges, wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*realpath, *metapath, *permissionspath;
+	wi_string_t		*string;
 	
-	permissionspath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PERMISSIONS_PATH));
+	realpath			= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
+	metapath			= wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PATH));
+	permissionspath		= wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PERMISSIONS_PATH));
 	
-	if(!wi_fs_stat_path(permissionspath, &sb) || sb.size > 128)
-		return false;
+	if(!wi_fs_create_directory(metapath, 0777)) {
+		if(wi_error_code() != EEXIST) {
+			wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
+			wd_user_reply_file_errno(user, message);
+
+			return;
+		}
+	}
 	
-	string = wi_autorelease(wi_string_init_with_contents_of_file(wi_string_alloc(), permissionspath));
+	string = wd_files_privileges_string(privileges);
 	
-	if(!string)
-		return false;
-	
-	wi_string_delete_surrounding_whitespace(string);
-	
-	array = wi_string_components_separated_by_string(string, WI_STR(WD_FILES_PERMISSIONS_FIELD_SEPARATOR));
-	
-	if(wi_array_count(array) != 3)
-		return false;
-	
-	*owner = WI_ARRAY(array, 0);
-	*group = WI_ARRAY(array, 1);
-	*mode = wi_string_uint32(WI_ARRAY(array, 2));
-	
-	return true;
+	if(!wi_string_write_to_file(string, permissionspath)) {
+		wi_log_warn(WI_STR("Could not write to %@: %m"), permissionspath);
+		wd_user_reply_file_errno(user, message);
+	}
 }
 
 
 
-void wd_files_set_permissions(wi_string_t *path, wi_string_t *owner, wi_string_t *group, wi_uinteger_t mode, wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*realpath, *metapath, *permissionspath;
-	wi_string_t		*string;
+wd_files_privileges_t * wd_files_privileges(wi_string_t *path, wd_user_t *user) {
+	wi_string_t				*realpath;
 	
-	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
-	metapath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PATH));
-	permissionspath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PERMISSIONS_PATH));
+	realpath = wd_files_drop_box_path_in_path(path, user);
 	
-	if(wi_string_length(owner) > 0 || wi_string_length(group) > 0 || mode != WD_FILE_EVERYONE_WRITE) {
-		if(!wi_fs_create_directory(metapath, 0777)) {
-			if(wi_error_code() != EEXIST) {
-				wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
-				wd_user_reply_file_errno(user, message);
-
-				return;
-			}
-		}
-		
-		string = wi_string_with_format(WI_STR("%#@%s%#@%s%u\n"),
-			owner,			WD_FILES_PERMISSIONS_FIELD_SEPARATOR,
-			group,			WD_FILES_PERMISSIONS_FIELD_SEPARATOR,
-			mode);
-		
-		if(!wi_string_write_to_file(string, permissionspath)) {
-			wi_log_warn(WI_STR("Could not write to %@: %m"), permissionspath);
-			wd_user_reply_file_errno(user, message);
-		}
-	} else {
-		if(wi_fs_delete_path(permissionspath))
-			(void) rmdir(wi_string_cstring(metapath));
-	}
+	if(!realpath)
+		return NULL;
+	
+	return wd_files_drop_box_privileges(realpath);
 }
 
 
@@ -1580,128 +1593,6 @@ wi_boolean_t wd_files_path_is_valid(wi_string_t *path) {
         return false;
 
 	return true;
-}
-
-
-
-wi_boolean_t wd_files_drop_box_path_is_readable(wi_string_t *path, wd_user_t *user) {
-	wi_string_t		*realpath, *owner, *group;
-	wd_account_t	*account;
-	wi_uinteger_t	mode;
-	
-	account = wd_user_account(user);
-	
-	if(wd_account_file_access_all_dropboxes(account))
-		return true;
-	
-	realpath = wd_files_drop_box_path_in_path(path, user);
-	
-	if(!realpath)
-		return true;
-	
-	if(!wd_files_get_permissions(realpath, &owner, &group, &mode))
-		return false;
-	
-	if(mode & WD_FILE_EVERYONE_READ)
-		return true;
-	
-	if(mode & WD_FILE_GROUP_READ && wi_string_length(group) > 0) {
-		if(wi_is_equal(group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), group))
-			return true;
-	}
-	
-	if(mode & WD_FILE_OWNER_READ && wi_string_length(owner) > 0) {
-		if(wi_is_equal(owner, wd_account_name(account)))
-			return true;
-	}
-	
-	return false;
-}
-
-
-
-wi_boolean_t wd_files_drop_box_path_is_writable(wi_string_t *path, wd_user_t *user) {
-	wi_string_t		*realpath, *owner, *group;
-	wd_account_t	*account;
-	wi_uinteger_t	mode;
-	
-	account = wd_user_account(user);
-	
-	if(wd_account_file_access_all_dropboxes(account))
-		return true;
-	
-	realpath = wd_files_drop_box_path_in_path(path, user);
-	
-	if(!realpath)
-		return true;
-	
-	if(!wd_files_get_permissions(realpath, &owner, &group, &mode))
-		return false;
-	
-	if(mode & WD_FILE_EVERYONE_WRITE)
-		return true;
-	
-	if(mode & WD_FILE_GROUP_WRITE && wi_string_length(group) > 0) {
-		if(wi_is_equal(group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), group))
-			return true;
-	}
-	
-	if(mode & WD_FILE_OWNER_WRITE && wi_string_length(owner) > 0) {
-		if(wi_is_equal(owner, wd_account_name(account)))
-			return true;
-	}
-	
-	return false;
-}
-
-
-
-static wi_boolean_t wd_files_drop_box_path_is_listable(wi_string_t *realpath, wd_account_t *account) {
-	wi_string_t		*owner, *group;
-	wi_uinteger_t	mode;
-	
-	if(wd_account_file_access_all_dropboxes(account))
-		return true;
-	
-	if(!wd_files_get_permissions(realpath, &owner, &group, &mode))
-		return false;
-	
-	if(mode & WD_FILE_EVERYONE_READ)
-		return true;
-	
-	if(mode & WD_FILE_GROUP_READ && wi_string_length(group) > 0) {
-		if(wi_is_equal(group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), group))
-			return true;
-	}
-	
-	if(mode & WD_FILE_OWNER_READ && wi_string_length(owner) > 0) {
-		if(wi_is_equal(owner, wd_account_name(account)))
-			return true;
-	}
-	
-	return false;
-}
-
-
-
-static wi_string_t * wd_files_drop_box_path_in_path(wi_string_t *path, wd_user_t *user) {
-	wi_string_t		*realpath, *dirpath;
-	wi_array_t		*array;
-	wi_uinteger_t	i, count;
-	
-	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(WI_STR("/"), user));
-	dirpath		= wi_string_by_deleting_last_path_component(path);
-	array		= wi_string_path_components(dirpath);
-	count		= wi_array_count(array);
-	
-	for(i = 0; i < count; i++) {
-		wi_string_append_path_component(realpath, WI_ARRAY(array, i));
-		
-		if(wd_files_type(realpath) == WD_FILE_TYPE_DROPBOX)
-			return realpath;
-	}
-	
-	return NULL;
 }
 
 
@@ -1741,6 +1632,68 @@ wi_string_t * wd_files_real_path(wi_string_t *path, wd_user_t *user) {
 
 
 #pragma mark -
+
+static wd_files_privileges_t * wd_files_drop_box_privileges(wi_string_t *path) {
+	wi_string_t				*permissionspath, *string;
+	wd_files_privileges_t	*privileges;
+	wi_fs_stat_t			sb;
+	
+	permissionspath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PERMISSIONS_PATH));
+	
+	if(!wi_fs_stat_path(permissionspath, &sb)) {
+		wi_log_warn(WI_STR("Could not open %@: %m"), permissionspath);
+		
+		return NULL;
+	}
+	
+	if(sb.size > 128) {
+		wi_log_warn(WI_STR("Could not read %@: Size is too large (%u"), permissionspath, sb.size);
+		
+		return NULL;
+	}
+	
+	string = wi_autorelease(wi_string_init_with_contents_of_file(wi_string_alloc(), permissionspath));
+	
+	if(!string) {
+		wi_log_warn(WI_STR("Could not read %@: %m"), permissionspath);
+		
+		return NULL;
+	}
+	
+	privileges = wd_files_privileges_with_string(string);
+	
+	if(!privileges) {
+		wi_log_info(WI_STR("Could not read %@: Contents is malformed (%@)"), permissionspath, string);
+		
+		return NULL;
+	}
+	
+	return privileges;
+}
+
+
+
+static wi_string_t * wd_files_drop_box_path_in_path(wi_string_t *path, wd_user_t *user) {
+	wi_string_t		*realpath, *dirpath;
+	wi_array_t		*array;
+	wi_uinteger_t	i, count;
+	
+	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(WI_STR("/"), user));
+	dirpath		= wi_string_by_deleting_last_path_component(path);
+	array		= wi_string_path_components(dirpath);
+	count		= wi_array_count(array);
+	
+	for(i = 0; i < count; i++) {
+		wi_string_append_path_component(realpath, WI_ARRAY(array, i));
+		
+		if(wd_files_type(realpath) == WD_FILE_TYPE_DROPBOX)
+			return realpath;
+	}
+	
+	return NULL;
+}
+
+
 
 static wi_boolean_t wd_files_name_matches_query(wi_string_t *name, wi_string_t *query) {
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
@@ -1801,4 +1754,159 @@ wi_string_t * wd_files_string_for_bytes(wi_file_offset_t bytes) {
 		return wi_string_with_format(WI_STR("%.1f PB"), pb);
 
 	return NULL;
+}
+
+
+
+
+#pragma mark -
+
+static wd_files_privileges_t * wd_files_privileges_alloc(void) {
+	return wi_runtime_create_instance(wd_files_privileges_runtime_id, sizeof(wd_files_privileges_t));
+}
+
+
+
+static void wd_files_privileges_dealloc(wi_runtime_instance_t *instance) {
+	wd_files_privileges_t		*privileges = instance;
+	
+	wi_release(privileges->owner);
+	wi_release(privileges->group);
+}
+
+
+
+#pragma mark -
+
+wd_files_privileges_t * wd_files_privileges_with_message(wi_p7_message_t *message) {
+	wd_files_privileges_t		*privileges;
+	wi_p7_boolean_t				value;
+	
+	privileges = wd_files_privileges_alloc();
+	privileges->owner = wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.file.owner")));
+
+	if(!privileges->owner)
+		privileges->owner = wi_retain(WI_STR(""));
+	
+	privileges->group = wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.file.group")));
+	
+	if(!privileges->group)
+		privileges->group = wi_retain(WI_STR(""));
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.owner.read")) && value)
+		privileges->mode |= WD_FILE_OWNER_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.owner.write")) && value)
+		privileges->mode |= WD_FILE_OWNER_WRITE;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.group.read")) && value)
+		privileges->mode |= WD_FILE_GROUP_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.group.write")) && value)
+		privileges->mode |= WD_FILE_GROUP_WRITE;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.everyone.read")) && value)
+		privileges->mode |= WD_FILE_EVERYONE_READ;
+	
+	if(wi_p7_message_get_bool_for_name(message, &value, WI_STR("wired.file.everyone.write")) && value)
+		privileges->mode |= WD_FILE_EVERYONE_WRITE;
+
+	return wi_autorelease(privileges);
+}
+
+
+
+static wd_files_privileges_t * wd_files_privileges_with_string(wi_string_t *string) {
+	wi_array_t				*array;
+	wd_files_privileges_t	*privileges;
+	
+	string				= wi_string_by_deleting_surrounding_whitespace(string);
+	array				= wi_string_components_separated_by_string(string, WI_STR(WD_FILES_PERMISSIONS_FIELD_SEPARATOR));
+	
+	if(wi_array_count(array) != 3)
+		return NULL;
+	
+	privileges			= wd_files_privileges_alloc();
+	privileges->owner	= wi_retain(WI_ARRAY(array, 0));
+	privileges->group	= wi_retain(WI_ARRAY(array, 1));
+	privileges->mode	= wi_string_uint32(WI_ARRAY(array, 2));
+	
+	return wi_autorelease(privileges);
+}
+
+
+
+#pragma mark -
+
+static wi_string_t * wd_files_privileges_string(wd_files_privileges_t *privileges) {
+	return wi_string_with_format(WI_STR("%#@%s%#@%s%u"),
+	   privileges->owner,		WD_FILES_PERMISSIONS_FIELD_SEPARATOR,
+	   privileges->group,		WD_FILES_PERMISSIONS_FIELD_SEPARATOR,
+	   privileges->mode);
+}
+
+
+
+wi_boolean_t wd_files_privileges_is_readable_by_account(wd_files_privileges_t *privileges, wd_account_t *account) {
+	if(privileges->mode & WD_FILE_EVERYONE_READ)
+		return true;
+	
+	if(wd_account_file_access_all_dropboxes(account))
+		return true;
+	
+	if(privileges->mode & WD_FILE_GROUP_READ && wi_string_length(privileges->group) > 0) {
+		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
+			return true;
+	}
+	
+	if(privileges->mode & WD_FILE_OWNER_READ && wi_string_length(privileges->owner) > 0) {
+		if(wi_is_equal(privileges->owner, wd_account_name(account)))
+			return true;
+	}
+	
+	return false;
+}
+
+
+
+wi_boolean_t wd_files_privileges_is_writable_by_account(wd_files_privileges_t *privileges, wd_account_t *account) {
+	if(privileges->mode & WD_FILE_EVERYONE_WRITE)
+		return true;
+	
+	if(wd_account_file_access_all_dropboxes(account))
+		return true;
+	
+	if(privileges->mode & WD_FILE_GROUP_WRITE && wi_string_length(privileges->group) > 0) {
+		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
+			return true;
+	}
+	
+	if(privileges->mode & WD_FILE_OWNER_WRITE && wi_string_length(privileges->owner) > 0) {
+		if(wi_is_equal(privileges->owner, wd_account_name(account)))
+			return true;
+	}
+	
+	return false;
+}
+
+
+
+wi_boolean_t wd_files_privileges_is_readable_and_writable_by_account(wd_files_privileges_t *privileges, wd_account_t *account) {
+	if(privileges->mode & (WD_FILE_EVERYONE_READ | WD_FILE_EVERYONE_WRITE))
+		return true;
+	
+	if(wd_account_file_access_all_dropboxes(account))
+		return true;
+	
+	if(privileges->mode & (WD_FILE_GROUP_READ | WD_FILE_GROUP_WRITE) && wi_string_length(privileges->group) > 0) {
+		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
+			return true;
+	}
+	
+	if(privileges->mode & (WD_FILE_OWNER_READ | WD_FILE_OWNER_WRITE) && wi_string_length(privileges->owner) > 0) {
+		if(wi_is_equal(privileges->owner, wd_account_name(account)))
+			return true;
+	}
+	
+	return false;
 }
