@@ -34,7 +34,7 @@
 server control interface
 .Sh SYNOPSIS
 .Nm wiredctl
-.Ar start | stop | restart | reload | index | register | config | configtest | status | help
+.Ar start | stop | restart | reload | index | register | config | configtest | debug | status | help
 .Sh DESCRIPTION
 .Nm wiredctl
 is a frontend to
@@ -71,6 +71,11 @@ daemon to register with trackers by sending it the signal USR2.
 Prints the current active configuration.
 .It Va configtest
 Runs a configuration syntax test, to verify that the config file will be accepted.
+.It Va debug
+Start the
+.Xr wired 8
+daemon in
+.Xr gdb 1 .
 .It Va status
 Prints a status summary.
 .It Va help

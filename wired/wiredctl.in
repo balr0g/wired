@@ -135,6 +135,10 @@ case $CMD in
 	configtest)
 		$WIRED -t
 		;;
+	
+	debug)
+		echo "run -D $WIREDFLAGS" | gdb $WIRED
+		;;
 
 	status)
 		if [ -f $STATUSFILE ]; then
@@ -222,7 +226,7 @@ case $CMD in
 
 	*)
 		cat <<EOF
-Usage: wiredctl [start | stop | restart | reload | index | register | config | configtest | status | help]
+Usage: wiredctl [start | stop | restart | reload | index | register | config | configtest | debug | status | help]
 
     start        start wired
     stop         stop wired
@@ -232,6 +236,7 @@ Usage: wiredctl [start | stop | restart | reload | index | register | config | c
     register     send wired a SIGUSR2, causing it to register with trackers
     config       show the configuration
     configtest   run a configuration syntax test
+    debug        start wired in the debugger
     status       show a status screen
     help         show this information
 
