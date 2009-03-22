@@ -114,6 +114,7 @@ install-wired:
 		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/files/Drop\ Box/; \
 		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/files/Drop\ Box/.wired/; \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/files/Drop\ Box/.wired/type $(installdir)/files/Drop\ Box/.wired/; \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/files/Drop\ Box/.wired/permissions $(installdir)/files/Drop\ Box/.wired/; \
 	fi
 
 	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/etc/
