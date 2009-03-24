@@ -1609,14 +1609,6 @@ static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 
-	account = wd_user_account(user);
-	
-	if(!wd_account_file_delete_files(account)) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-		
-		return;
-	}
-	
 	path = wi_p7_message_string_for_name(message, WI_STR("wired.file.path"));
 
 	if(!wd_files_path_is_valid(path)) {
@@ -1625,13 +1617,24 @@ static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
 		return;
 	}
 
-	properpath = wi_string_by_normalizing_path(path);
-	privileges = wd_files_privileges(properpath, user);
+	account			= wd_user_account(user);
+	properpath		= wi_string_by_normalizing_path(path);
+	privileges		= wd_files_privileges(properpath, user);
 	
-	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+	/* XXX: Experimental support for delete privs in drop boxes with read+write even
+	   without wired.account.privileges.delete_files. */
+	if(privileges) {
+		if(!wd_files_privileges_is_readable_and_writable_by_account(privileges, account)) {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
-		return;
+			return;
+		}
+	} else {
+		if(!wd_account_file_delete_files(account)) {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+			
+			return;
+		}
 	}
 	
 	if(wd_files_delete_path(properpath, user, message)) {
