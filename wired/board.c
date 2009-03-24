@@ -1224,17 +1224,17 @@ static wi_boolean_t wd_board_privileges_is_writable_by_user(wd_board_privileges_
 static wi_boolean_t wd_board_privileges_is_readable_and_writable_by_user(wd_board_privileges_t *privileges, wd_user_t *user) {
 	wd_account_t	*account;
 	
-	if(privileges->mode & (WD_BOARD_EVERYONE_READ | WD_BOARD_EVERYONE_WRITE))
+	if(privileges->mode & WD_BOARD_EVERYONE_READ && privileges->mode & WD_BOARD_EVERYONE_WRITE)
 		return true;
 	
 	account = wd_user_account(user);
 	
-	if(privileges->mode & (WD_BOARD_GROUP_READ | WD_BOARD_GROUP_WRITE) && wi_string_length(privileges->group) > 0) {
+	if(privileges->mode & WD_BOARD_GROUP_READ && privileges->mode & WD_BOARD_GROUP_WRITE && wi_string_length(privileges->group) > 0) {
 		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
 			return true;
 	}
 	
-	if(privileges->mode & (WD_BOARD_OWNER_READ | WD_BOARD_OWNER_WRITE) && wi_string_length(privileges->owner) > 0) {
+	if(privileges->mode & WD_BOARD_OWNER_READ && privileges->mode & WD_BOARD_OWNER_WRITE && wi_string_length(privileges->owner) > 0) {
 		if(wi_is_equal(privileges->owner, wd_account_name(account)))
 			return true;
 	}

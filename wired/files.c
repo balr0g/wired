@@ -1892,18 +1892,18 @@ wi_boolean_t wd_files_privileges_is_writable_by_account(wd_files_privileges_t *p
 
 
 wi_boolean_t wd_files_privileges_is_readable_and_writable_by_account(wd_files_privileges_t *privileges, wd_account_t *account) {
-	if(privileges->mode & (WD_FILE_EVERYONE_READ | WD_FILE_EVERYONE_WRITE))
+	if(privileges->mode & WD_FILE_EVERYONE_READ && privileges->mode & WD_FILE_EVERYONE_WRITE)
 		return true;
 	
 	if(wd_account_file_access_all_dropboxes(account))
 		return true;
 	
-	if(privileges->mode & (WD_FILE_GROUP_READ | WD_FILE_GROUP_WRITE) && wi_string_length(privileges->group) > 0) {
+	if(privileges->mode & WD_FILE_GROUP_READ && privileges->mode & WD_FILE_GROUP_WRITE && wi_string_length(privileges->group) > 0) {
 		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
 			return true;
 	}
 	
-	if(privileges->mode & (WD_FILE_OWNER_READ | WD_FILE_OWNER_WRITE) && wi_string_length(privileges->owner) > 0) {
+	if(privileges->mode & WD_FILE_OWNER_READ && privileges->mode & WD_FILE_OWNER_WRITE && wi_string_length(privileges->owner) > 0) {
 		if(wi_is_equal(privileges->owner, wd_account_name(account)))
 			return true;
 	}
