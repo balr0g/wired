@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b25">
+			 version="2.0b26">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
@@ -133,6 +133,7 @@
 			<p7:enum name="wired.file.label.purple" value="6" />
 			<p7:enum name="wired.file.label.gray" value="7" />
 		</p7:field>
+		<p7:field name="wired.file.volume" type="uint32" id="7021" />
 
 		<p7:field name="wired.account.name" type="string" id="8000" />
 		<p7:field name="wired.account.new_name" type="string" id="8001" />
@@ -283,6 +284,7 @@
 			<p7:member field="wired.file.link" />
 			<p7:member field="wired.file.executable" />
 			<p7:member field="wired.file.label" />
+			<p7:member field="wired.file.volume" />
 		</p7:collection>
 		
 		<p7:collection name="wired.account.privileges">

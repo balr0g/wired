@@ -61,7 +61,7 @@
 #define WD_FILES_MAX_LEVEL								20
 
 #define WD_FILES_INDEX_MAGIC							"WDIX"
-#define WD_FILES_INDEX_VERSION							3
+#define WD_FILES_INDEX_VERSION							4
 
 
 struct _wd_files_index_header {
@@ -93,7 +93,7 @@ static void												wd_files_index_update(wi_timer_t *);
 static wi_boolean_t										wd_files_index_update_size(void);
 static void												wd_files_index_thread(wi_runtime_instance_t *);
 static void												wd_files_index_path_to_file(wi_string_t *, wi_file_t *, wi_string_t *);
-static void												wd_files_index_write_entry(wi_file_t *, wi_string_t *, wd_file_type_t, uint64_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t, uint32_t);
+static void												wd_files_index_write_entry(wi_file_t *, wi_string_t *, wd_file_type_t, uint64_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t, uint32_t, uint32_t);
 
 static void												wd_files_fsevents_thread(wi_runtime_instance_t *);
 static void												wd_files_fsevents_callback(wi_string_t *);
@@ -314,6 +314,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		wi_p7_message_set_bool_for_name(reply, alias || S_ISLNK(lsb.mode), WI_STR("wired.file.link"));
 		wi_p7_message_set_bool_for_name(reply, (type == WD_FILE_TYPE_FILE && sb.mode & 0111), WI_STR("wired.file.executable"));
 		wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
+		wi_p7_message_set_uint32_for_name(reply, sb.dev, WI_STR("wired.file.volume"));
 		wd_user_reply_message(user, reply, message);
 		wi_release(reply);
 		
@@ -449,6 +450,7 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	wi_p7_message_set_bool_for_name(reply, (alias || S_ISLNK(lsb.mode)), WI_STR("wired.file.link"));
 	wi_p7_message_set_bool_for_name(reply, (type == WD_FILE_TYPE_FILE && sb.mode & 0111), WI_STR("wired.file.executable"));
 	wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
+	wi_p7_message_set_uint32_for_name(reply, sb.dev, WI_STR("wired.file.volume"));
 	
 	if(type == WD_FILE_TYPE_DROPBOX) {
 		wi_p7_message_set_string_for_name(reply, privileges->owner, WI_STR("wired.file.owner"));
@@ -1048,7 +1050,8 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 										   sb.mtime,
 										   (alias || S_ISLNK(lsb.mode)),
 										   (type == WD_FILE_TYPE_FILE && sb.mode & 0111),
-										   label);
+										   label,
+										   sb.dev);
 
 				if(S_ISDIR(sb.mode)) {
 					wd_directories_count++;
@@ -1084,10 +1087,10 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 
 
 
-static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_file_type_t type, uint64_t size, wi_time_interval_t creationtime, wi_time_interval_t modificationtime, wi_boolean_t link, wi_boolean_t executable, uint32_t label) {
+static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_file_type_t type, uint64_t size, wi_time_interval_t creationtime, wi_time_interval_t modificationtime, wi_boolean_t link, wi_boolean_t executable, uint32_t label, uint32_t volume) {
 	static char				*buffer;
 	static wi_uinteger_t	bufferlength;
-	static uint32_t			searchlistid, pathid, typeid, sizeid, creationid, modificationid, linkid, executableid, labelid;
+	static uint32_t			searchlistid, pathid, typeid, sizeid, creationid, modificationid, linkid, executableid, labelid, volumeid;
 	wi_string_t				*name, *creationstring, *modificationstring;
 	uint32_t				totalentrylength, entrylength, namelength, pathlength, creationlength, modificationlength;
 	char					*p;
@@ -1102,6 +1105,7 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 		linkid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.link")));
 		executableid	= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.executable")));
 		labelid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.label")));
+		volumeid		= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.volume")));
 	}
 
 	name				= wi_string_last_path_component(path);
@@ -1121,7 +1125,8 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 						  sizeof(modificationid) + modificationlength +
 						  sizeof(linkid) + 1 +
 						  sizeof(executableid) + 1 +
-						  sizeof(labelid) + sizeof(label);
+						  sizeof(labelid) + sizeof(label) +
+						  sizeof(volumeid) + sizeof(volume);
 	totalentrylength	= sizeof(entrylength) + entrylength;
 	
 	if(!buffer) {
@@ -1156,6 +1161,8 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	memcpy(p, executable ? "\1" : "\0", 1);									p += 1;
 	wi_write_swap_host_to_big_int32(p, 0, labelid);							p += sizeof(labelid);
 	wi_write_swap_host_to_big_int32(p, 0, label);							p += sizeof(label);
+	wi_write_swap_host_to_big_int32(p, 0, volumeid);						p += sizeof(volumeid);
+	wi_write_swap_host_to_big_int32(p, 0, volume);							p += sizeof(volume);
 	
 	wi_file_write_buffer(file, buffer, totalentrylength);
 }
