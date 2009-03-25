@@ -103,6 +103,7 @@ wd_files_privileges_t *					wd_files_privileges(wi_string_t *, wd_user_t *);
 wi_boolean_t							wd_files_path_is_valid(wi_string_t *);
 wi_string_t *							wd_files_virtual_path(wi_string_t *, wd_user_t *);
 wi_string_t *							wd_files_real_path(wi_string_t *, wd_user_t *);
+wi_boolean_t							wd_files_has_uploads_or_drop_box_in_path(wi_string_t *, wd_user_t *, wd_files_privileges_t **);
 
 wi_string_t *							wd_files_string_for_bytes(wi_file_offset_t);
 

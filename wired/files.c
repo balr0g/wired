@@ -1631,6 +1631,44 @@ wi_string_t * wd_files_real_path(wi_string_t *path, wd_user_t *user) {
 
 
 
+wi_boolean_t wd_files_has_uploads_or_drop_box_in_path(wi_string_t *path, wd_user_t *user, wd_files_privileges_t **privileges) {
+	wi_string_t		*realpath, *dirpath;
+	wi_array_t		*array;
+	wi_uinteger_t	i, count;
+	
+	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(WI_STR("/"), user));
+	dirpath		= wi_string_by_deleting_last_path_component(path);
+	array		= wi_string_path_components(dirpath);
+	count		= wi_array_count(array);
+	
+	for(i = 0; i < count; i++) {
+		wi_string_append_path_component(realpath, WI_ARRAY(array, i));
+		
+		switch(wd_files_type(realpath)) {
+			case WD_FILE_TYPE_UPLOADS:
+				*privileges = NULL;
+				
+				return true;
+				break;
+				
+			case WD_FILE_TYPE_DROPBOX:
+				*privileges = wd_files_drop_box_privileges(path);
+				
+				return true;
+				break;
+				
+			default:
+				break;
+		}
+	}
+	
+	*privileges = NULL;
+	
+	return false;
+}
+
+
+
 #pragma mark -
 
 static wd_files_privileges_t * wd_files_drop_box_privileges(wi_string_t *path) {
