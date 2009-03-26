@@ -1619,13 +1619,16 @@ static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
 
 	account			= wd_user_account(user);
 	properpath		= wi_string_by_normalizing_path(path);
+	privileges		= wd_files_privileges(properpath, user);
 	
-	/* XXX: Experimental support for delete privs in drop boxes with read+write even
-	   without wired.account.privileges.delete_files. */
-	if(!wd_account_file_delete_files(account)) {
-		privileges = wd_files_privileges(properpath, user);
+	if(privileges) {
+		if(!wd_files_privileges_is_readable_and_writable_by_account(privileges, account)) {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
-		if(!privileges || !wd_files_privileges_is_readable_and_writable_by_account(privileges, account)) {
+			return;
+		}
+	} else {
+		if(!wd_account_file_delete_files(account)) {
 			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
 			return;
