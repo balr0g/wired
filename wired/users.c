@@ -319,7 +319,6 @@ void wd_users_reply_users(wd_user_t *user, wi_p7_message_t *message) {
 		wi_p7_message_set_uint32_for_name(reply, peer->id, WI_STR("wired.user.id"));
 		wi_p7_message_set_bool_for_name(reply, peer->admin, WI_STR("wired.user.admin"));
 		wi_p7_message_set_bool_for_name(reply, peer->idle, WI_STR("wired.user.idle"));
-		wi_p7_message_set_string_for_name(reply, peer->login, WI_STR("wired.user.login"));
 		wi_p7_message_set_string_for_name(reply, peer->nick, WI_STR("wired.user.nick"));
 		wi_p7_message_set_string_for_name(reply, peer->status, WI_STR("wired.user.status"));
 		wi_p7_message_set_data_for_name(reply, peer->icon, WI_STR("wired.user.icon"));

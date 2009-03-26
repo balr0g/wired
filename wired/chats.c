@@ -273,7 +273,6 @@ void wd_chat_add_user_and_broadcast(wd_chat_t *chat, wd_user_t *user) {
 	wi_p7_message_set_uint32_for_name(message, wd_user_id(user), WI_STR("wired.user.id"));
 	wi_p7_message_set_bool_for_name(message, wd_user_is_admin(user), WI_STR("wired.user.admin"));
 	wi_p7_message_set_bool_for_name(message, wd_user_is_idle(user), WI_STR("wired.user.idle"));
-	wi_p7_message_set_string_for_name(message, wd_user_login(user), WI_STR("wired.user.login"));
 	wi_p7_message_set_string_for_name(message, wd_user_nick(user), WI_STR("wired.user.nick"));
 	wi_p7_message_set_string_for_name(message, wd_user_status(user), WI_STR("wired.user.status"));
 	wi_p7_message_set_data_for_name(message, wd_user_icon(user), WI_STR("wired.user.icon"));
@@ -319,7 +318,6 @@ void wd_chat_reply_user_list(wd_chat_t *chat, wd_user_t *user, wi_p7_message_t *
 			wi_p7_message_set_uint32_for_name(reply, wd_user_id(peer), WI_STR("wired.user.id"));
 			wi_p7_message_set_bool_for_name(reply, wd_user_is_admin(peer), WI_STR("wired.user.admin"));
 			wi_p7_message_set_bool_for_name(reply, wd_user_is_idle(peer), WI_STR("wired.user.idle"));
-			wi_p7_message_set_string_for_name(reply, wd_user_login(peer), WI_STR("wired.user.login"));
 			wi_p7_message_set_string_for_name(reply, wd_user_nick(peer), WI_STR("wired.user.nick"));
 			wi_p7_message_set_string_for_name(reply, wd_user_status(peer), WI_STR("wired.user.status"));
 			wi_p7_message_set_data_for_name(reply, wd_user_icon(peer), WI_STR("wired.user.icon"));
