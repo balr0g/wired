@@ -1357,10 +1357,10 @@ wi_p7_message_t * wd_account_privileges_message(wd_account_t *account) {
 
 #pragma mark -
 
-wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user) {
+wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user, wi_string_t **error) {
 	wi_enumerator_t				*enumerator;
 	wi_dictionary_t				*field;
-	wi_string_t					*name;
+	wi_string_t					*name, *group;
 	wi_runtime_instance_t		*instance1, *instance2;
 	wd_account_t				*user_account;
 	wd_account_field_type_t		type;
@@ -1390,16 +1390,23 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 						integer_value1 = instance1 ? wi_number_integer(instance1) : 0;
 						integer_value2 = instance2 ? wi_number_integer(instance2) : 0;
 						
-						if(integer_value1 > 0 && (integer_value2 > integer_value1 || integer_value2 == 0))
+						if(integer_value1 > 0 && (integer_value2 > integer_value1 || integer_value2 == 0)) {
+							*error = wi_string_with_format(WI_STR("Tried to increase \"%@\" to %u"),
+								name, integer_value2);
+
 							return false;
+						}
 						break;
 					
 					case WD_ACCOUNT_FIELD_BOOLEAN:
 						boolean_value1 = instance1 ? wi_number_bool(instance1) : false;
 						boolean_value2 = instance2 ? wi_number_bool(instance2) : false;
 						
-						if(boolean_value1 && !boolean_value2)
+						if(!boolean_value1 && boolean_value2) {
+							*error = wi_string_with_format(WI_STR("Tried to enable \"%@\""), name);
+							
 							return false;
+						}
 						break;
 				}
 			}
@@ -1417,13 +1424,29 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user)
 		if(!wi_string_has_prefix(instance2, instance1))
 			return false;
 		
-		if(!wi_is_equal(wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.group")),
-						wi_dictionary_data_for_key(account->values, WI_STR("wired.account.group"))))
-		   return false;
+		instance1 = wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.group"));
+		instance2 = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.group"));
 		
-		if(!wi_is_equal(wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.groups")),
-						wi_dictionary_data_for_key(account->values, WI_STR("wired.account.groups"))))
-		   return false;
+		if(!wi_is_equal(instance1, instance2)) {
+			*error = wi_string_with_format(WI_STR("Tried to change \"%@\" to %@"),
+				WI_STR("wired.account.group"), instance2);
+			
+			return false;
+		}
+		
+		instance1 = wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.groups"));
+		instance2 = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.groups"));
+		
+		enumerator = wi_array_data_enumerator(instance2);
+		
+		while((group = wi_enumerator_next_data(enumerator))) {
+			if(!wi_array_contains_data(instance1, group)) {
+				*error = wi_string_with_format(WI_STR("Tried to change \"%@\" to %@"),
+					WI_STR("wired.account.groups"), instance2);
+				
+				return false;
+			}
+		}
 	}
 	
 	return true;
