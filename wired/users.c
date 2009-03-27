@@ -137,7 +137,7 @@ static wi_timer_t						*wd_users_timer;
 static wd_uid_t							wd_users_current_id;
 static wi_lock_t						*wd_users_id_lock;
 
-wi_dictionary_t							*wd_users;
+wi_mutable_dictionary_t					*wd_users;
 
 static wi_runtime_id_t					wd_user_runtime_id = WI_RUNTIME_ID_NULL;
 static wi_runtime_class_t				wd_user_runtime_class = {
@@ -184,7 +184,7 @@ void wd_users_init(void) {
 	wd_user_runtime_id = wi_runtime_register_class(&wd_user_runtime_class);
 	wd_client_info_runtime_id = wi_runtime_register_class(&wd_client_info_runtime_class);
 
-	wd_users = wi_dictionary_init(wi_dictionary_alloc());
+	wd_users = wi_dictionary_init(wi_mutable_dictionary_alloc());
 	
 	wd_users_id_lock = wi_lock_init(wi_lock_alloc());
 		
@@ -237,7 +237,7 @@ static void wd_users_update_idle(wi_timer_t *timer) {
 
 void wd_users_add_user(wd_user_t *user) {
 	wi_dictionary_wrlock(wd_users);
-	wi_dictionary_set_data_for_key(wd_users, user, wi_number_with_int32(wd_user_id(user)));
+	wi_mutable_dictionary_set_data_for_key(wd_users, user, wi_number_with_int32(wd_user_id(user)));
 	wi_dictionary_unlock(wd_users);
 }
 
@@ -250,7 +250,7 @@ void wd_users_remove_user(wd_user_t *user) {
 	wd_user_unsubscribe_paths(user);
 	
 	wi_dictionary_wrlock(wd_users);
-	wi_dictionary_remove_data_for_key(wd_users, wi_number_with_int32(wd_user_id(user)));
+	wi_mutable_dictionary_remove_data_for_key(wd_users, wi_number_with_int32(wd_user_id(user)));
 	wi_dictionary_unlock(wd_users);
 }
 
@@ -271,7 +271,7 @@ void wd_users_remove_all_users(void) {
 		wd_user_unsubscribe_paths(user);
 	}
 
-	wi_dictionary_remove_all_data(wd_users);
+	wi_mutable_dictionary_remove_all_data(wd_users);
 	
 	wi_dictionary_unlock(wd_users);
 }

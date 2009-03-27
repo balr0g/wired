@@ -80,7 +80,7 @@ static void								wd_server_dealloc(wi_runtime_instance_t *);
 static wi_lock_t						*wd_servers_lock;
 static wi_timer_t						*wd_servers_timer;
 
-static wi_dictionary_t					*wd_servers;
+static wi_mutable_dictionary_t			*wd_servers;
 
 static wi_runtime_id_t					wd_server_runtime_id = WI_RUNTIME_ID_NULL;
 static wi_runtime_class_t				wd_server_runtime_class = {
@@ -97,7 +97,7 @@ static wi_runtime_class_t				wd_server_runtime_class = {
 void wd_servers_init(void) {
 	wd_server_runtime_id = wi_runtime_register_class(&wd_server_runtime_class);
 
-	wd_servers = wi_dictionary_init(wi_dictionary_alloc());
+	wd_servers = wi_dictionary_init(wi_mutable_dictionary_alloc());
 	
 	wd_servers_lock = wi_lock_init(wi_lock_alloc());
 
@@ -148,7 +148,7 @@ static void wd_servers_update_servers(wi_timer_t *timer) {
 				}
 
 				wd_servers_remove_stats_for_server(server);
-				wi_dictionary_remove_data_for_key(wd_servers, token);
+				wi_mutable_dictionary_remove_data_for_key(wd_servers, token);
 				
 				changed = true;
 			}
@@ -170,7 +170,7 @@ static void wd_servers_update_servers(wi_timer_t *timer) {
 
 static void wd_servers_add_server(wd_server_t *server) {
 	wi_dictionary_wrlock(wd_servers);
-	wi_dictionary_set_data_for_key(wd_servers, server, server->token);
+	wi_mutable_dictionary_set_data_for_key(wd_servers, server, server->token);
 	wi_dictionary_unlock(wd_servers);
 }
 
@@ -178,7 +178,7 @@ static void wd_servers_add_server(wd_server_t *server) {
 
 static void wd_servers_remove_server(wd_server_t *server) {
 	wi_dictionary_wrlock(wd_servers);
-	wi_dictionary_remove_data_for_key(wd_servers, server->token);
+	wi_mutable_dictionary_remove_data_for_key(wd_servers, server->token);
 	wi_dictionary_unlock(wd_servers);
 }
 

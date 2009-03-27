@@ -58,7 +58,7 @@ static void								wd_ban_expire_timer(wi_timer_t *);
 
 static wi_rwlock_t						*wd_banlist_lock;
 static wi_string_t						*wd_banlist_path;
-static wi_dictionary_t					*wd_bans;
+static wi_mutable_dictionary_t			*wd_bans;
 
 static wi_runtime_id_t					wd_ban_runtime_id = WI_RUNTIME_ID_NULL;
 static wi_runtime_class_t				wd_ban_runtime_class = {
@@ -78,7 +78,7 @@ void wd_banlist_init(void) {
 	wd_banlist_path = WI_STR("banlist");
 	wd_banlist_lock = wi_rwlock_init(wi_rwlock_alloc());
 
-	wd_bans = wi_dictionary_init(wi_dictionary_alloc());
+	wd_bans = wi_dictionary_init(wi_mutable_dictionary_alloc());
 }
 
 
@@ -173,7 +173,7 @@ void wd_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_t *
 			if(!wi_dictionary_contains_key(wd_bans, ip)) {
 				ban = wd_ban_init_with_ip(wd_ban_alloc(), ip, expiration_date);
 				wi_timer_schedule(ban->timer);
-				wi_dictionary_set_data_for_key(wd_bans, ban, ip);
+				wi_mutable_dictionary_set_data_for_key(wd_bans, ban, ip);
 				wi_release(ban);
 			} else {
 				wd_user_reply_error(user, WI_STR("wired.error.ban_exists"), message);
@@ -212,7 +212,7 @@ void wd_banlist_delete_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_
 		wi_dictionary_wrlock(wd_bans);
 		
 		if(wi_dictionary_contains_key(wd_bans, ip))
-			wi_dictionary_remove_data_for_key(wd_bans, ip);
+			wi_mutable_dictionary_remove_data_for_key(wd_bans, ip);
 		else
 			wd_user_reply_error(user, WI_STR("wired.error.ban_not_found"), message);
 		
@@ -338,6 +338,6 @@ static void wd_ban_expire_timer(wi_timer_t *timer) {
 	ban = wi_timer_data(timer);
 	
 	wi_dictionary_rdlock(wd_bans);
-	wi_dictionary_remove_data_for_key(wd_bans, ban->ip);
+	wi_mutable_dictionary_remove_data_for_key(wd_bans, ban->ip);
 	wi_dictionary_unlock(wd_bans);
 }

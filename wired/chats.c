@@ -76,7 +76,7 @@ static wi_dictionary_t *			wd_topic_dictionary(wd_topic_t *topic);
 
 wd_chat_t							*wd_public_chat;
 
-static wi_dictionary_t				*wd_chats;
+static wi_mutable_dictionary_t		*wd_chats;
 
 static wi_string_t					*wd_topic_path;
 
@@ -108,7 +108,7 @@ void wd_chats_init(void) {
 	wd_chat_runtime_id = wi_runtime_register_class(&wd_chat_runtime_class);
 	wd_topic_runtime_id = wi_runtime_register_class(&wd_topic_runtime_class);
 
-	wd_chats = wi_dictionary_init(wi_dictionary_alloc());
+	wd_chats = wi_dictionary_init(wi_mutable_dictionary_alloc());
 
 	wd_topic_path = WI_STR("topic");
 
@@ -127,7 +127,7 @@ void wd_chats_init(void) {
 
 void wd_chats_add_chat(wd_chat_t *chat) {
 	wi_dictionary_wrlock(wd_chats);
-	wi_dictionary_set_data_for_key(wd_chats, chat, wi_number_with_int32(chat->id));
+	wi_mutable_dictionary_set_data_for_key(wd_chats, chat, wi_number_with_int32(chat->id));
 	wi_dictionary_unlock(wd_chats);
 }
 
@@ -162,7 +162,7 @@ void wd_chats_remove_user(wd_user_t *user) {
 		wi_array_unlock(chat->users);
 
 		if(chat != wd_public_chat && wi_array_count(chat->users) == 0)
-			wi_dictionary_remove_data_for_key(wd_chats, key);
+			wi_mutable_dictionary_remove_data_for_key(wd_chats, key);
 	}
 	
 	wi_dictionary_unlock(wd_chats);
@@ -293,7 +293,7 @@ void wd_chat_remove_user(wd_chat_t *chat, wd_user_t *user) {
 
 	if(chat != wd_public_chat && wi_array_count(chat->users) == 0) {
 		wi_dictionary_wrlock(wd_chats);
-		wi_dictionary_remove_data_for_key(wd_chats, wi_number_with_int32(chat->id));
+		wi_mutable_dictionary_remove_data_for_key(wd_chats, wi_number_with_int32(chat->id));
 		wi_dictionary_unlock(wd_chats);
 	}
 }

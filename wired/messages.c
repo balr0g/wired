@@ -121,15 +121,15 @@ static void							wd_message_tracker_get_servers(wd_user_t *, wi_p7_message_t *)
 static void							wd_message_tracker_send_register(wd_user_t *, wi_p7_message_t *);
 
 
-static wi_dictionary_t				*wd_message_handlers;
+static wi_mutable_dictionary_t		*wd_message_handlers;
 
 
 
 #define WD_MESSAGE_HANDLER(message, handler) \
-	wi_dictionary_set_data_for_key(wd_message_handlers, (handler), (message))
+	wi_mutable_dictionary_set_data_for_key(wd_message_handlers, (handler), (message))
 	
 void wd_messages_init(void) {
-	wd_message_handlers = wi_dictionary_init_with_capacity_and_callbacks(wi_dictionary_alloc(),
+	wd_message_handlers = wi_dictionary_init_with_capacity_and_callbacks(wi_mutable_dictionary_alloc(),
 		0, wi_dictionary_default_key_callbacks, wi_dictionary_null_value_callbacks);
 	
 	WD_MESSAGE_HANDLER(WI_STR("wired.client_info"), wd_message_client_info);

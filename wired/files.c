@@ -124,8 +124,8 @@ static wi_timer_t										*wd_files_index_timer;
 static wi_rwlock_t										*wd_files_index_lock;
 static wi_lock_t										*wd_files_indexer_lock;
 static wi_uinteger_t									wd_files_index_level;
-static wi_dictionary_t									*wd_files_index_dictionary;
-static wi_dictionary_t									*wd_files_index_added_files;
+static wi_mutable_dictionary_t							*wd_files_index_dictionary;
+static wi_mutable_dictionary_t							*wd_files_index_added_files;
 static wi_mutable_set_t									*wd_files_index_deleted_files;
 
 static wi_runtime_id_t									wd_files_privileges_runtime_id = WI_RUNTIME_ID_NULL;
@@ -154,7 +154,7 @@ void wd_files_init(void) {
 																  wd_files_index_update,
 																  0.0,
 																  true);
-	wd_files_index_added_files		= wi_dictionary_init(wi_dictionary_alloc());
+	wd_files_index_added_files		= wi_dictionary_init(wi_mutable_dictionary_alloc());
 	wd_files_index_deleted_files	= wi_set_init(wi_mutable_set_alloc());
 	
 	wd_files_fsevents				= wi_fsevents_init(wi_fsevents_alloc());
@@ -883,7 +883,7 @@ static void wd_files_index_thread(wi_runtime_instance_t *argument) {
 		wd_files_size			= 0;
 		wd_files_index_level	= 0;
 		
-		wd_files_index_dictionary = wi_dictionary_init_with_capacity_and_callbacks(wi_dictionary_alloc(), 0,
+		wd_files_index_dictionary = wi_dictionary_init_with_capacity_and_callbacks(wi_mutable_dictionary_alloc(), 0,
 			wi_dictionary_null_key_callbacks, wi_dictionary_default_value_callbacks);
 		
 		path = wi_string_with_format(WI_STR("%@~"), wd_files_index_path);
@@ -1006,7 +1006,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 			
 			if(!set) {
 				set = wi_set_init_with_capacity(wi_mutable_set_alloc(), 1000, false);
-				wi_dictionary_set_data_for_key(wd_files_index_dictionary, set, (void *) (intptr_t) lsb.dev);
+				wi_mutable_dictionary_set_data_for_key(wd_files_index_dictionary, set, (void *) (intptr_t) lsb.dev);
 				wi_release(set);
 			}
 			
@@ -1395,12 +1395,12 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 	instance = wi_plist_read_instance_from_file(commentspath);
 	
 	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
-		instance = wi_dictionary();
+		instance = wi_mutable_dictionary();
 	
 	if(comment && wi_string_length(comment))
-		wi_dictionary_set_data_for_key(instance, comment, name);
+		wi_mutable_dictionary_set_data_for_key(instance, comment, name);
 	else
-		wi_dictionary_remove_data_for_key(instance, name);
+		wi_mutable_dictionary_remove_data_for_key(instance, name);
 	
 	if(wi_dictionary_count(instance) > 0) {
 		if(!wi_plist_write_instance_to_file(instance, commentspath)) {
@@ -1495,12 +1495,12 @@ void wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_user_t *use
 	instance = wi_plist_read_instance_from_file(labelspath);
 	
 	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
-		instance = wi_dictionary();
+		instance = wi_mutable_dictionary();
 	
 	if(label != WD_FILE_LABEL_NONE)
-		wi_dictionary_set_data_for_key(instance, WI_INT32(label), name);
+		wi_mutable_dictionary_set_data_for_key(instance, WI_INT32(label), name);
 	else
-		wi_dictionary_remove_data_for_key(instance, name);
+		wi_mutable_dictionary_remove_data_for_key(instance, name);
 	
 	if(wi_dictionary_count(instance) > 0) {
 		if(!wi_plist_write_instance_to_file(instance, labelspath)) {

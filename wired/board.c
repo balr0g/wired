@@ -470,21 +470,20 @@ static void wd_board_send_thread_added(wi_string_t *board, wi_uuid_t *thread, wd
 #pragma mark -
 
 static wi_dictionary_t * wd_board_dictionary_with_post(wd_user_t *user, wi_string_t *subject, wi_string_t *text) {
-	wi_dictionary_t		*dictionary;
-	wi_data_t			*icon;
+	wi_mutable_dictionary_t		*dictionary;
+	wi_data_t					*icon;
 	
-	dictionary = wi_dictionary_with_data_and_keys(
-		wd_user_nick(user),		WI_STR("wired.user.nick"),
-		wd_user_login(user),	WI_STR("wired.user.login"),
-		wi_date(),				WI_STR("wired.board.post_date"),
-		subject,				WI_STR("wired.board.subject"),
-		text,					WI_STR("wired.board.text"),
-		NULL);
+	dictionary = wi_mutable_dictionary();
+	wi_mutable_dictionary_set_data_for_key(dictionary, wd_user_nick(user), WI_STR("wired.user.nick"));
+	wi_mutable_dictionary_set_data_for_key(dictionary, wd_user_login(user), WI_STR("wired.user.login"));
+	wi_mutable_dictionary_set_data_for_key(dictionary, wi_date(), WI_STR("wired.board.post_date"));
+	wi_mutable_dictionary_set_data_for_key(dictionary, subject, WI_STR("wired.board.subject"));
+	wi_mutable_dictionary_set_data_for_key(dictionary, text, WI_STR("wired.board.text"));
 	
 	icon = wd_user_icon(user);
 	
 	if(icon)
-		wi_dictionary_set_data_for_key(dictionary, icon, WI_STR("wired.user.icon"));
+		wi_mutable_dictionary_set_data_for_key(dictionary, icon, WI_STR("wired.user.icon"));
 	
 	return dictionary;
 }
@@ -983,9 +982,9 @@ void wd_board_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, 
 				if(edit) {
 					edit_date = wi_date();
 					
-					wi_dictionary_set_data_for_key(instance, edit_date, WI_STR("wired.board.edit_date"));
-					wi_dictionary_set_data_for_key(instance, subject, WI_STR("wired.board.subject"));
-					wi_dictionary_set_data_for_key(instance, text, WI_STR("wired.board.text"));
+					wi_mutable_dictionary_set_data_for_key(instance, edit_date, WI_STR("wired.board.edit_date"));
+					wi_mutable_dictionary_set_data_for_key(instance, subject, WI_STR("wired.board.subject"));
+					wi_mutable_dictionary_set_data_for_key(instance, text, WI_STR("wired.board.text"));
 					
 					if(wi_plist_write_instance_to_file(instance, path)) {
 						broadcast = wi_p7_message_with_name(WI_STR("wired.board.post_edited"), wd_p7_spec);
