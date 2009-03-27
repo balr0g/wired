@@ -399,18 +399,18 @@ wd_transfer_t * wd_transfers_transfer_with_path(wd_user_t *user, wi_string_t *pa
 #pragma mark -
 
 static void wd_transfers_update_queue(void) {
-	wi_p7_message_t		*message;
-	wi_set_t			*users;
-	wi_dictionary_t		*user_queues;
-	wi_array_t			*sorted_users, *user_queue, *user_transfers;
-	wi_string_t			*key;
-	wd_transfer_t		*transfer;
-	wd_user_t			*user;
-	wd_account_t		*account;
-	wi_uinteger_t		position;
-	wi_uinteger_t		i, count;
-	wi_uinteger_t		total_downloads, total_uploads, user_downloads, user_uploads;
-	wi_boolean_t		queue;
+	wi_p7_message_t			*message;
+	wi_mutable_set_t		*users;
+	wi_dictionary_t			*user_queues;
+	wi_array_t				*sorted_users, *user_queue, *user_transfers;
+	wi_string_t				*key;
+	wd_transfer_t			*transfer;
+	wd_user_t				*user;
+	wd_account_t			*account;
+	wi_uinteger_t			position;
+	wi_uinteger_t			i, count;
+	wi_uinteger_t			total_downloads, total_uploads, user_downloads, user_uploads;
+	wi_boolean_t			queue;
 	
 	wi_array_rdlock(wd_transfers);
 	wi_lock_lock(wd_transfers_status_lock);
@@ -418,7 +418,7 @@ static void wd_transfers_update_queue(void) {
 	
 	total_downloads	= wi_config_integer_for_name(wd_config, WI_STR("total downloads"));
 	total_uploads	= wi_config_integer_for_name(wd_config, WI_STR("total uploads"));
-	users			= wi_set_init(wi_set_alloc());
+	users			= wi_set_init(wi_mutable_set_alloc());
 	user_queues		= wi_dictionary_init(wi_dictionary_alloc());
 	count			= wi_array_count(wd_transfers);
 	
@@ -434,7 +434,7 @@ static void wd_transfers_update_queue(void) {
 			}
 			
 			wi_array_add_data(user_queue, transfer);
-			wi_set_add_data(users, transfer->user);
+			wi_mutable_set_add_data(users, transfer->user);
 		}
 	}
 	

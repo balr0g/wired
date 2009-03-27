@@ -116,7 +116,7 @@ struct _wd_user {
 	wi_boolean_t						subscribed_log;
 	wi_p7_uint32_t						log_transaction;
 	
-	wi_set_t							*subscribed_paths;
+	wi_mutable_set_t					*subscribed_paths;
 	
 	wd_transfer_t						*transfer;
 };
@@ -389,7 +389,7 @@ static wd_user_t * wd_user_init_with_socket(wd_user_t *user, wi_socket_t *socket
 	user->socket_lock		= wi_lock_init(wi_lock_alloc());
 	user->state_lock		= wi_condition_lock_init(wi_condition_lock_alloc());
 	
-	user->subscribed_paths	= wi_set_init_with_capacity(wi_set_alloc(), 0, true);
+	user->subscribed_paths	= wi_set_init_with_capacity(wi_mutable_set_alloc(), 0, true);
 	
 	return user;
 }
@@ -748,12 +748,12 @@ void wd_user_subscribe_path(wd_user_t *user, wi_string_t *path) {
 	if(wd_files_fsevents) {
 		wi_recursive_lock_lock(user->user_lock);
 
-		wi_set_add_data(user->subscribed_paths, path);
+		wi_mutable_set_add_data(user->subscribed_paths, path);
 		wi_fsevents_add_path(wd_files_fsevents, path);
 		
 		metapath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PATH));
 		
-		wi_set_add_data(user->subscribed_paths, metapath);
+		wi_mutable_set_add_data(user->subscribed_paths, metapath);
 		wi_fsevents_add_path(wd_files_fsevents, metapath);
 
 		wi_recursive_lock_unlock(user->user_lock);
@@ -768,12 +768,12 @@ void wd_user_unsubscribe_path(wd_user_t *user, wi_string_t *path) {
 	if(wd_files_fsevents) {
 		wi_recursive_lock_lock(user->user_lock);
 		
-		wi_set_remove_data(user->subscribed_paths, path);
+		wi_mutable_set_remove_data(user->subscribed_paths, path);
 		wi_fsevents_remove_path(wd_files_fsevents, path);
 		
 		metapath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PATH));
 		
-		wi_set_add_data(user->subscribed_paths, metapath);
+		wi_mutable_set_add_data(user->subscribed_paths, metapath);
 		wi_fsevents_add_path(wd_files_fsevents, metapath);
 
 		wi_recursive_lock_unlock(user->user_lock);
@@ -796,7 +796,7 @@ void wd_user_unsubscribe_paths(wd_user_t *user) {
 
 			while(wi_set_contains_data(user->subscribed_paths, path)) {
 				wi_fsevents_remove_path(wd_files_fsevents, path);
-				wi_set_remove_data(user->subscribed_paths, path);
+				wi_mutable_set_remove_data(user->subscribed_paths, path);
 			}
 			
 			wi_release(path);

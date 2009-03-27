@@ -126,7 +126,7 @@ static wi_lock_t										*wd_files_indexer_lock;
 static wi_uinteger_t									wd_files_index_level;
 static wi_dictionary_t									*wd_files_index_dictionary;
 static wi_dictionary_t									*wd_files_index_added_files;
-static wi_set_t											*wd_files_index_deleted_files;
+static wi_mutable_set_t									*wd_files_index_deleted_files;
 
 static wi_runtime_id_t									wd_files_privileges_runtime_id = WI_RUNTIME_ID_NULL;
 static wi_runtime_class_t								wd_files_privileges_runtime_class = {
@@ -155,7 +155,7 @@ void wd_files_init(void) {
 																  0.0,
 																  true);
 	wd_files_index_added_files		= wi_dictionary_init(wi_dictionary_alloc());
-	wd_files_index_deleted_files	= wi_set_init(wi_set_alloc());
+	wd_files_index_deleted_files	= wi_set_init(wi_mutable_set_alloc());
 	
 	wd_files_fsevents				= wi_fsevents_init(wi_fsevents_alloc());
 	
@@ -924,7 +924,7 @@ static void wd_files_index_thread(wi_runtime_instance_t *argument) {
 			}
 			
 			wi_set_wrlock(wd_files_index_deleted_files);
-			wi_set_remove_all_data(wd_files_index_deleted_files);
+			wi_mutable_set_remove_all_data(wd_files_index_deleted_files);
 			wi_set_unlock(wd_files_index_deleted_files);
 			
 			wi_rwlock_unlock(wd_files_index_lock);
@@ -947,7 +947,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 	wi_pool_t					*pool;
 	wi_fsenumerator_t			*fsenumerator;
 	wi_string_t					*filepath, *virtualpath, *resolvedpath, *newpathprefix;
-	wi_set_t					*set;
+	wi_mutable_set_t			*set;
 	wi_number_t					*number;
 	wi_file_offset_t			size;
 	wi_fs_stat_t				sb, lsb;
@@ -1005,7 +1005,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 			set = wi_dictionary_data_for_key(wd_files_index_dictionary, (void *) (intptr_t) lsb.dev);
 			
 			if(!set) {
-				set = wi_set_init_with_capacity(wi_set_alloc(), 1000, false);
+				set = wi_set_init_with_capacity(wi_mutable_set_alloc(), 1000, false);
 				wi_dictionary_set_data_for_key(wd_files_index_dictionary, set, (void *) (intptr_t) lsb.dev);
 				wi_release(set);
 			}
@@ -1013,7 +1013,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 			number = wi_number_init_with_value(wi_number_alloc(), WI_NUMBER_INT64, &lsb.ino);
 			
 			if(!wi_set_contains_data(set, number)) {
-				wi_set_add_data(set, number);
+				wi_mutable_set_add_data(set, number);
 				
 				recurse = (alias && S_ISDIR(sb.mode));
 				
@@ -1176,7 +1176,7 @@ void wd_files_index_add_file(wi_string_t *path) {
 
 void wd_files_index_delete_file(wi_string_t *path) {
 	wi_set_wrlock(wd_files_index_deleted_files);
-	wi_set_add_data(wd_files_index_deleted_files, path);
+	wi_mutable_set_add_data(wd_files_index_deleted_files, path);
 	wi_set_unlock(wd_files_index_deleted_files);
 }
 
