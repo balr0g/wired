@@ -100,7 +100,7 @@ static wi_runtime_class_t				wd_tracker_runtime_class = {
 void wd_trackers_init(void) {
 	wd_tracker_runtime_id = wi_runtime_register_class(&wd_tracker_runtime_class);
 
-	wd_trackers = wi_array_init(wi_array_alloc());
+	wd_trackers = wi_array_init(wi_mutable_array_alloc());
 
 	wd_trackers_register_timer =
 		wi_timer_init_with_function(wi_timer_alloc(),
@@ -126,7 +126,7 @@ void wd_trackers_apply_settings(wi_set_t *changes) {
 	
 	if(wi_set_contains_data(changes, WI_STR("tracker"))) {
 		wi_array_wrlock(wd_trackers);
-		wi_array_remove_all_data(wd_trackers);
+		wi_mutable_array_remove_all_data(wd_trackers);
 		
 		trackers = wi_config_stringlist_for_name(wd_config, WI_STR("tracker"));
 		
@@ -148,7 +148,7 @@ void wd_trackers_apply_settings(wi_set_t *changes) {
 				if(!tracker)
 					continue;
 				
-				wi_array_add_data(wd_trackers, tracker);
+				wi_mutable_array_add_data(wd_trackers, tracker);
 			}
 		}
 		

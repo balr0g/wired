@@ -87,12 +87,12 @@ wi_file_offset_t				wd_tracker_current_size;
 
 
 int main(int argc, const char **argv) {
-	wi_array_t			*arguments;
-	wi_pool_t			*pool;
-	wi_string_t			*string, *root_path, *user, *group;
-	uint32_t			uid, gid;
-	int					ch, facility;
-	wi_boolean_t		test_config, daemonize, change_directory, switch_user;
+	wi_mutable_array_t		*arguments;
+	wi_pool_t				*pool;
+	wi_string_t				*string, *root_path, *user, *group;
+	uint32_t				uid, gid;
+	int						ch, facility;
+	wi_boolean_t			test_config, daemonize, change_directory, switch_user;
 
 	wi_initialize();
 	wi_load(argc, argv);
@@ -113,7 +113,7 @@ int main(int argc, const char **argv) {
 	switch_user				= true;
 	wi_settings_config_path	= wi_string_init_with_cstring(wi_string_alloc(), WD_CONFIG_PATH);
 	wd_config_path			= wi_string_init_with_cstring(wi_string_alloc(), WD_CONFIG_PATH);
-	arguments				= wi_array_init(wi_array_alloc());
+	arguments				= wi_array_init(wi_mutable_array_alloc());
 	root_path				= WI_STR(WD_ROOT);
 
 	while((ch = getopt(argc, (char * const *) argv, "46Dd:f:hi:L:ls:tuVvXx")) != -1) {
@@ -198,14 +198,14 @@ int main(int argc, const char **argv) {
 				break;
 		}
 		
-		wi_array_add_data(arguments, wi_string_with_format(WI_STR("-%c"), ch));
+		wi_mutable_array_add_data(arguments, wi_string_with_format(WI_STR("-%c"), ch));
 		
 		if(optarg)
-			wi_array_add_data(arguments, wi_string_with_cstring(optarg));
+			wi_mutable_array_add_data(arguments, wi_string_with_cstring(optarg));
 	}
 
 	if(daemonize) {
-		wi_array_add_data(arguments, WI_STR("-X"));
+		wi_mutable_array_add_data(arguments, WI_STR("-X"));
 		
 		switch(wi_fork()) {
 			case -1:

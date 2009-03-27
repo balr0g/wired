@@ -110,10 +110,10 @@ static CFRunLoopSourceRef			wd_dnssd_portmap_source;
 
 static wi_timer_t					*wd_ping_timer;
 static wi_p7_message_t				*wd_ping_message;
-static wi_array_t					*wd_tcp_sockets, *wd_udp_sockets;
+static wi_mutable_array_t			*wd_tcp_sockets, *wd_udp_sockets;
 static wi_rsa_t						*wd_rsa;
 static wi_x509_t					*wd_certificate;
-static wi_array_t					*wd_log_entries;
+static wi_mutable_array_t			*wd_log_entries;
 
 wi_uinteger_t						wd_port;
 wi_data_t							*wd_banner;
@@ -155,7 +155,7 @@ void wd_server_init(void) {
 	
 	wi_log_callback = wd_server_log_callback;
 	
-	wd_log_entries = wi_array_init_with_capacity(wi_array_alloc(), WD_SERVER_MAX_LOG_ENTRIES);
+	wd_log_entries = wi_array_init_with_capacity(wi_mutable_array_alloc(), WD_SERVER_MAX_LOG_ENTRIES);
 	
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	wd_cf_lock = wi_condition_lock_init_with_condition(wi_condition_lock_alloc(), 0);
@@ -172,15 +172,16 @@ void wd_server_schedule(void) {
 
 void wd_server_listen(void) {
 	wi_enumerator_t			*enumerator;
-	wi_array_t				*array, *addresses, *config_addresses;
+	wi_mutable_array_t		*addresses;
+	wi_array_t				*array, *config_addresses;
 	wi_address_t			*address;
 	wi_socket_t				*tcp_socket, *udp_socket;
 	wi_string_t				*ip, *string;
 	wi_address_family_t		family;
 	
-	wd_tcp_sockets		= wi_array_init(wi_array_alloc());
-	wd_udp_sockets		= wi_array_init(wi_array_alloc());
-	addresses			= wi_array();
+	wd_tcp_sockets		= wi_array_init(wi_mutable_array_alloc());
+	wd_udp_sockets		= wi_array_init(wi_mutable_array_alloc());
+	addresses			= wi_mutable_array();
 	config_addresses	= wi_config_stringlist_for_name(wd_config, WI_STR("address"));
 	
 	if(wi_array_count(config_addresses) > 0) {
@@ -192,15 +193,15 @@ void wd_server_listen(void) {
 			array = wi_host_addresses(wi_host_with_string(string));
 
 			if(array)
-				wi_array_add_data_from_array(addresses, array);
+				wi_mutable_array_add_data_from_array(addresses, array);
 			else
 				wi_log_err(WI_STR("Could not resolve \"%@\": %m"), string);
 		}
 		
 		wi_array_unlock(config_addresses);
 	} else {
-		wi_array_add_data(addresses, wi_address_wildcard_for_family(WI_ADDRESS_IPV4));
-		wi_array_add_data(addresses, wi_address_wildcard_for_family(WI_ADDRESS_IPV6));
+		wi_mutable_array_add_data(addresses, wi_address_wildcard_for_family(WI_ADDRESS_IPV4));
+		wi_mutable_array_add_data(addresses, wi_address_wildcard_for_family(WI_ADDRESS_IPV6));
 	}
 	
 	wd_port = wi_config_port_for_name(wd_config, WI_STR("port"));
@@ -240,8 +241,8 @@ void wd_server_listen(void) {
 		
 		wi_socket_set_interactive(tcp_socket, true);
 
-		wi_array_add_data(wd_tcp_sockets, tcp_socket);
-		wi_array_add_data(wd_udp_sockets, udp_socket);
+		wi_mutable_array_add_data(wd_tcp_sockets, tcp_socket);
+		wi_mutable_array_add_data(wd_udp_sockets, udp_socket);
 
 		wi_log_info(WI_STR("Listening on %@ port %u"),
 			ip, wi_socket_port(tcp_socket));
@@ -806,9 +807,9 @@ static void wd_server_log_callback(wi_log_level_t level, wi_string_t *string) {
 	count = wi_array_count(wd_log_entries);
 	
 	if(count > WD_SERVER_MAX_LOG_ENTRIES + 100)
-		wi_array_remove_data_in_range(wd_log_entries, wi_make_range(0, 100));
+		wi_mutable_array_remove_data_in_range(wd_log_entries, wi_make_range(0, 100));
 	
-	wi_array_add_data(wd_log_entries, entry);
+	wi_mutable_array_add_data(wd_log_entries, entry);
 	wi_array_unlock(wd_log_entries);
 	
 	if(wd_users && wi_dictionary_tryrdlock(wd_users)) {

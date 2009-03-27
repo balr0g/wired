@@ -38,7 +38,6 @@
 #include "settings.h"
 #include "users.h"
 
-
 #define WD_SERVERS_UPDATE_INTERVAL		60.0
 #define WD_SERVERS_MIN_UPDATE_INTERVAL	300.0
 

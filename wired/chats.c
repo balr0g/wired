@@ -42,7 +42,7 @@ struct _wd_chat {
 	
 	wd_cid_t						id;
 	wd_topic_t						*topic;
-	wi_array_t						*users;
+	wi_mutable_array_t				*users;
 	
 	wi_recursive_lock_t				*lock;
 };
@@ -158,7 +158,7 @@ void wd_chats_remove_user(wd_user_t *user) {
 		chat = wi_dictionary_data_for_key(wd_chats, key);
 		
 		wi_array_wrlock(chat->users);
-		wi_array_remove_data(chat->users, user);
+		wi_mutable_array_remove_data(chat->users, user);
 		wi_array_unlock(chat->users);
 
 		if(chat != wd_public_chat && wi_array_count(chat->users) == 0)
@@ -187,8 +187,8 @@ static wd_chat_t * wd_chat_alloc(void) {
 
 
 static wd_chat_t * wd_chat_init(wd_chat_t *chat) {
-	chat->users = wi_array_init(wi_array_alloc());
-	chat->lock = wi_recursive_lock_init(wi_recursive_lock_alloc());
+	chat->users		= wi_array_init(wi_mutable_array_alloc());
+	chat->lock		= wi_recursive_lock_init(wi_recursive_lock_alloc());
 	
 	return chat;
 }
@@ -280,7 +280,7 @@ void wd_chat_add_user_and_broadcast(wd_chat_t *chat, wd_user_t *user) {
 	wd_chat_broadcast_message(chat, message);
 	
 	wi_array_wrlock(chat->users);
-	wi_array_add_data(chat->users, user);
+	wi_mutable_array_add_data(chat->users, user);
 	wi_array_unlock(chat->users);
 }
 
@@ -288,7 +288,7 @@ void wd_chat_add_user_and_broadcast(wd_chat_t *chat, wd_user_t *user) {
 
 void wd_chat_remove_user(wd_chat_t *chat, wd_user_t *user) {
 	wi_array_wrlock(chat->users);
-	wi_array_remove_data(chat->users, user);
+	wi_mutable_array_remove_data(chat->users, user);
 	wi_array_unlock(chat->users);
 
 	if(chat != wd_public_chat && wi_array_count(chat->users) == 0) {

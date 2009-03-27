@@ -75,7 +75,7 @@ static void								wd_transfer_download(wd_transfer_t *);
 static void								wd_transfer_upload(wd_transfer_t *);
 
 
-wi_array_t								*wd_transfers;
+wi_mutable_array_t						*wd_transfers;
 
 static wi_timer_t						*wd_transfers_timer;
 
@@ -102,7 +102,7 @@ static wi_runtime_class_t				wd_transfer_runtime_class = {
 void wd_transfers_init(void) {
 	wd_transfer_runtime_id = wi_runtime_register_class(&wd_transfer_runtime_class);
 
-	wd_transfers = wi_array_init(wi_array_alloc());
+	wd_transfers = wi_array_init(wi_mutable_array_alloc());
 
 	wd_transfers_timer = wi_timer_init_with_function(wi_timer_alloc(),
 													 wd_transfers_update_waiting,
@@ -153,7 +153,7 @@ static void wd_transfers_update_waiting(wi_timer_t *timer) {
 			   transfer->waiting_time + WD_TRANSFERS_WAITING_INTERVAL < interval) {
 				wd_transfers_add_or_remove_transfer(transfer, false);
 				
-				wi_array_remove_data_at_index(wd_transfers, i);
+				wi_mutable_array_remove_data_at_index(wd_transfers, i);
 				
 				count--;
 				i--;
@@ -190,7 +190,7 @@ static wi_string_t * wd_transfers_transfer_key_for_user(wd_user_t *user) {
 
 static void wd_transfers_add_or_remove_transfer(wd_transfer_t *transfer, wi_boolean_t add) {
 	wi_mutable_dictionary_t		*dictionary;
-	wi_array_t					*array;
+	wi_mutable_array_t			*array;
 	
 	wi_lock_lock(wd_transfers_status_lock);
 	
@@ -205,15 +205,16 @@ static void wd_transfers_add_or_remove_transfer(wd_transfer_t *transfer, wi_bool
 	array = wi_dictionary_data_for_key(dictionary, transfer->key);
 	
 	if(!array && add) {
-		array = wi_array();
+		array = wi_mutable_array();
+		
 		wi_mutable_dictionary_set_data_for_key(dictionary, array, transfer->key);
 	}
 	
 	if(array) {
 		if(add) {
-			wi_array_add_data(array, transfer);
+			wi_mutable_array_add_data(array, transfer);
 		} else {
-			wi_array_remove_data(array, transfer);
+			wi_mutable_array_remove_data(array, transfer);
 		
 			if(wi_array_count(array) == 0)
 				wi_mutable_dictionary_remove_data_for_key(dictionary, transfer->key);
@@ -261,7 +262,7 @@ void wd_transfers_queue_download(wi_string_t *path, wi_file_offset_t offset, wd_
 	wd_user_set_transfer(user, transfer);
 	
 	wi_array_wrlock(wd_transfers);
-	wi_array_add_data(wd_transfers, transfer);
+	wi_mutable_array_add_data(wd_transfers, transfer);
 	wi_array_unlock(wd_transfers);
 	
 	wd_transfers_update_queue();
@@ -312,7 +313,7 @@ void wd_transfers_queue_upload(wi_string_t *path, wi_file_offset_t size, wi_bool
 	wd_user_set_transfer(user, transfer);
 	
 	wi_array_wrlock(wd_transfers);
-	wi_array_add_data(wd_transfers, transfer);
+	wi_mutable_array_add_data(wd_transfers, transfer);
 	wi_array_unlock(wd_transfers);
 	
 	wd_transfers_update_queue();
@@ -355,7 +356,7 @@ void wd_transfers_remove_user(wd_user_t *user) {
 				wi_array_wrlock(wd_transfers);
 			}
 			else if(state == WD_TRANSFER_QUEUED || state == WD_TRANSFER_WAITING) {
-				wi_array_remove_data(wd_transfers, transfer);
+				wi_mutable_array_remove_data(wd_transfers, transfer);
 				wd_user_set_state(transfer->user, WD_USER_DISCONNECTED);
 
 				update = true;
@@ -402,7 +403,7 @@ static void wd_transfers_update_queue(void) {
 	wi_p7_message_t				*message;
 	wi_mutable_set_t			*users;
 	wi_mutable_dictionary_t		*user_queues;
-	wi_array_t					*sorted_users, *user_queue, *user_transfers;
+	wi_mutable_array_t			*user_queue, *sorted_users, *user_transfers;
 	wi_string_t					*key;
 	wd_transfer_t				*transfer;
 	wd_user_t					*user;
@@ -429,11 +430,12 @@ static void wd_transfers_update_queue(void) {
 			user_queue = wi_dictionary_data_for_key(user_queues, transfer->key);
 			
 			if(!user_queue) {
-				user_queue = wi_array();
+				user_queue = wi_mutable_array();
+				
 				wi_mutable_dictionary_set_data_for_key(user_queues, user_queue, transfer->key);
 			}
 			
-			wi_array_add_data(user_queue, transfer);
+			wi_mutable_array_add_data(user_queue, transfer);
 			wi_mutable_set_add_data(users, transfer->user);
 		}
 	}
@@ -441,8 +443,9 @@ static void wd_transfers_update_queue(void) {
 	count = wi_set_count(users);
 	
 	if(count > 0) {
-		sorted_users = wi_set_all_data(users);
-		wi_array_sort(sorted_users, wd_transfers_compare_user);
+		sorted_users = wi_autorelease(wi_mutable_copy(wi_set_all_data(users)));
+		
+		wi_mutable_array_sort(sorted_users, wd_transfers_compare_user);
 		
 		position = 1;
 		
@@ -507,13 +510,13 @@ static void wd_transfers_update_queue(void) {
 						}
 					}
 					
-					wi_array_remove_data_at_index(user_queue, 0);
+					wi_mutable_array_remove_data_at_index(user_queue, 0);
 				} else {
 					user_queue = NULL;
 				}
 				
 				if(!user_queue || wi_array_count(user_queue) == 0) {
-					wi_array_remove_data_at_index(sorted_users, i);
+					wi_mutable_array_remove_data_at_index(sorted_users, i);
 				
 					count--;
 					i--;
@@ -710,7 +713,7 @@ static void wd_transfer_thread(wi_runtime_instance_t *argument) {
 		wd_user_set_state(transfer->user, WD_USER_DISCONNECTED);
 
 	wi_array_wrlock(wd_transfers);
-	wi_array_remove_data(wd_transfers, transfer);
+	wi_mutable_array_remove_data(wd_transfers, transfer);
 	wi_array_unlock(wd_transfers);
 
 	wd_transfers_update_queue();
