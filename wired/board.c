@@ -38,6 +38,9 @@
 #define WD_BOARD_META_PATH						".wired"
 #define WD_BOARD_META_PERMISSIONS_PATH			".wired/permissions"
 
+#define WD_BOARD_POST_EXTENSION					"WiredPost"
+#define WD_BOARD_THREAD_EXTENSION				"WiredThread"
+
 #define WD_BOARD_PERMISSIONS_FIELD_SEPARATOR	"\34"
 
 #define WD_BOARD_NEWS_FIELD_SEPARATOR			"\34"
@@ -136,7 +139,7 @@ void wd_board_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 			
 			extension = wi_string_path_extension(path);
 			
-			if(wi_is_equal(extension, WI_STR("WiredPost")) || wi_is_equal(extension, WI_STR("WiredThread"))) {
+			if(wi_is_equal(extension, WI_STR(WD_BOARD_POST_EXTENSION)) || wi_is_equal(extension, WI_STR(WD_BOARD_THREAD_EXTENSION))) {
 				wi_fsenumerator_skip_descendents(fsenumerator);
 				
 				continue;
@@ -197,7 +200,7 @@ void wd_board_reply_posts(wd_user_t *user, wi_p7_message_t *message) {
 				continue;
 			}
 			
-			if(!wi_is_equal(wi_string_path_extension(path), WI_STR("WiredPost")))
+			if(!wi_is_equal(wi_string_path_extension(path), WI_STR(WD_BOARD_POST_EXTENSION)))
 				continue;
 			
 			instance = wi_plist_read_instance_from_file(path);
@@ -451,7 +454,7 @@ static void wd_board_send_thread_added(wi_string_t *board, wi_uuid_t *thread, wd
 			continue;
 		}
 		
-		if(!wi_is_equal(wi_string_path_extension(path), WI_STR("WiredPost")))
+		if(!wi_is_equal(wi_string_path_extension(path), WI_STR(WD_BOARD_POST_EXTENSION)))
 			continue;
 		
 		instance = wi_plist_read_instance_from_file(path);
@@ -530,12 +533,9 @@ static wi_string_t * wd_board_board_path(wi_string_t *board) {
 static wi_string_t * wd_board_thread_path(wi_string_t *board, wi_uuid_t *thread) {
 	wi_string_t		*path;
 	
-	path = wd_board_board_path(board);
+	path = wi_string_by_appending_path_component(wd_board_board_path(board), wi_uuid_string(thread));
 	
-	wi_string_append_path_component(path, wi_uuid_string(thread));
-	wi_string_append_path_extension(path, WI_STR("WiredThread"));
-	
-	return path;
+	return wi_string_by_appending_path_extension(path, WI_STR(WD_BOARD_THREAD_EXTENSION));
 }
 
 
@@ -543,14 +543,9 @@ static wi_string_t * wd_board_thread_path(wi_string_t *board, wi_uuid_t *thread)
 static wi_string_t * wd_board_post_path(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post) {
 	wi_string_t		*path;
 	
-	path = wd_board_board_path(board);
-	
-	wi_string_append_path_component(path, wi_uuid_string(thread));
-	wi_string_append_path_extension(path, WI_STR("WiredThread"));
-	wi_string_append_path_component(path, wi_uuid_string(post));
-	wi_string_append_path_extension(path, WI_STR("WiredPost"));
-	
-	return path;
+	path = wi_string_by_appending_path_component(wd_board_thread_path(board, thread), wi_uuid_string(post));
+
+	return wi_string_by_appending_path_extension(path, WI_STR(WD_BOARD_POST_EXTENSION));
 }
 
 
@@ -573,9 +568,7 @@ static wi_boolean_t wd_board_set_privileges(wi_string_t *board, wd_board_privile
 		}
 	}
 	
-	string = wd_board_privileges_string(privileges);
-	
-	wi_string_append_string(string, WI_STR("\n"));
+	string = wi_string_by_appending_string(wd_board_privileges_string(privileges), WI_STR("\n"));
 	
 	if(!wi_string_write_to_file(string, permissionspath)) {
 		wi_log_warn(WI_STR("Could not write to %@: %m"), permissionspath);

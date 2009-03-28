@@ -256,7 +256,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		virtualpath = wi_string_substring_from_index(filepath, pathlength);
 		
 		if(!root)
-			wi_string_insert_string_at_index(virtualpath, path, 0);
+			virtualpath = wi_string_by_inserting_string_at_index(virtualpath, path, 0);
 		
 		alias = wi_fs_path_is_alias(filepath);
 		
@@ -392,7 +392,7 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	alias		= wi_fs_path_is_alias(realpath);
 	
 	if(alias)
-		wi_string_resolve_aliases_in_path(realpath);
+		realpath = wi_string_by_resolving_aliases_in_path(realpath);
 
 	if(!wi_fs_lstat_path(realpath, &lsb)) {
 		wi_log_warn(WI_STR("Could not read info for %@: %m"), realpath);
@@ -489,15 +489,16 @@ wi_boolean_t wd_files_create_path(wi_string_t *path, wd_file_type_t type, wd_use
 
 
 wi_boolean_t wd_files_delete_path(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*realpath, *component;
-	wi_boolean_t	result;
+	wi_mutable_string_t		*realpath;
+	wi_string_t				*component;
+	wi_boolean_t			result;
 	
-	realpath	= wd_files_real_path(path, user);
+	realpath	= wi_autorelease(wi_mutable_copy(wd_files_real_path(path, user)));
 	component	= wi_string_last_path_component(realpath);
 
-	wi_string_delete_last_path_component(realpath);
-	wi_string_resolve_aliases_in_path(realpath);
-	wi_string_append_path_component(realpath, component);
+	wi_mutable_string_delete_last_path_component(realpath);
+	wi_mutable_string_resolve_aliases_in_path(realpath);
+	wi_mutable_string_append_path_component(realpath, component);
 	
 	result = wi_fs_delete_path_with_callback(realpath, wd_files_delete_path_callback);
 	
@@ -520,22 +521,22 @@ static void wd_files_delete_path_callback(wi_string_t *path) {
 
 
 wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_user_t *user, wi_p7_message_t *message) {
-	wi_array_t			*array;
-	wi_string_t			*realfrompath, *realtopath;
-	wi_string_t			*realfromname, *realtoname;
-	wi_string_t			*path;
-	wi_fs_stat_t		sb;
-	wi_boolean_t		result = false;
+	wi_array_t				*array;
+	wi_mutable_string_t		*realfrompath, *realtopath;
+	wi_string_t				*realfromname, *realtoname;
+	wi_string_t				*path;
+	wi_fs_stat_t			sb;
+	wi_boolean_t			result = false;
 	
-	realfrompath	= wd_files_real_path(frompath, user);
-	realtopath		= wd_files_real_path(topath, user);
+	realfrompath	= wi_autorelease(wi_mutable_copy(wd_files_real_path(frompath, user)));
+	realtopath		= wi_autorelease(wi_mutable_copy(wd_files_real_path(topath, user)));
 	realfromname	= wi_string_last_path_component(realfrompath);
 	realtoname		= wi_string_last_path_component(realtopath);
 
-	wi_string_resolve_aliases_in_path(realfrompath);
-	wi_string_delete_last_path_component(realtopath);
-	wi_string_resolve_aliases_in_path(realtopath);
-	wi_string_append_path_component(realtopath, realtoname);
+	wi_mutable_string_resolve_aliases_in_path(realfrompath);
+	wi_mutable_string_delete_last_path_component(realtopath);
+	wi_mutable_string_resolve_aliases_in_path(realtopath);
+	wi_mutable_string_append_path_component(realtopath, realtoname);
 	
 	if(!wi_fs_lstat_path(realfrompath, &sb)) {
 		wi_log_warn(WI_STR("Could not rename %@: %m"), realfrompath);
@@ -623,19 +624,19 @@ static void wd_files_move_thread(wi_runtime_instance_t *argument) {
 
 
 wi_boolean_t wd_files_link_path(wi_string_t *frompath, wi_string_t *topath, wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t			*realfrompath, *realtopath;
-	wi_string_t			*realfromname, *realtoname;
-	wi_fs_stat_t		sb;
+	wi_mutable_string_t		*realfrompath, *realtopath;
+	wi_string_t				*realfromname, *realtoname;
+	wi_fs_stat_t			sb;
 	
-	realfrompath	= wd_files_real_path(frompath, user);
-	realtopath		= wd_files_real_path(topath, user);
+	realfrompath	= wi_autorelease(wi_mutable_copy(wd_files_real_path(frompath, user)));
+	realtopath		= wi_autorelease(wi_mutable_copy(wd_files_real_path(topath, user)));
 	realfromname	= wi_string_last_path_component(realfrompath);
 	realtoname		= wi_string_last_path_component(realtopath);
 
-	wi_string_delete_last_path_component(realfrompath);
-	wi_string_resolve_aliases_in_path(realfrompath);
-	wi_string_resolve_aliases_in_path(realtopath);
-	wi_string_append_path_component(realfrompath, realfromname);
+	wi_mutable_string_delete_last_path_component(realfrompath);
+	wi_mutable_string_resolve_aliases_in_path(realfrompath);
+	wi_mutable_string_resolve_aliases_in_path(realtopath);
+	wi_mutable_string_append_path_component(realfrompath, realfromname);
 	
 	if(!wi_fs_lstat_path(realfrompath, &sb)) {
 		wi_log_warn(WI_STR("Could not link %@: %m"), realfrompath);
@@ -1040,7 +1041,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 				virtualpath	= wi_string_substring_from_index(filepath, pathlength);
 				
 				if(pathprefix)
-					wi_string_insert_string_at_index(virtualpath, pathprefix, 0);
+					virtualpath = wi_string_by_inserting_string_at_index(virtualpath, pathprefix, 0);
 				
 				wd_files_index_write_entry(file,
 										   virtualpath,
@@ -1274,9 +1275,7 @@ static wd_file_type_t wd_files_type_with_stat(wi_string_t *realpath, wi_fs_stat_
 	if(!string)
 		return WD_FILE_TYPE_DIR;
 	
-	wi_string_delete_surrounding_whitespace(string);
-	
-	type = wi_string_uint32(string);
+	type = wi_string_uint32(wi_string_by_deleting_surrounding_whitespace(string));
 	
 	if(type == WD_FILE_TYPE_FILE)
 		type = WD_FILE_TYPE_DIR;
@@ -1639,17 +1638,18 @@ wi_string_t * wd_files_real_path(wi_string_t *path, wd_user_t *user) {
 
 
 wi_boolean_t wd_files_has_uploads_or_drop_box_in_path(wi_string_t *path, wd_user_t *user, wd_files_privileges_t **privileges) {
-	wi_string_t		*realpath, *dirpath;
-	wi_array_t		*array;
-	wi_uinteger_t	i, count;
+	wi_mutable_string_t		*realpath;
+	wi_string_t				*dirpath;
+	wi_array_t				*array;
+	wi_uinteger_t			i, count;
 	
-	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(WI_STR("/"), user));
+	realpath	= wi_autorelease(wi_mutable_copy(wi_string_by_resolving_aliases_in_path(wd_files_real_path(WI_STR("/"), user))));
 	dirpath		= wi_string_by_deleting_last_path_component(path);
 	array		= wi_string_path_components(dirpath);
 	count		= wi_array_count(array);
 	
 	for(i = 0; i < count; i++) {
-		wi_string_append_path_component(realpath, WI_ARRAY(array, i));
+		wi_mutable_string_append_path_component(realpath, WI_ARRAY(array, i));
 		
 		switch(wd_files_type(realpath)) {
 			case WD_FILE_TYPE_UPLOADS:
@@ -1719,17 +1719,18 @@ static wd_files_privileges_t * wd_files_drop_box_privileges(wi_string_t *path) {
 
 
 static wi_string_t * wd_files_drop_box_path_in_path(wi_string_t *path, wd_user_t *user) {
-	wi_string_t		*realpath, *dirpath;
-	wi_array_t		*array;
-	wi_uinteger_t	i, count;
+	wi_mutable_string_t		*realpath;
+	wi_string_t				*dirpath;
+	wi_array_t				*array;
+	wi_uinteger_t			i, count;
 	
-	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(WI_STR("/"), user));
+	realpath	= wi_autorelease(wi_mutable_copy(wi_string_by_resolving_aliases_in_path(wd_files_real_path(WI_STR("/"), user))));
 	dirpath		= wi_string_by_deleting_last_path_component(path);
 	array		= wi_string_path_components(dirpath);
 	count		= wi_array_count(array);
 	
 	for(i = 0; i < count; i++) {
-		wi_string_append_path_component(realpath, WI_ARRAY(array, i));
+		wi_mutable_string_append_path_component(realpath, WI_ARRAY(array, i));
 		
 		if(wd_files_type(realpath) == WD_FILE_TYPE_DROPBOX)
 			return realpath;

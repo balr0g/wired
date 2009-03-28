@@ -42,7 +42,7 @@
 #include "settings.h"
 #include "transfers.h"
 
-#define WD_TRANSFERS_PARTIAL_EXTENSION	".WiredTransfer"
+#define WD_TRANSFERS_PARTIAL_EXTENSION	"WiredTransfer"
 
 #define WD_TRANSFERS_TIMER_INTERVAL		60.0
 #define WD_TRANSFERS_WAITING_INTERVAL	20.0
@@ -285,7 +285,7 @@ void wd_transfers_queue_upload(wi_string_t *path, wi_file_offset_t size, wi_bool
 	}
 	
 	if(!wi_string_has_suffix(realpath, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION)))
-		wi_string_append_string(realpath, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION));
+		realpath = wi_string_by_appending_path_extension(realpath, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION));
 	
 	if(wi_fs_stat_path(realpath, &sb))
 		offset = sb.size;
@@ -1082,7 +1082,7 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 					wi_log_warn(WI_STR("Could not set mode for %@: %m"), path);
 			}
 
-			path = wi_string_by_appending_string(transfer->path, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION));
+			path = wi_string_by_appending_path_extension(transfer->path, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION));
 
 			wd_files_move_comment(path, transfer->path, NULL, NULL);
 			

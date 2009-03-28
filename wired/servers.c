@@ -51,7 +51,7 @@ struct _wd_server {
 	
 	wi_boolean_t						tracker;
 	wi_string_t							*category;
-	wi_string_t							*url;
+	wi_mutable_string_t					*url;
 	wi_string_t							*ip;
 	wi_p7_uint32_t						port;
 	wi_string_t							*name;
@@ -252,21 +252,21 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 	
 	address					= wi_socket_address(wd_user_socket(user));
 	server					= wi_autorelease(wd_server_init_with_message(wd_server_alloc(), message));
-	server->url				= wi_string_init_with_format(wi_string_alloc(), WI_STR("wired://"));
+	server->url				= wi_string_init_with_format(wi_mutable_string_alloc(), WI_STR("wired://"));
 	server->register_time	= wi_time_interval();
 	
 	if(!server->ip)
 		server->ip = wi_retain(wi_address_string(address));
 	
 	if(wi_address_family(address) == WI_ADDRESS_IPV6)
-		wi_string_append_format(server->url, WI_STR("[%@]"), server->ip);
+		wi_mutable_string_append_format(server->url, WI_STR("[%@]"), server->ip);
 	else
-		wi_string_append_string(server->url,server->ip);
+		wi_mutable_string_append_string(server->url,server->ip);
 	
 	if(server->port != WD_SERVER_PORT)
-		wi_string_append_format(server->url, WI_STR(":%u/"), server->port);
+		wi_mutable_string_append_format(server->url, WI_STR(":%u/"), server->port);
 	else
-		wi_string_append_string(server->url, WI_STR("/"));
+		wi_mutable_string_append_string(server->url, WI_STR("/"));
 	
 	categories = wi_config_stringlist_for_name(wd_config, WI_STR("category"));
 	
