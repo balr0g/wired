@@ -897,6 +897,8 @@ static void wd_message_message_send_broadcast(wd_user_t *user, wi_p7_message_t *
 
 static void wd_message_board_get_boards(wd_user_t *user, wi_p7_message_t *message) {
 	if(!wd_account_board_read_boards(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when listing boards"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -909,6 +911,8 @@ static void wd_message_board_get_boards(wd_user_t *user, wi_p7_message_t *messag
 
 static void wd_message_board_get_posts(wd_user_t *user, wi_p7_message_t *message) {
 	if(!wd_account_board_read_boards(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when listing posts"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -924,6 +928,8 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 	wd_board_privileges_t	*privileges;
 	
 	if(!wd_account_board_add_boards(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when creating a board"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -932,6 +938,8 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
 	if(!wd_board_name_is_valid(board)) {
+		wi_log_warn(WI_STR("Board not found for %@ when creating board \"%@\""),
+			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -952,28 +960,27 @@ static void wd_message_board_rename_board(wd_user_t *user, wi_p7_message_t *mess
 	wi_string_t		*oldboard, *newboard;
 	
 	if(!wd_account_board_rename_boards(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when renaming a board"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
 	}
 	
 	oldboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
-	
-	if(!wd_board_name_is_valid(oldboard)) {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
-		
-		return;
-	}
-	
 	newboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.new_board"));
 	
-	if(!wd_board_name_is_valid(newboard)) {
+	if(!wd_board_name_is_valid(oldboard) || !wd_board_name_is_valid(newboard)) {
+		wi_log_warn(WI_STR("Board not found for %@ when renaming board \"%@\" to \"%@\""),
+			wd_user_identifier(user), oldboard, newboard);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
 	}
 	
 	if(!wi_is_equal(wi_string_by_deleting_last_path_component(oldboard), wi_string_by_deleting_last_path_component(newboard))) {
+		wi_log_warn(WI_STR("Board not found for %@ when renaming board \"%@\" to \"%@\""),
+			wd_user_identifier(user), oldboard, newboard);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -993,22 +1000,19 @@ static void wd_message_board_move_board(wd_user_t *user, wi_p7_message_t *messag
 	wi_string_t		*oldboard, *newboard;
 	
 	if(!wd_account_board_move_boards(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when moving a board"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
 	}
 	
 	oldboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
-	
-	if(!wd_board_name_is_valid(oldboard)) {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
-		
-		return;
-	}
-	
 	newboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.new_board"));
 	
-	if(!wd_board_name_is_valid(newboard)) {
+	if(!wd_board_name_is_valid(oldboard) || !wd_board_name_is_valid(newboard)) {
+		wi_log_warn(WI_STR("Board not found for %@ when moving board \"%@\" to \"%@\""),
+			wd_user_identifier(user), oldboard, newboard);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -1028,6 +1032,8 @@ static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *mess
 	wi_string_t		*board;
 	
 	if(!wd_account_board_delete_boards(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when deleting a board"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1036,6 +1042,8 @@ static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *mess
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
 	if(!wd_board_name_is_valid(board)) {
+		wi_log_warn(WI_STR("Board not found for %@ when deleting board \"%@\""),
+			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -1055,6 +1063,8 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 	wd_board_privileges_t	*privileges;
 	
 	if(!wd_account_board_set_permissions(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when setting board permissions"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1063,6 +1073,8 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
 	if(!wd_board_name_is_valid(board)) {
+		wi_log_warn(WI_STR("Board not found for %@ when setting permissions for board \"%@\""),
+			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -1083,6 +1095,8 @@ static void wd_message_board_add_thread(wd_user_t *user, wi_p7_message_t *messag
 	wi_string_t		*board, *subject, *text;
 	
 	if(!wd_account_board_add_threads(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when creating a thread"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1091,6 +1105,8 @@ static void wd_message_board_add_thread(wd_user_t *user, wi_p7_message_t *messag
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
 	if(!wd_board_name_is_valid(board)) {
+		wi_log_warn(WI_STR("Board not found for %@ when creating a thread in board \"%@\""),
+			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -1113,28 +1129,24 @@ static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *messa
 	wi_uuid_t		*thread;
 	
 	if(!wd_account_board_move_threads(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when moving a thread"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
 	}
 	
 	oldboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
-	
-	if(!wd_board_name_is_valid(oldboard)) {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
-		
-		return;
-	}
-	
 	newboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.new_board"));
 	
-	if(!wd_board_name_is_valid(newboard)) {
+	if(!wd_board_name_is_valid(oldboard) || !wd_board_name_is_valid(newboard)) {
+		wi_log_warn(WI_STR("Board not found for %@ when moving a thread from board \"%@\" to \"%@\""),
+			wd_user_identifier(user), oldboard, newboard);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
 	}
 	
-
 	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	
 	if(wd_board_move_thread(oldboard, thread, newboard, user, message)) {
@@ -1151,6 +1163,8 @@ static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *mes
 	wi_uuid_t		*thread;
 	
 	if(!wd_account_board_delete_threads(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when deleting a thread"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1159,6 +1173,8 @@ static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *mes
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
 	if(!wd_board_name_is_valid(board)) {
+		wi_log_warn(WI_STR("Board not found for %@ when deleting a thread in board \"%@\""),
+			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -1180,6 +1196,8 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 	wi_uuid_t		*thread;
 	
 	if(!wd_account_board_add_posts(wd_user_account(user))) {
+		wi_log_warn(WI_STR("Permission denied for %@ when creating a post"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1188,6 +1206,8 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
 	if(!wd_board_name_is_valid(board)) {
+		wi_log_warn(WI_STR("Board not found for %@ when creating a post in board \"%@\""),
+			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -1214,6 +1234,8 @@ static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message
 	account = wd_user_account(user);
 	
 	if(!wd_account_board_edit_own_posts(account) && !wd_account_board_edit_all_posts(account)) {
+		wi_log_warn(WI_STR("Permission denied for %@ when editing a post"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1222,6 +1244,8 @@ static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
 	if(!wd_board_name_is_valid(board)) {
+		wi_log_warn(WI_STR("Board not found for %@ when editing a post in board \"%@\""),
+			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -1249,6 +1273,8 @@ static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *messa
 	account = wd_user_account(user);
 
 	if(!wd_account_board_edit_own_posts(account) && !wd_account_board_edit_all_posts(account)) {
+		wi_log_warn(WI_STR("Permission denied for %@ when deleting a post"),
+			wd_user_identifier(user));
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1257,6 +1283,8 @@ static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *messa
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
 	if(!wd_board_name_is_valid(board)) {
+		wi_log_warn(WI_STR("Board not found for %@ when deleting a post in board \"%@\""),
+			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
