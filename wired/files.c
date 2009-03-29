@@ -687,7 +687,7 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 	char				*buffer = NULL, *messagebuffer;
 	wi_uinteger_t		i = 0, bufferlength, messagelength, accountpathlength;
 	uint32_t			entrylength, namelength, pathlength;
-	wi_boolean_t		deleted;
+	wi_boolean_t		deleted, sendreply;
 	
 	wi_rwlock_rdlock(wd_files_index_lock);
 	
@@ -738,6 +738,7 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 			wi_set_unlock(wd_files_index_deleted_files);
 			
 			if(!deleted) {
+				sendreply = true;
 				messagelength = wd_files_search_replace_privileges_for_account(messagebuffer, messagelength, path, account);
 				
 				if(accountpath && accountpathlength > 0) {
@@ -746,15 +747,19 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 						
 						if(wi_string_has_prefix(newpath, WI_STR("/")))
 							messagelength = wd_files_search_replace_path_with_path(messagebuffer, messagelength, path, newpath);
+						else
+							sendreply = false;
 					}
 				}
 	
-				reply = wi_p7_message_with_bytes(messagebuffer, messagelength, WI_P7_BINARY, wd_p7_spec);
+				if(sendreply) {
+					reply = wi_p7_message_with_bytes(messagebuffer, messagelength, WI_P7_BINARY, wd_p7_spec);
 
-				if(reply)
-					wd_user_reply_message(user, reply, message);
-				else
-					wi_log_err(WI_STR("Could not create message from search entry: %m"));
+					if(reply)
+						wd_user_reply_message(user, reply, message);
+					else
+						wi_log_err(WI_STR("Could not create message from search entry: %m"));
+				}
 			}
 			
 			wi_release(path);
