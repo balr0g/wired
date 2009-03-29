@@ -1849,7 +1849,7 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 		return;
 	}
 	
-	if(!wd_account_check_privileges(account, user, &error)) {
+	if(!wd_account_verify_privileges_for_user(account, user, &error)) {
 		wi_log_warn(WI_STR("%@ failed privilege check while creating user \"%@\": %@"),
 			wd_user_identifier(user), wd_account_name(account), error);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1894,7 +1894,7 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 		return;
 	}
 	
-	if(!wd_account_check_privileges(account, user, &error)) {
+	if(!wd_account_verify_privileges_for_user(account, user, &error)) {
 		wi_log_warn(WI_STR("%@ failed privilege check while creating group \"%@\": %@"),
 			wd_user_identifier(user), wd_account_name(account), error);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1946,7 +1946,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	
 	wd_account_update_from_message(account, message);
 	
-	if(!wd_account_check_privileges(account, user, &error)) {
+	if(!wd_account_verify_privileges_for_user(account, user, &error)) {
 		wi_log_warn(WI_STR("%@ failed privilege check while editing user \"%@\": %@"),
 			wd_user_identifier(user), wd_account_name(account), error);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -2000,7 +2000,7 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 	
 	wd_account_update_from_message(account, message);
 	
-	if(!wd_account_check_privileges(account, user, &error)) {
+	if(!wd_account_verify_privileges_for_user(account, user, &error)) {
 		wi_log_warn(WI_STR("%@ failed privilege check while editing group \"%@\": %@"),
 			wd_user_identifier(user), wd_account_name(account), error);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);

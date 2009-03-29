@@ -83,6 +83,7 @@ static void											wd_account_dealloc(wi_runtime_instance_t *);
 
 static void											wd_account_read_from_message(wd_account_t *, wi_p7_message_t *);
 static void											wd_account_write_to_message(wd_account_t *, wi_uinteger_t, wi_p7_message_t *);
+static void											wd_account_override_privileges(wd_account_t *, wd_account_t *);
 
 static wi_string_t									*wd_users_path;
 static wi_string_t									*wd_groups_path;
@@ -420,11 +421,8 @@ void wd_accounts_init(void) {
 #pragma mark -
 
 wd_account_t * wd_accounts_read_user_and_group(wi_string_t *name) {
-	wi_enumerator_t			*enumerator;
-	wi_dictionary_t			*field;
-	wi_string_t				*field_name, *group_name;
-	wi_runtime_instance_t	*value;
-	wd_account_t			*user, *group;
+	wi_string_t			*group_name;
+	wd_account_t		*user, *group;
 	
 	user = wd_accounts_read_user(name);
 	
@@ -436,25 +434,8 @@ wd_account_t * wd_accounts_read_user_and_group(wi_string_t *name) {
 	if(group_name && wi_string_length(group_name) > 0) {
 		group = wd_accounts_read_group(group_name);
 		
-		if(group) {
-			enumerator = wi_dictionary_key_enumerator(wd_account_fields);
-			
-			while((field_name = wi_enumerator_next_data(enumerator))) {
-				field = wi_dictionary_data_for_key(wd_account_fields, field_name);
-				
-				if(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_ACCOUNT))) & WD_ACCOUNT_FIELD_PRIVILEGE ||
-				   wi_is_equal(field_name, WI_STR("wired.account.files"))) {
-					value = wi_dictionary_data_for_key(user->values, field_name);
-					
-					if(!value) {
-						value = wi_dictionary_data_for_key(group->values, field_name);
-						
-						if(value)
-							wi_mutable_dictionary_set_data_for_key(user->values, value, field_name);
-					}
-				}
-			}
-		}
+		if(group)
+			wd_account_override_privileges(user, group);
 	}
 	
 	return user;
@@ -1316,6 +1297,33 @@ static void wd_account_write_to_message(wd_account_t *account, wi_uinteger_t typ
 
 
 
+static void wd_account_override_privileges(wd_account_t *account1, wd_account_t *account2) {
+	wi_enumerator_t			*enumerator;
+	wi_dictionary_t			*field;
+	wi_string_t				*field_name;
+	wi_runtime_instance_t	*value;
+
+	enumerator = wi_dictionary_key_enumerator(wd_account_fields);
+	
+	while((field_name = wi_enumerator_next_data(enumerator))) {
+		field = wi_dictionary_data_for_key(wd_account_fields, field_name);
+		
+		if(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_ACCOUNT))) & WD_ACCOUNT_FIELD_PRIVILEGE ||
+		   wi_is_equal(field_name, WI_STR("wired.account.files"))) {
+			value = wi_dictionary_data_for_key(account1->values, field_name);
+			
+			if(!value) {
+				value = wi_dictionary_data_for_key(account2->values, field_name);
+				
+				if(value)
+					wi_mutable_dictionary_set_data_for_key(account1->values, value, field_name);
+			}
+		}
+	}
+}
+
+
+
 #pragma mark -
 
 void wd_account_update_from_message(wd_account_t *account, wi_p7_message_t *message) {
@@ -1359,15 +1367,25 @@ wi_p7_message_t * wd_account_privileges_message(wd_account_t *account) {
 
 #pragma mark -
 
-wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user, wi_string_t **error) {
+wi_boolean_t wd_account_verify_privileges_for_user(wd_account_t *account, wd_user_t *user, wi_string_t **error) {
 	wi_enumerator_t				*enumerator;
 	wi_dictionary_t				*field;
 	wi_string_t					*name, *group;
 	wi_runtime_instance_t		*instance1, *instance2;
-	wd_account_t				*user_account;
+	wd_account_t				*new_account, *user_account, *group_account;
 	wd_account_field_type_t		type;
 	wi_integer_t				integer_value1, integer_value2;
 	wi_boolean_t				boolean_value1, boolean_value2;
+	
+	new_account = wi_autorelease(wd_account_init_with_values(wd_account_alloc(), account->values));
+	group = wd_account_group(new_account);
+	
+	if(group && wi_string_length(group) > 0) {
+		group_account = wd_accounts_read_group(group);
+		
+		if(group_account)
+			wd_account_override_privileges(new_account, group_account);
+	}
 	
 	user_account = wd_user_account(user);
 	
@@ -1380,7 +1398,7 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user,
 			if(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_ACCOUNT))) & WD_ACCOUNT_FIELD_PRIVILEGE) {
 				type		= wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)));
 				instance1	= wi_dictionary_data_for_key(user_account->values, name);
-				instance2	= wi_dictionary_data_for_key(account->values, name);
+				instance2	= wi_dictionary_data_for_key(new_account->values, name);
 				
 				switch(type) {
 					case WD_ACCOUNT_FIELD_STRING:
@@ -1415,7 +1433,7 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user,
 		}
 			
 		instance1 = wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.files"));
-		instance2 = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.files"));
+		instance2 = wi_dictionary_data_for_key(new_account->values, WI_STR("wired.account.files"));
 		
 		if(!instance1)
 			instance1 = WI_STR("");
@@ -1425,30 +1443,6 @@ wi_boolean_t wd_account_check_privileges(wd_account_t *account, wd_user_t *user,
 		
 		if(!wi_string_has_prefix(instance2, instance1))
 			return false;
-		
-		instance1 = wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.group"));
-		instance2 = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.group"));
-		
-		if(!wi_is_equal(instance1, instance2)) {
-			*error = wi_string_with_format(WI_STR("Tried to change \"%@\" to %@"),
-				WI_STR("wired.account.group"), instance2);
-			
-			return false;
-		}
-		
-		instance1 = wi_dictionary_data_for_key(user_account->values, WI_STR("wired.account.groups"));
-		instance2 = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.groups"));
-		
-		enumerator = wi_array_data_enumerator(instance2);
-		
-		while((group = wi_enumerator_next_data(enumerator))) {
-			if(!wi_array_contains_data(instance1, group)) {
-				*error = wi_string_with_format(WI_STR("Tried to change \"%@\" to %@"),
-					WI_STR("wired.account.groups"), instance2);
-				
-				return false;
-			}
-		}
 	}
 	
 	return true;
