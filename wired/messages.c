@@ -1881,12 +1881,10 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 		return;
 	}
 
-	if(wd_accounts_create_user(account, user)) {
+	if(wd_accounts_create_user(account, user, message)) {
 		wi_log_info(WI_STR("%@ created the user \"%@\""),
 			wd_user_identifier(user),
 			wd_account_name(account));
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -1926,12 +1924,10 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 		return;
 	}
 	
-	if(wd_accounts_create_group(account, user)) {
+	if(wd_accounts_create_group(account, user, message)) {
 		wi_log_info(WI_STR("%@ created the group \"%@\""),
 			wd_user_identifier(user),
 			wd_account_name(account));
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -1978,14 +1974,12 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 		return;
 	}
 
-	if(wd_accounts_edit_user(account, user)) {
+	if(wd_accounts_edit_user(account, user, message)) {
 		wd_accounts_reload_user_account(wd_account_name(account));
 		
 		wi_log_info(WI_STR("%@ modified the user \"%@\""),
 			wd_user_identifier(user),
 			wd_account_name(account));
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -2032,8 +2026,7 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 		return;
 	}
 
-	if(wd_accounts_edit_group(account, user)) {
-		wi_log_info(WI_STR("%@ -> %@"), name, new_name);
+	if(wd_accounts_edit_group(account, user, message)) {
 		if(new_name && !wi_is_equal(name, new_name))
 			wd_accounts_rename_group(name, new_name);
 		
@@ -2042,8 +2035,6 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 		wi_log_info(WI_STR("%@ modified the group \"%@\""),
 			wd_user_identifier(user),
 			wd_account_name(account));
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -2068,12 +2059,10 @@ static void wd_message_account_delete_user(wd_user_t *user, wi_p7_message_t *mes
 		return;
 	}
 
-	if(wd_accounts_delete_user(name)) {
+	if(wd_accounts_delete_user(name, user, message)) {
 		wi_log_info(WI_STR("%@ deleted the user \"%@\""),
 			wd_user_identifier(user),
 			name);
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 
@@ -2098,14 +2087,12 @@ static void wd_message_account_delete_group(wd_user_t *user, wi_p7_message_t *me
 		return;
 	}
 
-	if(wd_accounts_delete_group(name)) {
+	if(wd_accounts_delete_group(name, user, message)) {
 		wd_accounts_clear_group(name);
 
 		wi_log_info(WI_STR("%@ deleted the group \"%@\""),
 			wd_user_identifier(user),
 			name);
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 	}
 }
 

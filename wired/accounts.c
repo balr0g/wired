@@ -581,7 +581,7 @@ wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *pas
 
 
 
-wi_boolean_t wd_accounts_create_user(wd_account_t *account, wd_user_t *user) {
+wi_boolean_t wd_accounts_create_user(wd_account_t *account, wd_user_t *user, wi_p7_message_t *message) {
 	wi_runtime_instance_t		*instance;
 	wi_boolean_t				result;
 	
@@ -596,8 +596,10 @@ wi_boolean_t wd_accounts_create_user(wd_account_t *account, wd_user_t *user) {
 	
 	result = wi_plist_write_instance_to_file(instance, wd_users_path);
 	
-	if(!result)
+	if(!result) {
 		wi_log_err(WI_STR("Could not write %@: %m"));
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+	}
 
 	wi_recursive_lock_unlock(wd_users_lock);
 	
@@ -606,7 +608,7 @@ wi_boolean_t wd_accounts_create_user(wd_account_t *account, wd_user_t *user) {
 
 
 
-wi_boolean_t wd_accounts_create_group(wd_account_t *account, wd_user_t *user) {
+wi_boolean_t wd_accounts_create_group(wd_account_t *account, wd_user_t *user, wi_p7_message_t *message) {
 	wi_runtime_instance_t		*instance;
 	wi_boolean_t				result;
 	
@@ -621,8 +623,10 @@ wi_boolean_t wd_accounts_create_group(wd_account_t *account, wd_user_t *user) {
 	
 	result = wi_plist_write_instance_to_file(instance, wd_groups_path);
 	
-	if(!result)
+	if(!result) {
 		wi_log_err(WI_STR("Could not write %@: %m"));
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+	}
 
 	wi_recursive_lock_unlock(wd_groups_lock);
 	
@@ -631,7 +635,7 @@ wi_boolean_t wd_accounts_create_group(wd_account_t *account, wd_user_t *user) {
 
 
 
-wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user) {
+wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user, wi_p7_message_t *message) {
 	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
 	wi_mutable_array_t		*array;
@@ -664,8 +668,10 @@ wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user) {
 	
 	result = wi_plist_write_instance_to_file(array, wd_users_path);
 		
-	if(!result)
+	if(!result) {
 		wi_log_err(WI_STR("Could not write %@: %m"));
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+	}
 
 	wi_recursive_lock_unlock(wd_users_lock);
 
@@ -674,7 +680,7 @@ wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user) {
 
 
 
-wi_boolean_t wd_accounts_edit_group(wd_account_t *account, wd_user_t *user) {
+wi_boolean_t wd_accounts_edit_group(wd_account_t *account, wd_user_t *user, wi_p7_message_t *message) {
 	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
 	wi_mutable_array_t		*array;
@@ -708,8 +714,10 @@ wi_boolean_t wd_accounts_edit_group(wd_account_t *account, wd_user_t *user) {
 	
 	result = wi_plist_write_instance_to_file(array, wd_groups_path);
 		
-	if(!result)
+	if(!result) {
 		wi_log_err(WI_STR("Could not write %@: %m"));
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+	}
 
 	wi_recursive_lock_unlock(wd_groups_lock);
 	
@@ -718,7 +726,7 @@ wi_boolean_t wd_accounts_edit_group(wd_account_t *account, wd_user_t *user) {
 
 
 
-wi_boolean_t wd_accounts_delete_user(wi_string_t *name) {
+wi_boolean_t wd_accounts_delete_user(wi_string_t *name, wd_user_t *user, wi_p7_message_t *message) {
 	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
 	wi_mutable_array_t		*array;
@@ -737,9 +745,11 @@ wi_boolean_t wd_accounts_delete_user(wi_string_t *name) {
 	}
 
 	result = wi_plist_write_instance_to_file(array, wd_users_path);
-		
-	if(!result)
+	
+	if(!result) {
 		wi_log_err(WI_STR("Could not write %@: %m"));
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+	}
 
 	wi_recursive_lock_unlock(wd_users_lock);
 
@@ -748,7 +758,7 @@ wi_boolean_t wd_accounts_delete_user(wi_string_t *name) {
 
 
 
-wi_boolean_t wd_accounts_delete_group(wi_string_t *name) {
+wi_boolean_t wd_accounts_delete_group(wi_string_t *name, wd_user_t *user, wi_p7_message_t *message) {
 	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
 	wi_mutable_array_t		*array;
@@ -768,8 +778,10 @@ wi_boolean_t wd_accounts_delete_group(wi_string_t *name) {
 
 	result = wi_plist_write_instance_to_file(array, wd_groups_path);
 		
-	if(!result)
+	if(!result) {
 		wi_log_err(WI_STR("Could not write %@: %m"));
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+	}
 
 	wi_recursive_lock_unlock(wd_groups_lock);
 
