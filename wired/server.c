@@ -112,7 +112,6 @@ static wi_timer_t					*wd_ping_timer;
 static wi_p7_message_t				*wd_ping_message;
 static wi_mutable_array_t			*wd_tcp_sockets, *wd_udp_sockets;
 static wi_rsa_t						*wd_rsa;
-static wi_x509_t					*wd_certificate;
 static wi_mutable_array_t			*wd_log_entries;
 
 wi_uinteger_t						wd_port;
@@ -133,11 +132,6 @@ void wd_server_init(void) {
 	
 	if(!wd_rsa)
 		wi_log_fatal(WI_STR("Could not create RSA key: %m"));
-	
-	wd_certificate = wi_x509_init_with_common_name(wi_x509_alloc(), wd_rsa, wi_process_hostname(wi_process()));
-
-	if(!wd_certificate)
-		wi_log_fatal(WI_STR("Could not create a certificate: %m"));
 	
 	wi_p7_socket_password_provider = wd_accounts_password_for_user;
 	
