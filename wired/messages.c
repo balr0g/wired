@@ -1099,7 +1099,11 @@ static void wd_message_board_add_thread(wd_user_t *user, wi_p7_message_t *messag
 	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 
-	wd_board_add_thread(board, subject, text, user, message);
+	if(wd_board_add_thread(board, subject, text, user, message)) {
+		wi_log_info(WI_STR("%@ created a thread in board \"%@\""),
+			wd_user_identifier(user),
+			board);
+	}
 }
 
 
@@ -1133,7 +1137,11 @@ static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *messa
 
 	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	
-	wd_board_move_thread(oldboard, thread, newboard, user, message);
+	if(wd_board_move_thread(oldboard, thread, newboard, user, message)) {
+		wi_log_info(WI_STR("%@ moved a thread from board \"%@\" to \"%@\""),
+			wd_user_identifier(user),
+			oldboard, newboard);
+	}
 }
 
 
@@ -1158,7 +1166,11 @@ static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *mes
 	
 	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	
-	wd_board_delete_thread(board, thread, user, message);
+	if(wd_board_delete_thread(board, thread, user, message)) {
+		wi_log_info(WI_STR("%@ deleted a thread from board \"%@\""),
+			wd_user_identifier(user),
+			board);
+	}
 }
 
 
@@ -1185,7 +1197,11 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 
-	wd_board_add_post(board, thread, subject, text, user, message);
+	if(wd_board_add_post(board, thread, subject, text, user, message)) {
+		wi_log_info(WI_STR("%@ created a post in board \"%@\""),
+			wd_user_identifier(user),
+			board);
+	}
 }
 
 
@@ -1216,7 +1232,11 @@ static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message
 	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 	
-	wd_board_edit_post(board, thread, post, subject, text, user, message);
+	if(wd_board_edit_post(board, thread, post, subject, text, user, message)) {
+		wi_log_info(WI_STR("%@ edited a post in board \"%@\""),
+			wd_user_identifier(user),
+			board);
+	}
 }
 
 
@@ -1245,7 +1265,11 @@ static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *messa
 	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	post		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.post"));
 	
-	wd_board_delete_post(board, thread, post, user, message);
+	if(wd_board_delete_post(board, thread, post, user, message)) {
+		wi_log_info(WI_STR("%@ deleted a post in board \"%@\""),
+			wd_user_identifier(user),
+			board);
+	}
 }
 
 
@@ -1850,7 +1874,7 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 	}
 	
 	if(!wd_account_verify_privileges_for_user(account, user, &error)) {
-		wi_log_warn(WI_STR("%@ failed privilege check while creating user \"%@\": %@"),
+		wi_log_warn(WI_STR("Permission denied for %@ when creating user \"%@\": %@"),
 			wd_user_identifier(user), wd_account_name(account), error);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
@@ -1895,7 +1919,7 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 	}
 	
 	if(!wd_account_verify_privileges_for_user(account, user, &error)) {
-		wi_log_warn(WI_STR("%@ failed privilege check while creating group \"%@\": %@"),
+		wi_log_warn(WI_STR("Permission denied for %@ when creating group \"%@\": %@"),
 			wd_user_identifier(user), wd_account_name(account), error);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
@@ -1947,7 +1971,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	wd_account_update_from_message(account, message);
 	
 	if(!wd_account_verify_privileges_for_user(account, user, &error)) {
-		wi_log_warn(WI_STR("%@ failed privilege check while editing user \"%@\": %@"),
+		wi_log_warn(WI_STR("Permission denied for %@ when editing user \"%@\": %@"),
 			wd_user_identifier(user), wd_account_name(account), error);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
@@ -2001,7 +2025,7 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 	wd_account_update_from_message(account, message);
 	
 	if(!wd_account_verify_privileges_for_user(account, user, &error)) {
-		wi_log_warn(WI_STR("%@ failed privilege check while editing group \"%@\": %@"),
+		wi_log_warn(WI_STR("Permission denied for %@ when editing group \"%@\": %@"),
 			wd_user_identifier(user), wd_account_name(account), error);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		

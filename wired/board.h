@@ -57,13 +57,13 @@ wi_boolean_t							wd_board_delete_board(wi_string_t *, wd_user_t *, wi_p7_messa
 
 wi_boolean_t							wd_board_name_is_valid(wi_string_t *);
 
-void									wd_board_add_thread(wi_string_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void									wd_board_move_thread(wi_string_t *, wi_uuid_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void									wd_board_delete_thread(wi_string_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_board_add_thread(wi_string_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_board_move_thread(wi_string_t *, wi_uuid_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_board_delete_thread(wi_string_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
 
-void									wd_board_add_post(wi_string_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void									wd_board_edit_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-void									wd_board_delete_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_board_add_post(wi_string_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_board_edit_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_board_delete_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
 
 wd_board_privileges_t *					wd_board_privileges_with_message(wi_p7_message_t *);
 
