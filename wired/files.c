@@ -88,8 +88,6 @@ static void												wd_files_move_thread(wi_runtime_instance_t *);
 
 static wi_uinteger_t									wd_files_search_replace_privileges_for_account(char *, wi_uinteger_t, wi_string_t *, wd_account_t *);
 static wi_uinteger_t									wd_files_search_replace_path_with_path(char *, wi_uinteger_t, wi_string_t *, wi_string_t *);
-//static void												wd_files_search_reply_list(const char *, wi_uinteger_t, wd_user_t *, wi_p7_message_t *);
-//static void												wd_files_search_reply_list_by_replacing_path(const char *, wi_uinteger_t, wi_string_t *, wi_string_t *,wd_user_t *, wi_p7_message_t *);
 
 static void												wd_files_index_update(wi_timer_t *);
 static wi_boolean_t										wd_files_index_update_size(void);
@@ -893,17 +891,23 @@ static wi_boolean_t wd_files_index_update_size(void) {
 	if(wi_file_read_buffer(file, &header, sizeof(header)) != sizeof(header))
 		return false;
 	
-	if(strcmp(header.magic, WD_FILES_INDEX_MAGIC) && header.version == WD_FILES_INDEX_VERSION) {
-		wd_files_count			= header.files_count;
-		wd_directories_count	= header.directories_count;
-		wd_files_size			= header.files_size;
-		
-		return true;
+	if(memcmp(header.magic, WD_FILES_INDEX_MAGIC, sizeof(header.magic)) == 0) {
+		if(header.version == WD_FILES_INDEX_VERSION) {
+			wd_files_count			= header.files_count;
+			wd_directories_count	= header.directories_count;
+			wd_files_size			= header.files_size;
+			
+			return true;
+		} else {
+			wi_log_warn(WI_STR("Could not read %@: Wrong version (%u != %u)"),
+				wd_files_index_path, header.version, WD_FILES_INDEX_VERSION);
+		}
 	} else {
-		wi_log_info(WI_STR("Could not read %@: Wrong magic or version"), wd_files_index_path);
-		
-		return false;
+		wi_log_warn(WI_STR("Could not read %@: Wrong magic"),
+			wd_files_index_path);
 	}
+
+	return false;
 }
 
 
