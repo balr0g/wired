@@ -128,6 +128,8 @@ static wi_mutable_dictionary_t							*wd_files_index_dictionary;
 static wi_mutable_dictionary_t							*wd_files_index_added_files;
 static wi_mutable_set_t									*wd_files_index_deleted_files;
 
+static uint32_t											wd_files_root_volume;
+
 static wi_runtime_id_t									wd_files_privileges_runtime_id = WI_RUNTIME_ID_NULL;
 static wi_runtime_class_t								wd_files_privileges_runtime_class = {
 	"wd_files_privileges_t",
@@ -170,8 +172,16 @@ void wd_files_init(void) {
 
 
 void wd_files_apply_settings(wi_set_t *changes) {
+	wi_string_t			*realpath;
+	wi_fs_stat_t		sb;
+	
 	wi_release(wd_files);
 	wd_files = wi_retain(wi_config_path_for_name(wd_config, WI_STR("files")));
+	
+	realpath = wi_string_by_resolving_aliases_in_path(wd_files);
+	
+	if(wi_fs_stat_path(realpath, &sb))
+		wd_files_root_volume = sb.dev;
 }
 
 
@@ -274,7 +284,9 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		if(!wi_fs_stat_path(resolvedpath, &sb))
 			sb = lsb;
 
-		type = wd_files_type_with_stat(resolvedpath, &sb);
+		readable	= false;
+		writable	= false;
+		type		= wd_files_type_with_stat(resolvedpath, &sb);
 		
 		if(type == WD_FILE_TYPE_DROPBOX) {
 			privileges = wd_files_drop_box_privileges(resolvedpath);
@@ -282,23 +294,17 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 			if(privileges) {
 				readable = wd_files_privileges_is_readable_by_account(privileges, account);
 				writable = wd_files_privileges_is_readable_by_account(privileges, account);
-			} else {
-				readable = false;
-				writable = false;
 			}
-		} else {
-			readable = true;
-			writable = true;
 		}
 
 		switch(type) {
 			case WD_FILE_TYPE_DIR:
 			case WD_FILE_TYPE_UPLOADS:
+				size = wd_files_count_path(resolvedpath, user, message);
+				break;
+				
 			case WD_FILE_TYPE_DROPBOX:
-				if(readable)
-					size = wd_files_count_path(resolvedpath, user, message);
-				else
-					size = 0;
+				size = readable ? wd_files_count_path(resolvedpath, user, message) : 0;
 				break;
 
 			case WD_FILE_TYPE_FILE:
@@ -318,7 +324,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		wi_p7_message_set_bool_for_name(reply, alias || S_ISLNK(lsb.mode), WI_STR("wired.file.link"));
 		wi_p7_message_set_bool_for_name(reply, (type == WD_FILE_TYPE_FILE && sb.mode & 0111), WI_STR("wired.file.executable"));
 		wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
-		wi_p7_message_set_uint32_for_name(reply, sb.dev, WI_STR("wired.file.volume"));
+		wi_p7_message_set_uint32_for_name(reply, sb.dev == wd_files_root_volume ? 0 : sb.dev, WI_STR("wired.file.volume"));
 		wi_p7_message_set_bool_for_name(reply, readable, WI_STR("wired.file.readable"));
 		wi_p7_message_set_bool_for_name(reply, writable, WI_STR("wired.file.writable"));
 		wd_user_reply_message(user, reply, message);
@@ -412,7 +418,9 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	if(!wi_fs_stat_path(realpath, &sb))
 		sb = lsb;
 
-	type = wd_files_type_with_stat(realpath, &sb);
+	readable	= false;
+	writable	= false;
+	type		= wd_files_type_with_stat(realpath, &sb);
 	
 	if(type == WD_FILE_TYPE_DROPBOX) {
 		privileges = wd_files_drop_box_privileges(realpath);
@@ -425,9 +433,6 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 
 		readable = wd_files_privileges_is_readable_by_account(privileges, account);
 		writable = wd_files_privileges_is_writable_by_account(privileges, account);
-	} else {
-		readable = true;
-		writable = true;
 	}
 	
 	comment = wd_files_comment(realpath);
@@ -435,11 +440,11 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	switch(type) {
 		case WD_FILE_TYPE_DIR:
 		case WD_FILE_TYPE_UPLOADS:
+			size = wd_files_count_path(realpath, user, message);
+			break;
+			
 		case WD_FILE_TYPE_DROPBOX:
-			if(readable)
-				size = wd_files_count_path(realpath, user, message);
-			else
-				size = 0;
+			size = readable ? wd_files_count_path(realpath, user, message) : 0;
 			break;
 
 		case WD_FILE_TYPE_FILE:
@@ -460,7 +465,7 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	wi_p7_message_set_bool_for_name(reply, (alias || S_ISLNK(lsb.mode)), WI_STR("wired.file.link"));
 	wi_p7_message_set_bool_for_name(reply, (type == WD_FILE_TYPE_FILE && sb.mode & 0111), WI_STR("wired.file.executable"));
 	wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
-	wi_p7_message_set_uint32_for_name(reply, sb.dev, WI_STR("wired.file.volume"));
+	wi_p7_message_set_uint32_for_name(reply, sb.dev == wd_files_root_volume ? 0 : sb.dev, WI_STR("wired.file.volume"));
 	wi_p7_message_set_bool_for_name(reply, readable, WI_STR("wired.file.readable"));
 	wi_p7_message_set_bool_for_name(reply, writable, WI_STR("wired.file.writable"));
 	
@@ -798,11 +803,11 @@ static wi_uinteger_t wd_files_search_replace_privileges_for_account(char *messag
 		privileges	= wd_files_drop_box_privileges(realpath);
 		
 		if(privileges) {
-			if(!wd_files_privileges_is_readable_by_account(privileges, account))
-				memcpy(messagebuffer + typeoffset + sizeof(uint32_t) + sizeof(uint32_t), "\0", 1);
+			if(wd_files_privileges_is_readable_by_account(privileges, account))
+				memcpy(messagebuffer + typeoffset + sizeof(uint32_t) + sizeof(uint32_t), "\1", 1);
 
-			if(!wd_files_privileges_is_writable_by_account(privileges, account))
-				memcpy(messagebuffer + typeoffset + sizeof(uint32_t) + sizeof(uint32_t) + 1 + sizeof(uint32_t), "\0", 1);
+			if(wd_files_privileges_is_writable_by_account(privileges, account))
+				memcpy(messagebuffer + typeoffset + sizeof(uint32_t) + sizeof(uint32_t) + 1 + sizeof(uint32_t), "\1", 1);
 		}
 	}
 	
@@ -1099,7 +1104,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 										   (alias || S_ISLNK(lsb.mode)),
 										   (type == WD_FILE_TYPE_FILE && sb.mode & 0111),
 										   label,
-										   sb.dev);
+										   sb.dev == wd_files_root_volume ? 0 : sb.dev);
 
 				if(S_ISDIR(sb.mode)) {
 					wd_directories_count++;
@@ -1202,9 +1207,9 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	wi_write_swap_host_to_big_int32(p, 0, typeid);							p += sizeof(typeid);
 	wi_write_swap_host_to_big_int32(p, 0, type);							p += sizeof(type);
 	wi_write_swap_host_to_big_int32(p, 0, readableid);						p += sizeof(readableid);
-	memcpy(p, "\1", 1);														p += 1;
+	memcpy(p, "\0", 1);														p += 1;
 	wi_write_swap_host_to_big_int32(p, 0, writableid);						p += sizeof(writableid);
-	memcpy(p, "\1", 1);														p += 1;
+	memcpy(p, "\0", 1);														p += 1;
 	wi_write_swap_host_to_big_int32(p, 0, sizeid);							p += sizeof(sizeid);
 	wi_write_swap_host_to_big_int64(p, 0, size);							p += sizeof(size);
 	wi_write_swap_host_to_big_int32(p, 0, creationid);						p += sizeof(creationid);
