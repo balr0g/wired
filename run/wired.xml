@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7.xsd"
 			 name="Wired"
-			 version="2.0b28">
+			 version="2.0b29">
 	<p7:fields>
 		<p7:field name="wired.transaction" type="uint32" id="1000" />
 
