@@ -109,6 +109,7 @@ static wi_string_t *									wd_files_drop_box_path_in_path(wi_string_t *, wd_us
 static wi_boolean_t										wd_files_name_matches_query(wi_string_t *, wi_string_t *);
 
 static wd_files_privileges_t *							wd_files_privileges_alloc(void);
+static wi_string_t *									wd_files_privileges_description(wi_runtime_instance_t *instance);
 static void												wd_files_privileges_dealloc(wi_runtime_instance_t *);
 
 static wd_files_privileges_t *							wd_files_privileges_with_string(wi_string_t *);
@@ -136,7 +137,7 @@ static wi_runtime_class_t								wd_files_privileges_runtime_class = {
 	wd_files_privileges_dealloc,
 	NULL,
 	NULL,
-	NULL,
+	wd_files_privileges_description,
 	NULL
 };
 
@@ -293,7 +294,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 			
 			if(privileges) {
 				readable = wd_files_privileges_is_readable_by_account(privileges, account);
-				writable = wd_files_privileges_is_readable_by_account(privileges, account);
+				writable = wd_files_privileges_is_writable_by_account(privileges, account);
 			}
 		}
 
@@ -1881,6 +1882,24 @@ wi_string_t * wd_files_string_for_bytes(wi_file_offset_t bytes) {
 
 static wd_files_privileges_t * wd_files_privileges_alloc(void) {
 	return wi_runtime_create_instance(wd_files_privileges_runtime_id, sizeof(wd_files_privileges_t));
+}
+
+
+
+static wi_string_t * wd_files_privileges_description(wi_runtime_instance_t *instance) {
+	wd_files_privileges_t		*privileges = instance;
+	
+	return wi_string_with_format(WI_STR("<%@ %p>{owner = \"%@\" %c%c, group = \"%@\" %c%c, everyone = %c%c}"),
+		wi_runtime_class_name(privileges),
+		privileges,
+		privileges->owner,
+		(privileges->mode & WD_FILE_OWNER_READ) ? 'r' : '-',
+		(privileges->mode & WD_FILE_OWNER_WRITE) ? 'w' : '-',
+		privileges->group,
+		(privileges->mode & WD_FILE_GROUP_READ) ? 'r' : '-',
+		(privileges->mode & WD_FILE_GROUP_WRITE) ? 'w' : '-',
+		(privileges->mode & WD_FILE_EVERYONE_READ) ? 'r' : '-',
+		(privileges->mode & WD_FILE_EVERYONE_WRITE) ? 'w' : '-');
 }
 
 
