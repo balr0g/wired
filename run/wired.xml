@@ -285,8 +285,6 @@
 			<p7:member field="wired.file.executable" />
 			<p7:member field="wired.file.label" />
 			<p7:member field="wired.file.volume" />
-			<p7:member field="wired.file.readable" />
-			<p7:member field="wired.file.writable" />
 		</p7:collection>
 		
 		<p7:collection name="wired.account.privileges">
@@ -836,6 +834,8 @@
 		<p7:message name="wired.file.list" id="7001">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter collection="wired.file.info" use="required" />
+			<p7:parameter field="wired.file.readable" />
+			<p7:parameter field="wired.file.writable" />
 		</p7:message>
 
 		<p7:message name="wired.file.list.done" id="7002">
@@ -861,6 +861,8 @@
 			<p7:parameter field="wired.file.group.write" />
 			<p7:parameter field="wired.file.everyone.read" />
 			<p7:parameter field="wired.file.everyone.write" />
+			<p7:parameter field="wired.file.readable" />
+			<p7:parameter field="wired.file.writable" />
 		</p7:message>
 
 		<p7:message name="wired.file.move" id="7005">
@@ -908,6 +910,8 @@
 		<p7:message name="wired.file.search_list" id="7011">
 			<p7:parameter field="wired.transaction" />
 			<p7:parameter collection="wired.file.info" use="required" />
+			<p7:parameter field="wired.file.readable" />
+			<p7:parameter field="wired.file.writable" />
 		</p7:message>
 
 		<p7:message name="wired.file.search_list.done" id="7012">

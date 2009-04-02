@@ -61,7 +61,7 @@
 #define WD_FILES_MAX_LEVEL								20
 
 #define WD_FILES_INDEX_MAGIC							"WDIX"
-#define WD_FILES_INDEX_VERSION							5
+#define WD_FILES_INDEX_VERSION							6
 
 
 struct _wd_files_index_header {
@@ -325,8 +325,12 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		wi_p7_message_set_bool_for_name(reply, (type == WD_FILE_TYPE_FILE && sb.mode & 0111), WI_STR("wired.file.executable"));
 		wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
 		wi_p7_message_set_uint32_for_name(reply, sb.dev == wd_files_root_volume ? 0 : sb.dev, WI_STR("wired.file.volume"));
-		wi_p7_message_set_bool_for_name(reply, readable, WI_STR("wired.file.readable"));
-		wi_p7_message_set_bool_for_name(reply, writable, WI_STR("wired.file.writable"));
+		
+		if(type == WD_FILE_TYPE_DROPBOX) {
+			wi_p7_message_set_bool_for_name(reply, readable, WI_STR("wired.file.readable"));
+			wi_p7_message_set_bool_for_name(reply, writable, WI_STR("wired.file.writable"));
+		}
+		
 		wd_user_reply_message(user, reply, message);
 		wi_release(reply);
 		
@@ -466,8 +470,6 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	wi_p7_message_set_bool_for_name(reply, (type == WD_FILE_TYPE_FILE && sb.mode & 0111), WI_STR("wired.file.executable"));
 	wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
 	wi_p7_message_set_uint32_for_name(reply, sb.dev == wd_files_root_volume ? 0 : sb.dev, WI_STR("wired.file.volume"));
-	wi_p7_message_set_bool_for_name(reply, readable, WI_STR("wired.file.readable"));
-	wi_p7_message_set_bool_for_name(reply, writable, WI_STR("wired.file.writable"));
 	
 	if(type == WD_FILE_TYPE_DROPBOX) {
 		wi_p7_message_set_string_for_name(reply, privileges->owner, WI_STR("wired.file.owner"));
@@ -478,6 +480,8 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 		wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_FILE_GROUP_READ), WI_STR("wired.file.group.read"));
 		wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_FILE_EVERYONE_WRITE), WI_STR("wired.file.everyone.write"));
 		wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_FILE_EVERYONE_READ), WI_STR("wired.file.everyone.read"));
+		wi_p7_message_set_bool_for_name(reply, readable, WI_STR("wired.file.readable"));
+		wi_p7_message_set_bool_for_name(reply, writable, WI_STR("wired.file.writable"));
 	}
 	
 	wd_user_reply_message(user, reply, message);
@@ -1175,8 +1179,6 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 						  sizeof(searchlistid) + 
 						  sizeof(pathid) + sizeof(pathlength) + pathlength +
 						  sizeof(typeid) + sizeof(type) + 
-						  sizeof(readableid) + 1 +
-						  sizeof(writableid) + 1 +
 						  sizeof(sizeid) + sizeof(size) +
 						  sizeof(creationid) + creationlength +
 						  sizeof(modificationid) + modificationlength +
@@ -1184,6 +1186,12 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 						  sizeof(executableid) + 1 +
 						  sizeof(labelid) + sizeof(label) +
 						  sizeof(volumeid) + sizeof(volume);
+	
+	if(type == WD_FILE_TYPE_DROPBOX) {
+		entrylength += sizeof(readableid) + 1;
+		entrylength += sizeof(writableid) + 1;
+	}
+	
 	totalentrylength	= sizeof(entrylength) + entrylength;
 	
 	if(!buffer) {
@@ -1206,10 +1214,14 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	memcpy(p, wi_string_cstring(path), pathlength);							p += pathlength;
 	wi_write_swap_host_to_big_int32(p, 0, typeid);							p += sizeof(typeid);
 	wi_write_swap_host_to_big_int32(p, 0, type);							p += sizeof(type);
-	wi_write_swap_host_to_big_int32(p, 0, readableid);						p += sizeof(readableid);
-	memcpy(p, "\0", 1);														p += 1;
-	wi_write_swap_host_to_big_int32(p, 0, writableid);						p += sizeof(writableid);
-	memcpy(p, "\0", 1);														p += 1;
+	
+	if(type == WD_FILE_TYPE_DROPBOX) {
+		wi_write_swap_host_to_big_int32(p, 0, readableid);						p += sizeof(readableid);
+		memcpy(p, "\0", 1);														p += 1;
+		wi_write_swap_host_to_big_int32(p, 0, writableid);						p += sizeof(writableid);
+		memcpy(p, "\0", 1);														p += 1;
+	}
+	
 	wi_write_swap_host_to_big_int32(p, 0, sizeid);							p += sizeof(sizeid);
 	wi_write_swap_host_to_big_int64(p, 0, size);							p += sizeof(size);
 	wi_write_swap_host_to_big_int32(p, 0, creationid);						p += sizeof(creationid);
