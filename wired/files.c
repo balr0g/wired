@@ -409,9 +409,7 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	account		= wd_user_account(user);
 	realpath	= wd_files_real_path(path, user);
 	alias		= wi_fs_path_is_alias(realpath);
-	
-	if(alias)
-		realpath = wi_string_by_resolving_aliases_in_path(realpath);
+	realpath	= wi_string_by_resolving_aliases_in_path(realpath);
 
 	if(!wi_fs_lstat_path(realpath, &lsb)) {
 		wi_log_warn(WI_STR("Could not read info for %@: %m"), realpath);
