@@ -261,6 +261,12 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 			continue;
 		}
 		
+		if(wi_fs_path_is_invisible(filepath)) {
+			wi_fsenumerator_skip_descendents(fsenumerator);
+			
+			continue;
+		}
+		
 		if(!recursive)
 			wi_fsenumerator_skip_descendents(fsenumerator);
 		
@@ -364,6 +370,7 @@ done:
 
 
 static wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
+	wi_mutable_string_t		*filepath;
 	DIR						*dir;
 	struct dirent			de, *dep;
 	wi_file_offset_t		count = 0;
@@ -380,12 +387,22 @@ static wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, 
 		return 0;
 	}
 	
+	filepath = wi_mutable_copy(path);
+	
+	wi_mutable_string_append_cstring(filepath, "/");
+	
 	while(readdir_r(dir, &de, &dep) == 0 && dep) {
-		if(dep->d_name[0] == '.')
-			continue;
-		
-		count++;
+		if(dep->d_name[0] != '.') {
+			wi_mutable_string_append_cstring(filepath, dep->d_name);
+			
+			if(!wi_fs_path_is_invisible(filepath))
+				count++;
+			
+			wi_mutable_string_delete_characters_from_index(filepath, wi_string_length(filepath) - dep->d_namlen);
+		}
 	}
+	
+	wi_release(filepath);
 
 	closedir(dir);
 	
@@ -1040,6 +1057,12 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 	while((status = wi_fsenumerator_get_next_path(fsenumerator, &filepath)) != WI_FSENUMERATOR_EOF) {
 		if(status == WI_FSENUMERATOR_ERROR) {
 			wi_log_warn(WI_STR("Skipping index of %@: %m"), filepath);
+			
+			continue;
+		}
+		
+		if(wi_fs_path_is_invisible(filepath)) {
+			wi_fsenumerator_skip_descendents(fsenumerator);
 			
 			continue;
 		}
