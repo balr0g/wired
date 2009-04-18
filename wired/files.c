@@ -398,7 +398,7 @@ static wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, 
 			if(!wi_fs_path_is_invisible(filepath))
 				count++;
 			
-			wi_mutable_string_delete_characters_from_index(filepath, wi_string_length(filepath) - dep->d_namlen);
+			wi_mutable_string_delete_characters_from_index(filepath, wi_string_length(filepath) - strlen(dep->d_name));
 		}
 	}
 	
