@@ -226,7 +226,7 @@ void wd_server_listen(void) {
 			continue;
 		}
 
-		if(!wi_socket_listen(tcp_socket, 25) || !wi_socket_listen(udp_socket, 25)) {
+		if(!wi_socket_listen(tcp_socket) || !wi_socket_listen(udp_socket)) {
 			wi_log_warn(WI_STR("Could not listen on %@ port %u: %m"),
 				ip, wi_socket_port(tcp_socket));
 			
