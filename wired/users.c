@@ -444,14 +444,9 @@ static wd_uid_t wd_user_next_id(void) {
 	wd_uid_t	id;
 	
 	wi_lock_lock(wd_users_id_lock);
-	wi_dictionary_rdlock(wd_users);
-	
-	if(wi_dictionary_count(wd_users) == 0)
-		wd_users_current_id = 0;
 	
 	id = ++wd_users_current_id;
 
-	wi_dictionary_unlock(wd_users);
 	wi_lock_unlock(wd_users_id_lock);
 
 	return id;
