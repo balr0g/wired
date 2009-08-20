@@ -49,11 +49,12 @@ void								wd_server_log_reply_log(wd_user_t *, wi_p7_message_t *);
 
 void								wd_user_send_message(wd_user_t *, wi_p7_message_t *);
 void								wd_user_reply_message(wd_user_t *, wi_p7_message_t *, wi_p7_message_t *);
+void								wd_user_reply_okay(wd_user_t *, wi_p7_message_t *);
 void								wd_user_reply_error(wd_user_t *, wi_string_t *, wi_p7_message_t *);
 void								wd_user_reply_file_errno(wd_user_t *, wi_p7_message_t *);
 void								wd_user_reply_internal_error(wd_user_t *, wi_p7_message_t *);
 void								wd_broadcast_message(wi_p7_message_t *);
-void								wd_chat_broadcast_message(wd_chat_t *chat, wi_p7_message_t *);
+void								wd_chat_broadcast_message(wd_chat_t *, wi_p7_message_t *);
 
 extern wi_uinteger_t				wd_port;
 extern wi_data_t					*wd_banner;

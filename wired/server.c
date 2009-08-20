@@ -325,6 +325,13 @@ wi_p7_message_t * wd_server_info_message(void) {
 	wi_p7_message_set_string_for_name(message, wi_process_os_name(wi_process()), WI_STR("wired.info.os.name"));
 	wi_p7_message_set_string_for_name(message, wi_process_os_release(wi_process()), WI_STR("wired.info.os.version"));
 	wi_p7_message_set_string_for_name(message, wi_process_os_arch(wi_process()), WI_STR("wired.info.arch"));
+
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	wi_p7_message_set_bool_for_name(message, true, WI_STR("wired.info.supports_rsrc"));
+#else
+	wi_p7_message_set_bool_for_name(message, false, WI_STR("wired.info.supports_rsrc"));
+#endif
+	
 	wi_p7_message_set_string_for_name(message, wi_config_string_for_name(wd_config, WI_STR("name")), WI_STR("wired.info.name"));
 	wi_p7_message_set_string_for_name(message, wi_config_string_for_name(wd_config, WI_STR("description")), WI_STR("wired.info.description"));
 	wi_p7_message_set_date_for_name(message, wd_start_date, WI_STR("wired.info.start_time"));
@@ -735,7 +742,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 
 		if(wi_is_equal(wi_p7_message_name(message), WI_STR("wired.tracker.send_update"))) {
 			if(wi_config_bool_for_name(wd_config, WI_STR("enable tracker")))
-				wd_servers_update_server(message);
+				wd_servers_update_server(NULL, message);
 		}
 	}
 	
@@ -764,7 +771,7 @@ void wd_server_log_reply_log(wd_user_t *user, wi_p7_message_t *message) {
 	for(i = 0; i < count; i++) {
 		entry = WI_ARRAY(wd_log_entries, i);
 		
-		reply = wi_p7_message_with_name(WI_STR("wired.log.log_list"), wd_p7_spec);
+		reply = wi_p7_message_with_name(WI_STR("wired.log.list"), wd_p7_spec);
 		wi_p7_message_set_date_for_name(reply, wi_dictionary_data_for_key(entry, WI_STR("wired.log.time")), WI_STR("wired.log.time"));
 		wi_p7_message_set_number_for_name(reply, wi_dictionary_data_for_key(entry, WI_STR("wired.log.level")), WI_STR("wired.log.level"));
 		wi_p7_message_set_string_for_name(reply, wi_dictionary_data_for_key(entry, WI_STR("wired.log.message")), WI_STR("wired.log.message"));
@@ -774,7 +781,7 @@ void wd_server_log_reply_log(wd_user_t *user, wi_p7_message_t *message) {
 	
 	wi_array_unlock(wd_log_entries);
 	
-	reply = wi_p7_message_with_name(WI_STR("wired.log.log_list.done"), wd_p7_spec);
+	reply = wi_p7_message_with_name(WI_STR("wired.log.list.done"), wd_p7_spec);
 	wd_user_reply_message(user, reply, message);
 }
 
@@ -786,7 +793,6 @@ static void wd_server_log_callback(wi_log_level_t level, wi_string_t *string) {
 	wi_p7_message_t		*message;
 	wi_date_t			*date;
 	wd_user_t			*user;
-	wi_p7_uint32_t		transaction;
 	wi_uinteger_t		count;
 	
 	date	= wi_date();
@@ -796,34 +802,30 @@ static void wd_server_log_callback(wi_log_level_t level, wi_string_t *string) {
 		WI_INT32(4 - level),	WI_STR("wired.log.level"),
 		NULL);
 	
-	wi_array_wrlock(wd_log_entries);
-	
-	count = wi_array_count(wd_log_entries);
-	
-	if(count > WD_SERVER_MAX_LOG_ENTRIES + 100)
-		wi_mutable_array_remove_data_in_range(wd_log_entries, wi_make_range(0, 100));
-	
-	wi_mutable_array_add_data(wd_log_entries, entry);
-	wi_array_unlock(wd_log_entries);
-	
-	if(wd_users && wi_dictionary_tryrdlock(wd_users)) {
-		enumerator = wi_dictionary_data_enumerator(wd_users);
+	if(wi_array_trywrlock(wd_log_entries)) {
+		count = wi_array_count(wd_log_entries);
 		
-		while((user = wi_enumerator_next_data(enumerator))) {
-			if(wd_user_state(user) == WD_USER_LOGGED_IN && wd_user_is_subscribed_log(user, &transaction)) {
-				message = wi_p7_message_with_name(WI_STR("wired.log.message"), wd_p7_spec);
-				wi_p7_message_set_date_for_name(message, date, WI_STR("wired.log.time"));
-				wi_p7_message_set_enum_for_name(message, 4 - level, WI_STR("wired.log.level"));
-				wi_p7_message_set_string_for_name(message, string, WI_STR("wired.log.message"));
-				
-				if(transaction != 0)
-					wi_p7_message_set_uint32_for_name(message, transaction, WI_STR("wired.transaction"));
-				
-				wd_user_send_message(user, message);
+		if(count > WD_SERVER_MAX_LOG_ENTRIES + 100)
+			wi_mutable_array_remove_data_in_range(wd_log_entries, wi_make_range(0, 100));
+		
+		wi_mutable_array_add_data(wd_log_entries, entry);
+		wi_array_unlock(wd_log_entries);
+		
+		if(wd_users && wi_dictionary_tryrdlock(wd_users)) {
+			enumerator = wi_dictionary_data_enumerator(wd_users);
+			
+			while((user = wi_enumerator_next_data(enumerator))) {
+				if(wd_user_state(user) == WD_USER_LOGGED_IN && wd_user_is_subscribed_log(user)) {
+					message = wi_p7_message_with_name(WI_STR("wired.log.message"), wd_p7_spec);
+					wi_p7_message_set_date_for_name(message, date, WI_STR("wired.log.time"));
+					wi_p7_message_set_enum_for_name(message, 4 - level, WI_STR("wired.log.level"));
+					wi_p7_message_set_string_for_name(message, string, WI_STR("wired.log.message"));
+					wd_user_send_message(user, message);
+				}
 			}
+			
+			wi_dictionary_unlock(wd_users);
 		}
-		
-		wi_dictionary_unlock(wd_users);
 	}
 }
 
@@ -854,6 +856,15 @@ void wd_user_reply_message(wd_user_t *user, wi_p7_message_t *reply, wi_p7_messag
 	}
 	
 	wd_user_send_message(user, reply);
+}
+
+
+
+void wd_user_reply_okay(wd_user_t *user, wi_p7_message_t *message) {
+	wi_p7_message_t		*reply;
+	
+	reply = wi_p7_message_with_name(WI_STR("wired.okay"), wd_p7_spec);
+	wd_user_reply_message(user, reply, message);
 }
 
 

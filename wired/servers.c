@@ -298,28 +298,35 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 
 
 
-void wd_servers_update_server(wi_p7_message_t *message) {
+wi_boolean_t wd_servers_update_server(wd_user_t *user, wi_p7_message_t *message) {
 	wi_uuid_t			*token;
 	wd_server_t			*server;
 
 	token = wi_p7_message_uuid_for_name(message, WI_STR("wired.tracker.token"));
 	server = wd_servers_server_with_token(token);
 	
-	if(server) {
-		wd_servers_remove_stats_for_server(server);
-
-		server->update_time = wi_time_interval();
-
-		wi_p7_message_get_uint32_for_name(message, &server->users, WI_STR("wired.tracker.users"));
-		wi_p7_message_get_uint64_for_name(message, &server->files_count, WI_STR("wired.info.files.count"));
-		wi_p7_message_get_uint64_for_name(message, &server->files_size, WI_STR("wired.info.files.size"));
-
-		wd_servers_add_stats_for_server(server);
-
-		wi_lock_lock(wd_status_lock);
-		wd_write_status(true);
-		wi_lock_unlock(wd_status_lock);
+	if(!server) {
+		if(user)
+			wd_user_reply_error(user, WI_STR("wired.error.not_registered"), message);
+		
+		return false;
 	}
+	
+	wd_servers_remove_stats_for_server(server);
+
+	server->update_time = wi_time_interval();
+
+	wi_p7_message_get_uint32_for_name(message, &server->users, WI_STR("wired.tracker.users"));
+	wi_p7_message_get_uint64_for_name(message, &server->files_count, WI_STR("wired.info.files.count"));
+	wi_p7_message_get_uint64_for_name(message, &server->files_size, WI_STR("wired.info.files.size"));
+
+	wd_servers_add_stats_for_server(server);
+
+	wi_lock_lock(wd_status_lock);
+	wd_write_status(true);
+	wi_lock_unlock(wd_status_lock);
+	
+	return true;
 }
 
 

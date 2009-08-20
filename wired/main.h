@@ -32,6 +32,7 @@
 #include <wired/wired.h>
 
 typedef struct _wd_user				wd_user_t;
+typedef struct _wd_chat				wd_chat_t;
 
 
 void								wd_write_status(wi_boolean_t);

@@ -86,18 +86,20 @@ void									wd_files_index(wi_boolean_t);
 void									wd_files_index_add_file(wi_string_t *);
 void									wd_files_index_delete_file(wi_string_t *);
 
+wi_boolean_t							wd_files_set_type(wi_string_t *, wd_file_type_t, wd_user_t *, wi_p7_message_t *);
 wd_file_type_t							wd_files_type(wi_string_t *);
-void									wd_files_set_type(wi_string_t *, wd_file_type_t, wd_user_t *, wi_p7_message_t *);
 
-void									wd_files_set_executable(wi_string_t *, wi_boolean_t, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_files_set_executable(wi_string_t *, wi_boolean_t, wd_user_t *, wi_p7_message_t *);
 
-void									wd_files_set_comment(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_files_set_comment(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
 void									wd_files_move_comment(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_files_remove_comment(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
-void									wd_files_set_label(wi_string_t *, wd_file_label_t, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_files_set_label(wi_string_t *, wd_file_label_t, wd_user_t *, wi_p7_message_t *);
 void									wd_files_move_label(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_files_remove_label(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
-void									wd_files_set_privileges(wi_string_t *, wd_files_privileges_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_files_set_privileges(wi_string_t *, wd_files_privileges_t *, wd_user_t *, wi_p7_message_t *);
 wd_files_privileges_t *					wd_files_privileges(wi_string_t *, wd_user_t *);
 
 wi_boolean_t							wd_files_path_is_valid(wi_string_t *);

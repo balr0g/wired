@@ -36,7 +36,7 @@ void							wd_banlist_init(void);
 wi_boolean_t					wd_banlist_ip_is_banned(wi_string_t *, wi_date_t **expiration_date);
 
 void							wd_banlist_reply_bans(wd_user_t *, wi_p7_message_t *);
-void							wd_banlist_add_ban(wd_user_t *, wi_p7_message_t *, wi_string_t *, wi_date_t *);
-void							wd_banlist_delete_ban(wd_user_t *, wi_p7_message_t *, wi_string_t *, wi_date_t *);
+wi_boolean_t					wd_banlist_add_ban(wd_user_t *, wi_p7_message_t *, wi_string_t *, wi_date_t *);
+wi_boolean_t					wd_banlist_delete_ban(wd_user_t *, wi_p7_message_t *, wi_string_t *, wi_date_t *);
 
 #endif /* WD_BANLIST_H */

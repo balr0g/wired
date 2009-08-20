@@ -75,7 +75,11 @@ typedef enum _wd_account_field_account				wd_account_field_account_t;
 
 static wi_runtime_instance_t *						wd_accounts_instance_at_path(wi_string_t *);
 static wi_array_t *									wd_accounts_convert_accounts(wi_string_t *, wi_array_t *);
+static void											wd_accounts_reload_user_account(wi_string_t *);
+static void											wd_accounts_reload_group_account(wi_string_t *);
 static void											wd_accounts_reload_account(wd_user_t *, wd_account_t *);
+static wi_boolean_t									wd_accounts_clear_group(wi_string_t *);
+static void											wd_accounts_notify_subscribers(void);
 
 static wd_account_t *								wd_account_init_with_values(wd_account_t *, wi_dictionary_t *);
 static wi_string_t *								wd_account_description(wi_runtime_instance_t *);
@@ -149,7 +153,7 @@ void wd_accounts_init(void) {
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.user.get_info"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
-			WI_STR("wired.account.user.kick_users"),
+			WI_STR("wired.account.user.disconnect_users"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.user.ban_users"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
@@ -158,6 +162,8 @@ void wd_accounts_init(void) {
 			WI_STR("wired.account.user.cannot_set_nick"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.user.get_users"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
+			WI_STR("wired.account.chat.kick_users"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.chat.set_topic"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
@@ -168,6 +174,8 @@ void wd_accounts_init(void) {
 			WI_STR("wired.account.message.broadcast"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.file.list_files"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
+			WI_STR("wired.account.file.search_files"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.file.get_info"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
@@ -295,7 +303,7 @@ void wd_accounts_init(void) {
 		WI_STR("wired.account.account.edit_users"),
 		WI_STR("wired.account.account.delete_users"),
 		WI_STR("wired.account.account.raise_account_privileges"),
-		WI_STR("wired.account.user.kick_users"),
+		WI_STR("wired.account.chat.kick_users"),
 		WI_STR("wired.account.user.ban_users"),	
 		WI_STR("wired.account.user.cannot_be_disconnected"),
 		WI_STR("wired.account.transfer.download_speed_limit"),
@@ -346,6 +354,8 @@ void wd_accounts_init(void) {
 		WI_STR("wired.account.board.delete_threads"),
 		WI_STR("wired.account.board.edit_own_posts"),
 		WI_STR("wired.account.board.edit_all_posts"),
+		WI_STR("wired.account.user.disconnect_users"),
+		WI_STR("wired.account.file.search_files"),
 		NULL);
 	
 	wd_groups_fields = wi_array_init_with_data(wi_array_alloc(),
@@ -365,7 +375,7 @@ void wd_accounts_init(void) {
 		WI_STR("wired.account.account.edit_users"),
 		WI_STR("wired.account.account.delete_users"),
 		WI_STR("wired.account.account.raise_account_privileges"),
-		WI_STR("wired.account.user.kick_users"),
+		WI_STR("wired.account.chat.kick_users"),
 		WI_STR("wired.account.user.ban_users"),	
 		WI_STR("wired.account.user.cannot_be_disconnected"),
 		WI_STR("wired.account.transfer.download_speed_limit"),
@@ -413,6 +423,8 @@ void wd_accounts_init(void) {
 		WI_STR("wired.account.board.delete_threads"),
 		WI_STR("wired.account.board.edit_own_posts"),
 		WI_STR("wired.account.board.edit_all_posts"),
+		WI_STR("wired.account.user.disconnect_users"),
+		WI_STR("wired.account.file.search_files"),
 		NULL);
 }
 
@@ -547,7 +559,7 @@ wi_string_t * wd_accounts_password_for_user(wi_string_t *name) {
 
 
 
-wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *password) {
+wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *password, wd_user_t *user, wi_p7_message_t *message) {
 	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
 	wi_mutable_array_t		*array;
@@ -571,8 +583,10 @@ wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *pas
 	
 	result = wi_plist_write_instance_to_file(array, wd_users_path);
 	
-	if(!result)
+	if(!result) {
 		wi_log_err(WI_STR("Could not write %@: %m"));
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+	}
 	
 	wi_recursive_lock_unlock(wd_users_lock);
 
@@ -603,6 +617,8 @@ wi_boolean_t wd_accounts_create_user(wd_account_t *account, wd_user_t *user, wi_
 
 	wi_recursive_lock_unlock(wd_users_lock);
 	
+	wd_accounts_notify_subscribers();
+	
 	return result;
 }
 
@@ -630,6 +646,8 @@ wi_boolean_t wd_accounts_create_group(wd_account_t *account, wd_user_t *user, wi
 
 	wi_recursive_lock_unlock(wd_groups_lock);
 	
+	wd_accounts_notify_subscribers();
+	
 	return result;
 }
 
@@ -639,7 +657,7 @@ wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user, wi_p7
 	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
 	wi_mutable_array_t		*array;
-	wi_string_t				*new_name;
+	wi_string_t				*name, *new_name;
 	wi_runtime_instance_t	*instance;
 	wi_boolean_t			result = false;
 	
@@ -657,6 +675,7 @@ wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user, wi_p7
 			wi_mutable_array_add_data(array, dictionary);
 	}
 	
+	name		= wi_autorelease(wi_retain(wi_dictionary_data_for_key(account->values, WI_STR("wired.account.name"))));
 	new_name	= wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"));
 
 	if(new_name) {
@@ -674,7 +693,12 @@ wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user, wi_p7
 	}
 
 	wi_recursive_lock_unlock(wd_users_lock);
-
+	
+	if(new_name && !wi_is_equal(name, new_name))
+		wd_accounts_notify_subscribers();
+	
+	wd_accounts_reload_user_account(wd_account_name(account));
+	
 	return result;
 }
 
@@ -721,6 +745,13 @@ wi_boolean_t wd_accounts_edit_group(wd_account_t *account, wd_user_t *user, wi_p
 
 	wi_recursive_lock_unlock(wd_groups_lock);
 	
+	if(new_name && !wi_is_equal(name, new_name)) {
+		wd_accounts_rename_group(name, new_name);
+		wd_accounts_notify_subscribers();
+	}
+	
+	wd_accounts_reload_group_account(wd_account_name(account));
+	
 	return result;
 }
 
@@ -753,6 +784,8 @@ wi_boolean_t wd_accounts_delete_user(wi_string_t *name, wd_user_t *user, wi_p7_m
 
 	wi_recursive_lock_unlock(wd_users_lock);
 
+	wd_accounts_notify_subscribers();
+	
 	return result;
 }
 
@@ -785,6 +818,10 @@ wi_boolean_t wd_accounts_delete_group(wi_string_t *name, wd_user_t *user, wi_p7_
 
 	wi_recursive_lock_unlock(wd_groups_lock);
 
+	wd_accounts_notify_subscribers();
+	
+	wd_accounts_clear_group(name);
+	
 	return result;
 }
 
@@ -829,54 +866,6 @@ wi_boolean_t wd_accounts_rename_group(wi_string_t *name, wi_string_t *new_name) 
 
 
 
-wi_boolean_t wd_accounts_clear_group(wi_string_t *name) {
-	wi_enumerator_t				*enumerator;
-	wi_mutable_dictionary_t		*dictionary;
-	wi_mutable_array_t			*groups;
-	wi_runtime_instance_t		*instance;
-	wi_uinteger_t				i, count;
-	wi_boolean_t				result = false;
-	
-	wi_recursive_lock_lock(wd_users_lock);
-	
-	instance	= wd_accounts_instance_at_path(wd_users_path);
-	enumerator	= wi_array_data_enumerator(instance);
-	
-	while((dictionary = wi_enumerator_next_data(enumerator))) {
-		if(wi_is_equal(wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.group")), name))
-			wi_mutable_dictionary_remove_data_for_key(dictionary, WI_STR("wired.account.group"));
-		
-		groups = wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.groups"));
-		
-		if(groups) {
-			count = wi_array_count(groups);
-			
-			for(i = 0; i < count; i++) {
-				if(wi_is_equal(WI_ARRAY(groups, i), name)) {
-					wi_mutable_array_remove_data_at_index(groups, i);
-					
-					i--;
-					count--;
-				}
-			}
-			
-			if(wi_array_count(groups) == 0)
-				wi_mutable_dictionary_remove_data_for_key(dictionary, WI_STR("wired.account.groups"));
-		}
-	}
-
-	result = wi_plist_write_instance_to_file(instance, wd_users_path);
-		
-	if(!result)
-		wi_log_err(WI_STR("Could not write %@: %m"));
-
-	wi_recursive_lock_unlock(wd_users_lock);
-
-	return result;
-}
-
-
-
 void wd_accounts_update_login_time(wd_account_t *account) {
 	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
@@ -902,48 +891,6 @@ void wd_accounts_update_login_time(wd_account_t *account) {
 		wi_log_err(WI_STR("Could not write %@: %m"));
 
 	wi_recursive_lock_unlock(wd_users_lock);
-}
-
-
-
-void wd_accounts_reload_user_account(wi_string_t *name) {
-	wi_enumerator_t		*enumerator;
-	wd_user_t			*user;
-	wd_account_t		*account;
-
-	wi_dictionary_rdlock(wd_users);
-	
-	enumerator = wi_dictionary_data_enumerator(wd_users);
-	
-	while((user = wi_enumerator_next_data(enumerator))) {
-		account = wd_user_account(user);
-		
-		if(account && wi_is_equal(wd_account_name(account), name))
-			wd_accounts_reload_account(user, account);
-	}
-
-	wi_dictionary_unlock(wd_users);
-}
-
-
-
-void wd_accounts_reload_group_account(wi_string_t *name) {
-	wi_enumerator_t		*enumerator;
-	wd_user_t			*user;
-	wd_account_t		*account;
-
-	wi_dictionary_rdlock(wd_users);
-	
-	enumerator = wi_dictionary_data_enumerator(wd_users);
-	
-	while((user = wi_enumerator_next_data(enumerator))) {
-		account = wd_user_account(user);
-		
-		if(account && wi_is_equal(wd_account_group(account), name))
-			wd_accounts_reload_account(user, account);
-	}
-
-	wi_dictionary_unlock(wd_users);
 }
 
 
@@ -1062,6 +1009,48 @@ static wi_array_t * wd_accounts_convert_accounts(wi_string_t *path, wi_array_t *
 
 
 
+static void wd_accounts_reload_user_account(wi_string_t *name) {
+	wi_enumerator_t		*enumerator;
+	wd_user_t			*user;
+	wd_account_t		*account;
+	
+	wi_dictionary_rdlock(wd_users);
+	
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((user = wi_enumerator_next_data(enumerator))) {
+		account = wd_user_account(user);
+		
+		if(account && wi_is_equal(wd_account_name(account), name))
+			wd_accounts_reload_account(user, account);
+	}
+	
+	wi_dictionary_unlock(wd_users);
+}
+
+
+
+static void wd_accounts_reload_group_account(wi_string_t *name) {
+	wi_enumerator_t		*enumerator;
+	wd_user_t			*user;
+	wd_account_t		*account;
+	
+	wi_dictionary_rdlock(wd_users);
+	
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((user = wi_enumerator_next_data(enumerator))) {
+		account = wd_user_account(user);
+		
+		if(account && wi_is_equal(wd_account_group(account), name))
+			wd_accounts_reload_account(user, account);
+	}
+	
+	wi_dictionary_unlock(wd_users);
+}
+
+
+
 static void wd_accounts_reload_account(wd_user_t *user, wd_account_t *account) {
 	wd_account_t	*new_account;
 	wi_boolean_t	admin, new_admin;
@@ -1074,19 +1063,91 @@ static void wd_accounts_reload_account(wd_user_t *user, wd_account_t *account) {
 	wd_user_set_account(user, new_account);
 	
 	admin = wd_user_is_admin(user);
-	new_admin = (wd_account_user_kick_users(new_account) || wd_account_user_ban_users(new_account));
+	new_admin = (wd_account_user_disconnect_users(new_account) || wd_account_user_ban_users(new_account));
 	wd_user_set_admin(user, new_admin);
 	
 	if(admin != new_admin)
 		wd_user_broadcast_status(user);
 	
-	if(!wd_account_log_view_log(new_account) && wd_user_is_subscribed_log(user, NULL))
+	if(!wd_account_account_list_accounts(new_account) && wd_user_is_subscribed_accounts(user))
+		wd_user_unsubscribe_accounts(user);
+	
+	if(!wd_account_log_view_log(new_account) && wd_user_is_subscribed_log(user))
 		wd_user_unsubscribe_log(user);
 	
 	if(!wd_account_file_list_files(new_account) && wi_set_count(wd_user_subscribed_paths(user)) > 0)
 		wd_user_unsubscribe_paths(user);
 	
 	wd_user_send_message(user, wd_account_privileges_message(new_account));
+}
+
+
+
+static wi_boolean_t wd_accounts_clear_group(wi_string_t *name) {
+	wi_enumerator_t				*enumerator;
+	wi_mutable_dictionary_t		*dictionary;
+	wi_mutable_array_t			*groups;
+	wi_runtime_instance_t		*instance;
+	wi_uinteger_t				i, count;
+	wi_boolean_t				result = false;
+	
+	wi_recursive_lock_lock(wd_users_lock);
+	
+	instance	= wd_accounts_instance_at_path(wd_users_path);
+	enumerator	= wi_array_data_enumerator(instance);
+	
+	while((dictionary = wi_enumerator_next_data(enumerator))) {
+		if(wi_is_equal(wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.group")), name))
+			wi_mutable_dictionary_remove_data_for_key(dictionary, WI_STR("wired.account.group"));
+		
+		groups = wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.groups"));
+		
+		if(groups) {
+			count = wi_array_count(groups);
+			
+			for(i = 0; i < count; i++) {
+				if(wi_is_equal(WI_ARRAY(groups, i), name)) {
+					wi_mutable_array_remove_data_at_index(groups, i);
+					
+					i--;
+					count--;
+				}
+			}
+			
+			if(wi_array_count(groups) == 0)
+				wi_mutable_dictionary_remove_data_for_key(dictionary, WI_STR("wired.account.groups"));
+		}
+	}
+	
+	result = wi_plist_write_instance_to_file(instance, wd_users_path);
+	
+	if(!result)
+		wi_log_err(WI_STR("Could not write %@: %m"));
+	
+	wi_recursive_lock_unlock(wd_users_lock);
+	
+	return result;
+}
+
+
+
+static void wd_accounts_notify_subscribers(void) {
+	wi_enumerator_t		*enumerator;
+	wi_p7_message_t		*message;
+	wd_user_t			*user;
+	
+	wi_dictionary_rdlock(wd_users);
+	
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((user = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(user) == WD_USER_LOGGED_IN && wd_user_is_subscribed_accounts(user)) {
+			message = wi_p7_message_with_name(WI_STR("wired.account.accounts_changed"), wd_p7_spec);
+			wd_user_send_message(user, message);
+		}
+	}
+	
+	wi_dictionary_unlock(wd_users);
 }
 
 
@@ -1521,9 +1582,11 @@ WD_ACCOUNT_LIST_ACCESSOR(wd_account_groups, WI_STR("wired.account.groups"))
 WD_ACCOUNT_STRING_ACCESSOR(wd_account_files, WI_STR("wired.account.files"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_cannot_set_nick, WI_STR("wired.account.cannot_set_nick"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_get_info, WI_STR("wired.account.user.get_info"))
-WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_kick_users, WI_STR("wired.account.user.kick_users"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_disconnect_users, WI_STR("wired.account.user.disconnect_users"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_ban_users, WI_STR("wired.account.user.ban_users"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_cannot_be_disconnected, WI_STR("wired.account.user.cannot_be_disconnected"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_get_users, WI_STR("wired.account.user.get_users"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_chat_kick_users, WI_STR("wired.account.chat.kick_users"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_chat_set_topic, WI_STR("wired.account.chat.set_topic"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_chat_create_chats, WI_STR("wired.account.chat.create_chats"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_message_send_messages, WI_STR("wired.account.message.send_messages"))
@@ -1543,6 +1606,7 @@ WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_board_edit_all_posts, WI_STR("wired.accou
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_board_delete_own_posts, WI_STR("wired.account.board.delete_own_posts"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_board_delete_all_posts, WI_STR("wired.account.board.delete_all_posts"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_list_files, WI_STR("wired.account.file.list_files"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_search_files, WI_STR("wired.account.file.search_files"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_get_info, WI_STR("wired.account.file.get_info"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_create_directories, WI_STR("wired.account.file.create_directories"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_file_create_links, WI_STR("wired.account.file.create_links"))
@@ -1574,7 +1638,6 @@ WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_create_groups, WI_STR("wired.acco
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_edit_groups, WI_STR("wired.account.account.edit_groups"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_delete_groups, WI_STR("wired.account.account.delete_groups"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_raise_account_privileges, WI_STR("wired.account.account.raise_account_privileges"))
-WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_get_users, WI_STR("wired.account.user.get_users"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_log_view_log, WI_STR("wired.account.log.view_log"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_settings_get_settings, WI_STR("wired.account.settings.get_settings"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_settings_set_settings, WI_STR("wired.account.settings.set_settings"))

@@ -89,7 +89,7 @@ struct _wd_user {
 	wi_runtime_base_t					base;
 	
 	wi_recursive_lock_t					*user_lock;
-	wi_lock_t							*socket_lock;
+	wi_recursive_lock_t					*socket_lock;
 	wi_condition_lock_t					*state_lock;
 	
 	wi_socket_t							*socket;
@@ -113,9 +113,9 @@ struct _wd_user {
 	wi_date_t							*login_time;
 	wi_date_t							*idle_time;
 	
+	wi_boolean_t						subscribed_boards;
+	wi_boolean_t						subscribed_accounts;
 	wi_boolean_t						subscribed_log;
-	wi_p7_uint32_t						log_transaction;
-	
 	wi_mutable_set_t					*subscribed_paths;
 	
 	wd_transfer_t						*transfer;
@@ -159,6 +159,7 @@ struct _wd_client_info {
 	wi_string_t							*os_name;
 	wi_string_t							*os_version;
 	wi_string_t							*arch;
+	wi_boolean_t						supports_rsrc;
 };
 
 
@@ -329,7 +330,7 @@ void wd_users_reply_users(wd_user_t *user, wi_p7_message_t *message) {
 			
 			wi_p7_message_set_enum_for_name(reply, peer->transfer->type, WI_STR("wired.transfer.type"));
 			wi_p7_message_set_string_for_name(reply, peer->transfer->path, WI_STR("wired.file.path"));
-			wi_p7_message_set_uint64_for_name(reply, peer->transfer->size, WI_STR("wired.file.size"));
+			wi_p7_message_set_uint64_for_name(reply, peer->transfer->datasize + peer->transfer->rsrcsize, WI_STR("wired.file.size"));
 			wi_p7_message_set_uint64_for_name(reply, peer->transfer->transferred, WI_STR("wired.transfer.transferred"));
 			wi_p7_message_set_uint32_for_name(reply, peer->transfer->speed, WI_STR("wired.transfer.speed"));
 			wi_p7_message_set_uint32_for_name(reply, peer->transfer->queue, WI_STR("wired.transfer.queue_position"));
@@ -386,7 +387,7 @@ static wd_user_t * wd_user_init_with_socket(wd_user_t *user, wi_socket_t *socket
 	user->host				= wi_retain(wi_address_hostname(address));
 	
 	user->user_lock			= wi_recursive_lock_init(wi_recursive_lock_alloc());
-	user->socket_lock		= wi_lock_init(wi_lock_alloc());
+	user->socket_lock		= wi_recursive_lock_init(wi_recursive_lock_alloc());
 	user->state_lock		= wi_condition_lock_init(wi_condition_lock_alloc());
 	
 	user->subscribed_paths	= wi_set_init_with_capacity(wi_mutable_set_alloc(), 0, true);
@@ -500,37 +501,50 @@ void wd_user_reply_user_info(wd_user_t *peer, wd_user_t *user, wi_p7_message_t *
 
 
 void wd_user_broadcast_status(wd_user_t *user) {
+	wi_enumerator_t		*enumerator;
 	wi_p7_message_t		*message;
+	wd_chat_t			*chat;
+	
+	enumerator = wi_array_data_enumerator(wd_chats_chats_with_user(user));
 
 	wi_recursive_lock_lock(user->user_lock);
 	
-	message = wi_p7_message_with_name(WI_STR("wired.user.status"), wd_p7_spec);
-	wi_p7_message_set_uint32_for_name(message, user->id, WI_STR("wired.user.id"));
-	wi_p7_message_set_bool_for_name(message, user->admin, WI_STR("wired.user.admin"));
-	wi_p7_message_set_bool_for_name(message, user->idle, WI_STR("wired.user.idle"));
-	wi_p7_message_set_string_for_name(message, user->nick, WI_STR("wired.user.nick"));
-	wi_p7_message_set_string_for_name(message, user->status, WI_STR("wired.user.status"));
-	wi_p7_message_set_date_for_name(message, user->idle_time, WI_STR("wired.user.idle_time"));
+	while((chat = wi_enumerator_next_data(enumerator))) {
+		message = wi_p7_message_with_name(WI_STR("wired.chat.user_status"), wd_p7_spec);
+		wi_p7_message_set_uint32_for_name(message, wd_chat_id(chat), WI_STR("wired.chat.id"));
+		wi_p7_message_set_uint32_for_name(message, user->id, WI_STR("wired.user.id"));
+		wi_p7_message_set_bool_for_name(message, user->admin, WI_STR("wired.user.admin"));
+		wi_p7_message_set_bool_for_name(message, user->idle, WI_STR("wired.user.idle"));
+		wi_p7_message_set_string_for_name(message, user->nick, WI_STR("wired.user.nick"));
+		wi_p7_message_set_string_for_name(message, user->status, WI_STR("wired.user.status"));
+		wi_p7_message_set_date_for_name(message, user->idle_time, WI_STR("wired.user.idle_time"));
+
+		wd_chat_broadcast_message(chat, message);
+	}
 
 	wi_recursive_lock_unlock(user->user_lock);
-
-	wd_chat_broadcast_message(wd_public_chat, message);
 }
 
 
 
 void wd_user_broadcast_icon(wd_user_t *user) {
+	wi_enumerator_t		*enumerator;
 	wi_p7_message_t		*message;
+	wd_chat_t			*chat;
 	
+	enumerator = wi_array_data_enumerator(wd_chats_chats_with_user(user));
+
 	wi_recursive_lock_lock(user->user_lock);
 	
-	message = wi_p7_message_with_name(WI_STR("wired.user.icon"), wd_p7_spec);
-	wi_p7_message_set_uint32_for_name(message, user->id, WI_STR("wired.user.id"));
-	wi_p7_message_set_data_for_name(message, user->icon, WI_STR("wired.user.icon"));
-
+	while((chat = wi_enumerator_next_data(enumerator))) {
+		message = wi_p7_message_with_name(WI_STR("wired.chat.user_icon"), wd_p7_spec);
+		wi_p7_message_set_uint32_for_name(message, user->id, WI_STR("wired.user.id"));
+		wi_p7_message_set_data_for_name(message, user->icon, WI_STR("wired.user.icon"));
+		
+		wd_chat_broadcast_message(chat, message);
+	}
+	
 	wi_recursive_lock_unlock(user->user_lock);
-
-	wd_chat_broadcast_message(wd_public_chat, message);
 }
 
 
@@ -538,13 +552,13 @@ void wd_user_broadcast_icon(wd_user_t *user) {
 #pragma mark -
 
 void wd_user_lock_socket(wd_user_t *user) {
-	wi_lock_lock(user->socket_lock);
+	wi_recursive_lock_lock(user->socket_lock);
 }
 
 
 
 void wd_user_unlock_socket(wd_user_t *user) {
-	wi_lock_unlock(user->socket_lock);
+	wi_recursive_lock_unlock(user->socket_lock);
 }
 
 
@@ -700,10 +714,83 @@ wd_transfer_t * wd_user_transfer(wd_user_t *user) {
 
 #pragma mark -
 
-void wd_user_subscribe_log(wd_user_t *user, wi_p7_uint32_t transaction) {
+wi_boolean_t wd_user_supports_rsrc(wd_user_t *user) {
+	wi_boolean_t		result;
+	
 	wi_recursive_lock_lock(user->user_lock);
-	user->subscribed_log	= true;
-	user->log_transaction	= transaction;
+	result = user->client_info->supports_rsrc;
+	wi_recursive_lock_unlock(user->user_lock);
+	
+	return result;
+}
+
+
+
+void wd_user_subscribe_boards(wd_user_t *user) {
+	wi_recursive_lock_lock(user->user_lock);
+	user->subscribed_boards = true;
+	wi_recursive_lock_unlock(user->user_lock);
+}
+
+
+
+void wd_user_unsubscribe_boards(wd_user_t *user) {
+	wi_recursive_lock_lock(user->user_lock);
+	user->subscribed_boards = false;
+	wi_recursive_lock_unlock(user->user_lock);
+}
+
+
+
+wi_boolean_t wd_user_is_subscribed_boards(wd_user_t *user) {
+	wi_boolean_t		result;
+	
+	wi_recursive_lock_lock(user->user_lock);
+	result = user->subscribed_boards;
+	wi_recursive_lock_unlock(user->user_lock);
+	
+	return result;
+}
+
+
+
+
+#pragma mark -
+
+void wd_user_subscribe_accounts(wd_user_t *user) {
+	wi_recursive_lock_lock(user->user_lock);
+	user->subscribed_accounts = true;
+	wi_recursive_lock_unlock(user->user_lock);
+}
+
+
+
+void wd_user_unsubscribe_accounts(wd_user_t *user) {
+	wi_recursive_lock_lock(user->user_lock);
+	user->subscribed_accounts = false;
+	wi_recursive_lock_unlock(user->user_lock);
+}
+
+
+
+wi_boolean_t wd_user_is_subscribed_accounts(wd_user_t *user) {
+	wi_boolean_t		result;
+	
+	wi_recursive_lock_lock(user->user_lock);
+	result = user->subscribed_accounts;
+	wi_recursive_lock_unlock(user->user_lock);
+	
+	return result;
+}
+
+
+
+
+#pragma mark -
+
+void wd_user_subscribe_log(wd_user_t *user) {
+	wi_recursive_lock_lock(user->user_lock);
+	user->subscribed_log = true;
 	wi_recursive_lock_unlock(user->user_lock);
 }
 
@@ -717,16 +804,11 @@ void wd_user_unsubscribe_log(wd_user_t *user) {
 
 
 
-wi_boolean_t wd_user_is_subscribed_log(wd_user_t *user, wi_p7_uint32_t *transaction) {
+wi_boolean_t wd_user_is_subscribed_log(wd_user_t *user) {
 	wi_boolean_t		result;
 	
 	wi_recursive_lock_lock(user->user_lock);
-	
 	result = user->subscribed_log;
-	
-	if(transaction)
-		*transaction = user->log_transaction;
-	
 	wi_recursive_lock_unlock(user->user_lock);
 	
 	return result;
@@ -883,6 +965,7 @@ static wd_client_info_t * wd_client_info_init_with_message(wd_client_info_t *cli
 	client_info->arch					= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.info.arch")));
 	
 	wi_p7_message_get_uint32_for_name(message, &client_info->application_build, WI_STR("wired.info.application.build"));
+	wi_p7_message_get_bool_for_name(message, &client_info->supports_rsrc, WI_STR("wired.info.supports_rsrc"));
 	
 	return client_info;
 }

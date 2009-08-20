@@ -34,7 +34,6 @@
 #include "users.h"
 
 typedef uint32_t						wd_cid_t;
-typedef struct _wd_chat					wd_chat_t;
 typedef struct _wd_topic				wd_topic_t;
 
 
@@ -42,6 +41,7 @@ void									wd_chats_init(void);
 
 void									wd_chats_add_chat(wd_chat_t *);
 wd_chat_t *								wd_chats_chat_with_id(wd_cid_t);
+wi_array_t *							wd_chats_chats_with_user(wd_user_t *);
 void									wd_chats_remove_user(wd_user_t *);
 
 wd_chat_t *								wd_chat_private_chat(void);

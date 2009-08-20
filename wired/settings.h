@@ -44,7 +44,7 @@ void								wd_settings_apply_settings(wi_set_t *);
 void								wd_settings_schedule(void);
 
 void								wd_settings_reply_settings(wd_user_t *, wi_p7_message_t *);
-void								wd_settings_set_settings(wi_p7_message_t *);
+wi_boolean_t						wd_settings_set_settings(wd_user_t *, wi_p7_message_t *);
 
 
 extern wi_config_t *				wd_config;

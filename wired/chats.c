@@ -145,6 +145,29 @@ wd_chat_t * wd_chats_chat_with_id(wd_cid_t id) {
 
 
 
+wi_array_t * wd_chats_chats_with_user(wd_user_t *user) {
+	wi_enumerator_t			*enumerator;
+	wi_mutable_array_t		*chats;
+	wd_chat_t				*chat;
+	
+	chats = wi_mutable_array();
+	
+	wi_dictionary_rdlock(wd_chats);
+	
+	enumerator = wi_dictionary_data_enumerator(wd_chats);
+	
+	while((chat = wi_enumerator_next_data(enumerator))) {
+		if(wd_chat_contains_user(chat, user))
+			wi_mutable_array_add_data(chats, chat);
+	}
+	
+	wi_dictionary_unlock(wd_chats);
+	
+	return chats;
+}
+
+
+
 void wd_chats_remove_user(wd_user_t *user) {
 	wi_enumerator_t	*enumerator;
 	wd_chat_t		*chat;

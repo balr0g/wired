@@ -101,8 +101,8 @@ int main(int argc, const char **argv) {
 
 	pool = wi_pool_init(wi_pool_alloc());
 
-//	wi_p7_message_debug		= true;
-//	wi_p7_socket_debug		= true;
+	//wi_p7_message_debug		= true;
+	//wi_p7_socket_debug		= true;
 	wi_log_syslog			= true;
 	wi_log_syslog_facility	= LOG_DAEMON;
 	wd_status_lock			= wi_lock_init(wi_lock_alloc());

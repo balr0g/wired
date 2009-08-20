@@ -403,24 +403,21 @@ wi_boolean_t wd_board_name_is_valid(wi_string_t *board) {
 
 static void wd_board_broadcast_message(wi_p7_message_t *message, wd_board_privileges_t *privileges, wi_boolean_t readable) {
 	wi_enumerator_t		*enumerator;
-	wi_array_t			*users;
 	wd_user_t			*user;
 	
-	users = wd_chat_users(wd_public_chat);
-	
-	wi_array_rdlock(users);
+	wi_dictionary_rdlock(wd_users);
 
-	enumerator = wi_array_data_enumerator(users);
+	enumerator = wi_dictionary_data_enumerator(wd_users);
 	
 	while((user = wi_enumerator_next_data(enumerator))) {
-		if(wd_user_state(user) == WD_USER_LOGGED_IN) {
+		if(wd_user_state(user) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(user)) {
 			if((readable && wd_board_privileges_is_readable_by_user(privileges, user)) ||
 			   (!readable && wd_board_privileges_is_readable_and_writable_by_user(privileges, user)))
 				wd_user_send_message(user, message);
 		}
 	}
 	
-	wi_array_unlock(users);
+	wi_dictionary_unlock(wd_users);
 }
 
 
@@ -780,7 +777,9 @@ wi_boolean_t wd_board_add_thread(wi_string_t *board, wi_string_t *subject, wi_st
 				enumerator = wi_array_data_enumerator(users);
 				
 				while((peer = wi_enumerator_next_data(enumerator))) {
-					if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_board_privileges_is_readable_by_user(privileges, peer)) {
+					if(wd_user_state(peer) == WD_USER_LOGGED_IN &&
+					   wd_board_privileges_is_readable_by_user(privileges, peer) &&
+					   wd_user_is_subscribed_boards(user)) {
 						reply = wd_board_message_with_post_for_user(WI_STR("wired.board.post_added"), board, thread, post, dictionary, peer);
 						wd_user_send_message(peer, reply);
 					}
@@ -846,7 +845,7 @@ wi_boolean_t wd_board_move_thread(wi_string_t *oldboard, wi_uuid_t *thread, wi_s
 			enumerator = wi_array_data_enumerator(users);
 			
 			while((peer = wi_enumerator_next_data(enumerator))) {
-				if(wd_user_state(peer) == WD_USER_LOGGED_IN) {
+				if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(user)) {
 					oldreadable = wd_board_privileges_is_readable_by_user(oldprivileges, peer);
 					newreadable = wd_board_privileges_is_readable_by_user(newprivileges, peer);
 					
@@ -946,7 +945,9 @@ wi_boolean_t wd_board_add_post(wi_string_t *board, wi_uuid_t *thread, wi_string_
 			enumerator = wi_array_data_enumerator(users);
 			
 			while((peer = wi_enumerator_next_data(enumerator))) {
-				if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_board_privileges_is_readable_by_user(privileges, peer)) {
+				if(wd_user_state(peer) == WD_USER_LOGGED_IN &&
+				   wd_board_privileges_is_readable_by_user(privileges, peer) &&
+				   wd_user_is_subscribed_boards(user)) {
 					reply = wd_board_message_with_post_for_user(WI_STR("wired.board.post_added"), board, thread, post, dictionary, peer);
 					wd_user_send_message(peer, reply);
 				}

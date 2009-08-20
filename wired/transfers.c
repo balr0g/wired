@@ -42,53 +42,64 @@
 #include "settings.h"
 #include "transfers.h"
 
-#define WD_TRANSFERS_PARTIAL_EXTENSION	"WiredTransfer"
+#define WD_TRANSFERS_PARTIAL_EXTENSION		"WiredTransfer"
 
-#define WD_TRANSFERS_TIMER_INTERVAL		60.0
-#define WD_TRANSFERS_WAITING_INTERVAL	20.0
+#define WD_TRANSFERS_TIMER_INTERVAL			60.0
+#define WD_TRANSFERS_WAITING_INTERVAL		20.0
 
-#define WD_TRANSFER_BUFFER_SIZE			8192
-
-
-static void								wd_transfers_update_waiting(wi_timer_t *);
-static wi_string_t *					wd_transfers_transfer_key_for_user(wd_user_t *);
-static void								wd_transfers_add_or_remove_transfer(wd_transfer_t *, wi_boolean_t);
-
-static void								wd_transfers_update_queue(void);
-static wi_integer_t						wd_transfers_compare_user(wi_runtime_instance_t *, wi_runtime_instance_t *);
-
-static wd_transfer_t *					wd_transfer_alloc(void);
-static wd_transfer_t *					wd_transfer_init_with_user(wd_transfer_t *, wd_user_t *);
-static wd_transfer_t *					wd_transfer_init_download_with_user(wd_transfer_t *, wd_user_t *);
-static wd_transfer_t *					wd_transfer_init_upload_with_user(wd_transfer_t *, wd_user_t *);
-static void								wd_transfer_dealloc(wi_runtime_instance_t *);
-static wi_string_t *					wd_transfer_description(wi_runtime_instance_t *);
-
-static void								wd_transfer_set_state(wd_transfer_t *, wd_transfer_state_t);
-static wd_transfer_state_t				wd_transfer_state(wd_transfer_t *);
-static inline void						wd_transfer_limit_speed(wd_transfer_t *, wi_uinteger_t, wi_uinteger_t, wi_uinteger_t, ssize_t, wi_time_interval_t, wi_time_interval_t);
-
-static void								wd_transfer_thread(wi_runtime_instance_t *);
-static wi_boolean_t						wd_transfer_open(wd_transfer_t *);
-static void								wd_transfer_close(wd_transfer_t *);
-static void								wd_transfer_download(wd_transfer_t *);
-static void								wd_transfer_upload(wd_transfer_t *);
+#define WD_TRANSFER_BUFFER_SIZE				16384
 
 
-wi_mutable_array_t						*wd_transfers;
+enum _wd_transfers_statistics_type {
+	WD_TRANSFER_STATISTICS_ADD,
+	WD_TRANSFER_STATISTICS_REMOVE,
+	WD_TRANSFER_STATISTICS_DATA
+};
+typedef enum _wd_transfers_statistics_type	wd_transfers_statistics_type_t;
 
-static wi_timer_t						*wd_transfers_timer;
 
-static wi_integer_t						wd_transfers_total_download_speed, wd_transfers_total_upload_speed;
+static void									wd_transfers_update_waiting(wi_timer_t *);
+static wi_string_t *						wd_transfers_transfer_key_for_user(wd_user_t *);
+static void									wd_transfers_add_or_remove_transfer(wd_transfer_t *, wi_boolean_t);
+static void									wd_transfers_note_statistics(wd_transfer_type_t, wd_transfers_statistics_type_t, wi_file_offset_t);
 
-static wi_lock_t						*wd_transfers_status_lock;
-static wi_mutable_dictionary_t			*wd_transfers_user_downloads, *wd_transfers_user_uploads;
-static wi_uinteger_t					wd_transfers_active_downloads, wd_transfers_active_uploads;
+static void									wd_transfers_update_queue(void);
+static wi_integer_t							wd_transfers_compare_user(wi_runtime_instance_t *, wi_runtime_instance_t *);
 
-static wi_lock_t						*wd_transfers_update_queue_lock;
+static wd_transfer_t *						wd_transfer_alloc(void);
+static wd_transfer_t *						wd_transfer_init_with_user(wd_transfer_t *, wd_user_t *);
+static wd_transfer_t *						wd_transfer_init_download_with_user(wd_transfer_t *, wd_user_t *);
+static wd_transfer_t *						wd_transfer_init_upload_with_user(wd_transfer_t *, wd_user_t *);
+static void									wd_transfer_dealloc(wi_runtime_instance_t *);
+static wi_string_t *						wd_transfer_description(wi_runtime_instance_t *);
 
-static wi_runtime_id_t					wd_transfer_runtime_id = WI_RUNTIME_ID_NULL;
-static wi_runtime_class_t				wd_transfer_runtime_class = {
+static void									wd_transfer_set_state(wd_transfer_t *, wd_transfer_state_t);
+static wd_transfer_state_t					wd_transfer_state(wd_transfer_t *);
+static inline void							wd_transfer_limit_speed(wd_transfer_t *, wi_uinteger_t, wi_uinteger_t, wi_uinteger_t, ssize_t, wi_time_interval_t, wi_time_interval_t);
+
+static void									wd_transfer_thread(wi_runtime_instance_t *);
+static wi_boolean_t							wd_transfer_open(wd_transfer_t *);
+static void									wd_transfer_close(wd_transfer_t *);
+static void									wd_transfer_send_download_message(wd_transfer_t *);
+static void									wd_transfer_post_process_upload_transfer(wd_transfer_t *);
+static void									wd_transfer_download(wd_transfer_t *);
+static void									wd_transfer_upload(wd_transfer_t *);
+
+
+wi_mutable_array_t							*wd_transfers;
+
+static wi_timer_t							*wd_transfers_timer;
+
+static wi_integer_t							wd_transfers_total_download_speed, wd_transfers_total_upload_speed;
+
+static wi_lock_t							*wd_transfers_status_lock;
+static wi_mutable_dictionary_t				*wd_transfers_user_downloads, *wd_transfers_user_uploads;
+static wi_uinteger_t						wd_transfers_active_downloads, wd_transfers_active_uploads;
+
+static wi_lock_t							*wd_transfers_update_queue_lock;
+
+static wi_runtime_id_t						wd_transfer_runtime_id = WI_RUNTIME_ID_NULL;
+static wi_runtime_class_t					wd_transfer_runtime_class = {
 	"wd_transfer_t",
 	wd_transfer_dealloc,
 	NULL,
@@ -226,35 +237,93 @@ static void wd_transfers_add_or_remove_transfer(wd_transfer_t *transfer, wi_bool
 
 
 
+static void wd_transfers_note_statistics(wd_transfer_type_t type, wd_transfers_statistics_type_t statistics, wi_file_offset_t bytes) {
+	wi_lock_lock(wd_status_lock);
+
+	if(type == WD_TRANSFER_DOWNLOAD) {
+		if(statistics == WD_TRANSFER_STATISTICS_ADD) {
+			wd_current_downloads++;
+			wd_total_downloads++;
+		}
+		else if(statistics == WD_TRANSFER_STATISTICS_REMOVE) {
+			wd_current_downloads--;
+		}
+		
+		wd_downloads_traffic += bytes;
+	} else {
+		if(statistics == WD_TRANSFER_STATISTICS_ADD) {
+			wd_current_uploads++;
+			wd_total_uploads++;
+		}
+		else if(statistics == WD_TRANSFER_STATISTICS_REMOVE) {
+			wd_current_uploads--;
+		}
+		
+		wd_uploads_traffic += bytes;
+	}
+
+	wd_write_status((statistics != WD_TRANSFER_STATISTICS_DATA));
+	
+	wi_lock_unlock(wd_status_lock);
+}
+
+
+
 #pragma mark -
 
-void wd_transfers_queue_download(wi_string_t *path, wi_file_offset_t offset, wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t			*realpath;
+void wd_transfers_queue_download(wi_string_t *path, wi_file_offset_t dataoffset, wi_file_offset_t rsrcoffset, wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t			*realdatapath, *realrsrcpath;
 	wd_transfer_t		*transfer;
 	wi_fs_stat_t		sb;
+	wi_file_offset_t	datasize, rsrcsize;
 	
-	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
+	realdatapath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	
-	if(!wi_fs_stat_path(realpath, &sb)) {
-		wi_log_err(WI_STR("Could not open %@: %m"), realpath);
+	if(wi_fs_stat_path(realdatapath, &sb)) {
+		datasize = sb.size;
+	} else {
+		wi_log_err(WI_STR("Could not open %@: %m"), realdatapath);
 		wd_user_reply_file_errno(user, message);
 
 		return;
 	}
 	
-	if(offset > (wi_file_offset_t) sb.size) {
-		wi_log_err(WI_STR("Could not seek to %llu which is beyond file size %llu in %@"), offset, (wi_file_offset_t) sb.size, realpath);
+	if(dataoffset > (wi_file_offset_t) sb.size) {
+		wi_log_err(WI_STR("Could not seek to %llu which is beyond file size %llu in %@"),
+			dataoffset, (wi_file_offset_t) sb.size, realdatapath);
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 		
 		return;
 	}
 	
+	realrsrcpath = wi_fs_resource_fork_path_for_path(realdatapath);
+	
+	if(wd_user_supports_rsrc(user) && realrsrcpath) {
+		if(wi_fs_stat_path(realrsrcpath, &sb))
+			rsrcsize = sb.size;
+		else
+			rsrcsize = 0;
+		
+		if(rsrcoffset > (wi_file_offset_t) sb.size) {
+			wi_log_err(WI_STR("Could not seek to %llu which is beyond file size %llu in %@"),
+					   rsrcoffset, (wi_file_offset_t) sb.size, realrsrcpath);
+			wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+			
+			return;
+		}
+	} else {
+		rsrcsize = 0;
+	}
+	
 	transfer				= wi_autorelease(wd_transfer_init_download_with_user(wd_transfer_alloc(), user));
 	transfer->path			= wi_retain(path);
-	transfer->realpath		= wi_retain(realpath);
-	transfer->size			= sb.size;
-	transfer->offset		= offset;
-	transfer->transferred	= offset;
+	transfer->realdatapath	= wi_retain(realdatapath);
+	transfer->realrsrcpath	= wi_retain(realrsrcpath);
+	transfer->datasize		= datasize;
+	transfer->rsrcsize		= rsrcsize;
+	transfer->dataoffset	= dataoffset;
+	transfer->rsrcoffset	= rsrcoffset;
+	transfer->transferred	= dataoffset + rsrcoffset;
 	
 	if(!wi_p7_message_get_uint32_for_name(message, &transfer->transaction, WI_STR("wired.transaction")))
 		transfer->transaction = 0;
@@ -270,41 +339,71 @@ void wd_transfers_queue_download(wi_string_t *path, wi_file_offset_t offset, wd_
 
 
 
-void wd_transfers_queue_upload(wi_string_t *path, wi_file_offset_t size, wi_boolean_t executable, wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t			*realpath;
+void wd_transfers_queue_upload(wi_string_t *path, wi_file_offset_t datasize, wi_file_offset_t rsrcsize, wi_boolean_t executable, wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t			*realdatapath, *realrsrcpath;
 	wd_transfer_t		*transfer;
-	wi_file_offset_t	offset;
+	wi_file_offset_t	dataoffset, rsrcoffset;
 	wi_fs_stat_t		sb;
 	
-	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
+	realdatapath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	
-	if(wi_fs_stat_path(realpath, &sb)) {
+	if(wi_fs_stat_path(realdatapath, &sb)) {
 		wd_user_reply_error(user, WI_STR("wired.error.file_exists"), message);
 
 		return;
 	}
 	
-	if(!wi_string_has_suffix(realpath, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION)))
-		realpath = wi_string_by_appending_path_extension(realpath, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION));
+	if(!wi_string_has_suffix(realdatapath, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION)))
+		realdatapath = wi_string_by_appending_path_extension(realdatapath, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION));
 	
-	if(wi_fs_stat_path(realpath, &sb))
-		offset = sb.size;
+	if(wi_fs_stat_path(realdatapath, &sb))
+		dataoffset = sb.size;
 	else
-		offset = 0;
+		dataoffset = 0;
 	
-	if(size < offset) {
-		wi_log_err(WI_STR("Could not seek to %llu which is beyond file size %llu in %@: %m"), offset, size, realpath);
+	if(datasize < dataoffset) {
+		wi_log_err(WI_STR("Could not seek to %llu which is beyond file size %llu in %@: %m"),
+			dataoffset, datasize, realdatapath);
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 		
 		return;
 	}
+	
+	if(rsrcsize > 0) {
+		realrsrcpath = wi_fs_resource_fork_path_for_path(realdatapath);
+		
+		if(!realrsrcpath) {
+			wd_user_reply_error(user, WI_STR("wired.error.rsrc_not_supported"), message);
+			
+			return;
+		}
 
+		if(wi_fs_stat_path(realrsrcpath, &sb))
+			rsrcoffset = sb.size;
+		else
+			rsrcoffset = 0;
+		
+		if(rsrcsize < rsrcoffset) {
+			wi_log_err(WI_STR("Could not seek to %llu which is beyond file size %llu in %@: %m"),
+				rsrcoffset, rsrcsize, realrsrcpath);
+			wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+			
+			return;
+		}
+	} else {
+		realrsrcpath = NULL;
+		rsrcoffset = 0;
+	}
+	
 	transfer				= wi_autorelease(wd_transfer_init_upload_with_user(wd_transfer_alloc(), user));
 	transfer->path			= wi_retain(path);
-	transfer->realpath		= wi_retain(realpath);
-	transfer->size			= size;
-	transfer->offset		= offset;
-	transfer->transferred	= offset;
+	transfer->realdatapath	= wi_retain(realdatapath);
+	transfer->realrsrcpath	= wi_retain(realrsrcpath);
+	transfer->datasize		= datasize;
+	transfer->rsrcsize		= rsrcsize;
+	transfer->dataoffset	= dataoffset;
+	transfer->rsrcoffset	= rsrcoffset;
+	transfer->transferred	= dataoffset + rsrcoffset;
 	transfer->executable	= executable;
 	
 	if(!wi_p7_message_get_uint32_for_name(message, &transfer->transaction, WI_STR("wired.transaction")))
@@ -500,7 +599,8 @@ static void wd_transfers_update_queue(void) {
 							} else {
 								message = wi_p7_message_with_name(WI_STR("wired.transfer.upload_ready"), wd_p7_spec);
 								wi_p7_message_set_string_for_name(message, transfer->path, WI_STR("wired.file.path"));
-								wi_p7_message_set_uint64_for_name(message, transfer->offset, WI_STR("wired.transfer.offset"));
+								wi_p7_message_set_uint64_for_name(message, transfer->dataoffset, WI_STR("wired.transfer.data_offset"));
+								wi_p7_message_set_uint64_for_name(message, transfer->rsrcoffset, WI_STR("wired.transfer.rsrc_offset"));
 								
 								if(transfer->transaction > 0)
 									wi_p7_message_set_uint32_for_name(message, transfer->transaction, WI_STR("wired.transaction"));
@@ -566,7 +666,8 @@ static wd_transfer_t * wd_transfer_init_with_user(wd_transfer_t *transfer, wd_us
 	transfer->user			= wi_retain(user);
 	transfer->key			= wi_retain(wd_transfers_transfer_key_for_user(user));
 	transfer->state_lock	= wi_condition_lock_init_with_condition(wi_condition_lock_alloc(), transfer->state);
-	transfer->fd			= -1;
+	transfer->datafd		= -1;
+	transfer->rsrcfd		= -1;
 
 	return transfer;
 }
@@ -600,9 +701,12 @@ static void wd_transfer_dealloc(wi_runtime_instance_t *instance) {
 	wi_release(transfer->key);
 
 	wi_release(transfer->path);
-	wi_release(transfer->realpath);
+	wi_release(transfer->realdatapath);
+	wi_release(transfer->realrsrcpath);
 
 	wi_release(transfer->state_lock);
+	
+	wi_release(transfer->finderinfo);
 }
 
 
@@ -727,13 +831,13 @@ static wi_boolean_t wd_transfer_open(wd_transfer_t *transfer) {
 	wi_p7_message_t		*message;
 
 	if(transfer->type == WD_TRANSFER_DOWNLOAD)
-		transfer->fd = open(wi_string_cstring(transfer->realpath), O_RDONLY, 0);
+		transfer->datafd = open(wi_string_cstring(transfer->realdatapath), O_RDONLY, 0);
 	else
-		transfer->fd = open(wi_string_cstring(transfer->realpath), O_WRONLY | O_APPEND | O_CREAT, 0666);
+		transfer->datafd = open(wi_string_cstring(transfer->realdatapath), O_WRONLY | O_APPEND | O_CREAT, 0666);
 	
-	if(transfer->fd < 0) {
+	if(transfer->datafd < 0) {
 		wi_log_err(WI_STR("Could not open %@: %s"),
-			transfer->realpath, strerror(errno));
+			transfer->realdatapath, strerror(errno));
 		
 		message = wi_p7_message_with_name(WI_STR("wired.error"), wd_p7_spec);
 		wi_p7_message_set_enum_name_for_name(message, WI_STR("wired.error.internal_error"), WI_STR("wired.error"));
@@ -747,15 +851,74 @@ static wi_boolean_t wd_transfer_open(wd_transfer_t *transfer) {
 		return false;
 	}
 	
+	if(transfer->realrsrcpath) {
+		if(transfer->type == WD_TRANSFER_DOWNLOAD)
+			transfer->rsrcfd = open(wi_string_cstring(transfer->realrsrcpath), O_RDONLY, 0);
+		else
+			transfer->rsrcfd = open(wi_string_cstring(transfer->realrsrcpath), O_WRONLY | O_APPEND | O_CREAT, 0666);
+	}
+	
 	return true;
 }
 
 
 
 static void wd_transfer_close(wd_transfer_t *transfer) {
-	if(transfer->fd >= 0) {
-		close(transfer->fd);
-		transfer->fd = -1;
+	if(transfer->datafd >= 0) {
+		close(transfer->datafd);
+		transfer->datafd = -1;
+	}
+	
+	if(transfer->rsrcfd >= 0) {
+		close(transfer->rsrcfd);
+		transfer->rsrcfd = -1;
+	}
+}
+
+
+
+static void wd_transfer_send_download_message(wd_transfer_t *transfer) {
+	wi_p7_message_t			*message;
+	wi_data_t				*data;
+	
+	message = wi_p7_message_with_name(WI_STR("wired.transfer.download"), wd_p7_spec);
+	wi_p7_message_set_string_for_name(message, transfer->path, WI_STR("wired.file.path"));
+	wi_p7_message_set_oobdata_for_name(message, transfer->remainingdatasize, WI_STR("wired.transfer.data"));
+	wi_p7_message_set_oobdata_for_name(message, transfer->remainingrsrcsize, WI_STR("wired.transfer.rsrc"));
+	
+	data = wi_fs_finder_info_for_path(transfer->realdatapath);
+	
+	wi_p7_message_set_data_for_name(message, data ? data : wi_data(), WI_STR("wired.transfer.finderinfo"));
+	
+	if(transfer->transaction > 0)
+		wi_p7_message_set_uint32_for_name(message, transfer->transaction, WI_STR("wired.transaction"));
+	
+	wd_user_send_message(transfer->user, message);
+}
+
+
+
+static void wd_transfer_post_process_upload_transfer(wd_transfer_t *transfer) {
+	wi_string_t		*path;
+	
+	path = wi_string_by_deleting_path_extension(transfer->realdatapath);
+	
+	if(wi_fs_rename_path(transfer->realdatapath, path)) {
+		if(transfer->executable) {
+			if(!wi_fs_set_mode_for_path(path, 0755))
+				wi_log_warn(WI_STR("Could not set mode for %@: %m"), path);
+		}
+		
+		wd_files_move_comment(transfer->realdatapath, path, NULL, NULL);
+		wd_files_move_label(transfer->realdatapath, path, NULL, NULL);
+		
+		if(transfer->finderinfo)
+			wi_fs_set_finder_info_for_path(transfer->finderinfo, path);
+		
+		wd_files_index_add_file(path);
+	} else {
+		wi_log_warn(WI_STR("Could not move %@ to %@: %m"),
+			transfer->realdatapath, path);
 	}
 }
 
@@ -765,7 +928,6 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 	wi_pool_t				*pool;
 	wi_socket_t				*socket;
 	wi_p7_socket_t			*p7_socket;
-	wi_p7_message_t			*message;
 	wd_account_t			*account;
 	char					buffer[WD_TRANSFER_BUFFER_SIZE];
 	wi_socket_state_t		state;
@@ -775,50 +937,52 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 	wi_integer_t			result;
 	ssize_t					readbytes;
 	int						sd;
+	wi_boolean_t			data;
 	
 	wi_log_info(WI_STR("Sending \"%@\" to %@"),
 		wd_files_virtual_path(transfer->path, transfer->user),
 		wd_user_identifier(transfer->user));
 	
-	transfer->remainingsize = transfer->size - transfer->offset;
-
-	message = wi_p7_message_with_name(WI_STR("wired.transfer.download"), wd_p7_spec);
-	wi_p7_message_set_string_for_name(message, transfer->path, WI_STR("wired.file.path"));
-	wi_p7_message_set_oobdata_for_name(message, transfer->remainingsize, WI_STR("wired.transfer.data"));
+	transfer->remainingdatasize		= transfer->datasize - transfer->dataoffset;
+	transfer->remainingrsrcsize		= transfer->rsrcsize - transfer->rsrcoffset;
+	interval						= wi_time_interval();
+	speedinterval					= interval;
+	statusinterval					= interval;
+	accountinterval					= interval;
+	speedbytes						= 0;
+	statsbytes						= 0;
+	i								= 0;
+	socket							= wd_user_socket(transfer->user);
+	sd								= wi_socket_descriptor(socket);
+	p7_socket						= wd_user_p7_socket(transfer->user);
+	account							= wd_user_account(transfer->user);
+	data							= true;
 	
-	if(transfer->transaction > 0)
-		wi_p7_message_set_uint32_for_name(message, transfer->transaction, WI_STR("wired.transaction"));
+	wd_transfer_send_download_message(transfer);
 	
-	wd_user_send_message(transfer->user, message);
-	
-	lseek(transfer->fd, transfer->offset, SEEK_SET);
-	
-	interval = speedinterval = statusinterval = accountinterval = wi_time_interval();
-	speedbytes = statsbytes = 0;
-	i = 0;
-
-	socket		= wd_user_socket(transfer->user);
-	sd			= wi_socket_descriptor(socket);
-	p7_socket	= wd_user_p7_socket(transfer->user);
-	account		= wd_user_account(transfer->user);
-	
-	wi_lock_lock(wd_status_lock);
-	wd_current_downloads++;
-	wd_total_downloads++;
-	wd_write_status(true);
-	wi_lock_unlock(wd_status_lock);
-	
+	wd_transfers_note_statistics(WD_TRANSFER_DOWNLOAD, WD_TRANSFER_STATISTICS_ADD, 0);
 	wd_transfers_add_or_remove_transfer(transfer, true);
 	
+	lseek(transfer->datafd, transfer->dataoffset, SEEK_SET);
+	
+	if(transfer->rsrcfd >= 0)
+		lseek(transfer->rsrcfd, transfer->rsrcoffset, SEEK_SET);
+	
 	pool = wi_pool_init(wi_pool_alloc());
-
-	while(wd_transfer_state(transfer) == WD_TRANSFER_RUNNING && transfer->remainingsize > 0) {
-		readbytes = read(transfer->fd, buffer, sizeof(buffer));
-
+	
+	while(wd_transfer_state(transfer) == WD_TRANSFER_RUNNING) {
+		if(data && transfer->remainingdatasize == 0)
+			data = false;
+			  
+		if(!data && transfer->remainingrsrcsize == 0)
+			break;
+		
+		readbytes = read(data ? transfer->datafd : transfer->rsrcfd, buffer, sizeof(buffer));
+		
 		if(readbytes <= 0) {
 			if(readbytes < 0) {
 				wi_log_err(WI_STR("Could not read download from %@: %m"),
-					transfer->realpath, strerror(errno));
+					data ? transfer->realdatapath : transfer->realrsrcpath, strerror(errno));
 			}
 			
 			break;
@@ -851,7 +1015,16 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 			break;
 		}
 
-		sendbytes = (transfer->remainingsize < (wi_file_offset_t) readbytes) ? transfer->remainingsize : (wi_file_offset_t) readbytes;
+		if(data) {
+			sendbytes = (transfer->remainingdatasize < (wi_file_offset_t) readbytes)
+				? transfer->remainingdatasize
+				: (wi_file_offset_t) readbytes;
+		} else {
+			sendbytes = (transfer->remainingrsrcsize < (wi_file_offset_t) readbytes)
+				? transfer->remainingrsrcsize
+				: (wi_file_offset_t) readbytes;
+		}
+		
 		result = wi_p7_socket_write_oobdata(p7_socket, 30.0, buffer, sendbytes);
 		
 		if(!result) {
@@ -861,13 +1034,16 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 			break;
 		}
 
-		interval = wi_time_interval();
-		transfer->transferred += sendbytes;
-		speedbytes += sendbytes;
-		statsbytes += sendbytes;
-		transfer->remainingsize -= sendbytes;
+		if(data)
+			transfer->remainingdatasize -= sendbytes;
+		else
+			transfer->remainingrsrcsize -= sendbytes;
 		
-		transfer->speed = speedbytes / (interval - speedinterval);
+		interval				= wi_time_interval();
+		transfer->transferred	+= sendbytes;
+		speedbytes				+= sendbytes;
+		statsbytes				+= sendbytes;
+		transfer->speed			= speedbytes / (interval - speedinterval);
 
 		wd_transfer_limit_speed(transfer,
 								wd_transfers_total_download_speed,
@@ -883,10 +1059,7 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 		}
 
 		if(interval - statusinterval > wd_current_downloads) {
-			wi_lock_lock(wd_status_lock);
-			wd_downloads_traffic += statsbytes;
-			wd_write_status(false);
-			wi_lock_unlock(wd_status_lock);
+			wd_transfers_note_statistics(WD_TRANSFER_DOWNLOAD, WD_TRANSFER_STATISTICS_DATA, statsbytes);
 
 			statsbytes = 0;
 			statusinterval = interval;
@@ -904,22 +1077,17 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 	wi_release(pool);
 
 	wi_log_info(WI_STR("Sent %@/%@ (%llu/%llu bytes) of \"%@\" to %@"),
-		wd_files_string_for_bytes(transfer->transferred - transfer->offset),
-		wd_files_string_for_bytes(transfer->size - transfer->offset),
-		transfer->transferred - transfer->offset,
-		transfer->size - transfer->offset,
+		wd_files_string_for_bytes(transfer->transferred - transfer->dataoffset - transfer->rsrcoffset),
+		wd_files_string_for_bytes((transfer->datasize - transfer->dataoffset) + (transfer->rsrcsize - transfer->rsrcoffset)),
+		transfer->transferred - transfer->dataoffset - transfer->rsrcoffset,
+		(transfer->datasize - transfer->dataoffset) + (transfer->rsrcsize - transfer->rsrcoffset),
 		wd_files_virtual_path(transfer->path, transfer->user),
 		wd_user_identifier(transfer->user));
 	
 	wd_transfer_set_state(transfer, WD_TRANSFER_STOPPED);
  
 	wd_transfers_add_or_remove_transfer(transfer, false);
-	
-	wi_lock_lock(wd_status_lock);
-	wd_current_downloads--;
-	wd_downloads_traffic += statsbytes;
-	wd_write_status(true);
-	wi_lock_unlock(wd_status_lock);
+	wd_transfers_note_statistics(WD_TRANSFER_DOWNLOAD, WD_TRANSFER_STATISTICS_REMOVE, statsbytes);
 
 	wd_transfer_close(transfer);
 }
@@ -930,7 +1098,6 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 	wi_pool_t				*pool;
 	wi_socket_t				*socket;
 	wi_p7_socket_t			*p7_socket;
-	wi_string_t				*path;
 	wd_account_t			*account;
 	void					*buffer;
 	wi_time_interval_t		timeout, interval, speedinterval, statusinterval, accountinterval;
@@ -939,31 +1106,39 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 	wi_uinteger_t			i;
 	wi_integer_t			readbytes;
 	int						sd;
+	wi_boolean_t			data;
 	
 	wi_log_info(WI_STR("Receiving \"%@\" from %@"),
 		wd_files_virtual_path(transfer->path, transfer->user),
 		wd_user_identifier(transfer->user));
 	
-	interval = speedinterval = statusinterval = accountinterval = wi_time_interval();
-	speedbytes = statsbytes = 0;
-	i = 0;
+	transfer->remainingdatasize		= transfer->datasize - transfer->dataoffset;
+	transfer->remainingrsrcsize		= transfer->rsrcsize - transfer->rsrcoffset;
+	interval						= wi_time_interval();
+	speedinterval					= interval;
+	statusinterval					= interval;
+	accountinterval					= interval;
+	speedbytes						= 0;
+	statsbytes						= 0;
+	i								= 0;
+	socket							= wd_user_socket(transfer->user);
+	sd								= wi_socket_descriptor(socket);
+	p7_socket						= wd_user_p7_socket(transfer->user);
+	account							= wd_user_account(transfer->user);
+	data							= true;
 	
-	socket		= wd_user_socket(transfer->user);
-	sd			= wi_socket_descriptor(socket);
-	p7_socket	= wd_user_p7_socket(transfer->user);
-	account		= wd_user_account(transfer->user);
-	
-	wi_lock_lock(wd_status_lock);
-	wd_current_uploads++;
-	wd_total_uploads++;
-	wd_write_status(true);
-	wi_lock_unlock(wd_status_lock);
-	
+	wd_transfers_note_statistics(WD_TRANSFER_UPLOAD, WD_TRANSFER_STATISTICS_ADD, 0);
 	wd_transfers_add_or_remove_transfer(transfer, true);
 
 	pool = wi_pool_init(wi_pool_alloc());
 	
-	while(wd_transfer_state(transfer) == WD_TRANSFER_RUNNING && transfer->remainingsize > 0) {
+	while(wd_transfer_state(transfer) == WD_TRANSFER_RUNNING) {
+		if(transfer->remainingdatasize == 0)
+			data = false;
+		
+		if(!data && transfer->remainingrsrcsize == 0)
+			break;
+		
 		timeout = 0.0;
 		
 		do {
@@ -1002,24 +1177,27 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 			break;
 		}
 
-		result = write(transfer->fd, buffer, readbytes);
+		result = write(data ? transfer->datafd : transfer->rsrcfd, buffer, readbytes);
 		
 		if(result <= 0) {
 			if(result < 0) {
 				wi_log_err(WI_STR("Could not write upload to %@: %s"),
-					transfer->realpath, strerror(errno));
+					data ? transfer->realdatapath : transfer->realrsrcpath, strerror(errno));
 			}
 			
 			break;
 		}
 
-		interval = wi_time_interval();
-		transfer->transferred += readbytes;
-		speedbytes += readbytes;
-		statsbytes += readbytes;
-		transfer->remainingsize -= readbytes;
+		if(data)
+			transfer->remainingdatasize -= readbytes;
+		else
+			transfer->remainingrsrcsize -= readbytes;
 
-		transfer->speed = speedbytes / (interval - speedinterval);
+		interval				= wi_time_interval();
+		transfer->transferred	+= readbytes;
+		speedbytes				+= readbytes;
+		statsbytes				+= readbytes;
+		transfer->speed			= speedbytes / (interval - speedinterval);
 
 		wd_transfer_limit_speed(transfer,
 								wd_transfers_total_upload_speed,
@@ -1035,10 +1213,7 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 		}
 
 		if(interval - statusinterval > wd_current_uploads) {
-			wi_lock_lock(wd_status_lock);
-			wd_uploads_traffic += statsbytes;
-			wd_write_status(false);
-			wi_lock_unlock(wd_status_lock);
+			wd_transfers_note_statistics(WD_TRANSFER_UPLOAD, WD_TRANSFER_STATISTICS_DATA, statsbytes);
 
 			statsbytes = 0;
 			statusinterval = interval;
@@ -1056,42 +1231,20 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 	wi_release(pool);
 	
 	wi_log_info(WI_STR("Received %@/%@ (%llu/%llu bytes) of \"%@\" from %@"),
-		wd_files_string_for_bytes(transfer->transferred - transfer->offset),
-		wd_files_string_for_bytes(transfer->size - transfer->offset),
-		transfer->transferred - transfer->offset,
-		transfer->size - transfer->offset,
+		wd_files_string_for_bytes(transfer->transferred - transfer->dataoffset - transfer->rsrcoffset),
+		wd_files_string_for_bytes((transfer->datasize - transfer->dataoffset) + (transfer->rsrcsize - transfer->rsrcoffset)),
+		transfer->transferred - transfer->dataoffset - transfer->rsrcoffset,
+		(transfer->datasize - transfer->dataoffset) + (transfer->rsrcsize - transfer->rsrcoffset),
 		wd_files_virtual_path(transfer->path, transfer->user),
 		wd_user_identifier(transfer->user));
 
 	wd_transfer_set_state(transfer, WD_TRANSFER_STOPPED);
 	
 	wd_transfers_add_or_remove_transfer(transfer, false);
-
-	wi_lock_lock(wd_status_lock);
-	wd_uploads_traffic += statsbytes;
-	wd_current_uploads--;
-	wd_write_status(true);
-	wi_lock_unlock(wd_status_lock);
-
-	if(transfer->transferred == transfer->size) {
-		path = wi_string_by_deleting_path_extension(transfer->realpath);
-
-		if(wi_fs_rename_path(transfer->realpath, path)) {
-			if(transfer->executable) {
-				if(!wi_fs_set_mode_for_path(path, 0755))
-					wi_log_warn(WI_STR("Could not set mode for %@: %m"), path);
-			}
-
-			path = wi_string_by_appending_path_extension(transfer->path, WI_STR(WD_TRANSFERS_PARTIAL_EXTENSION));
-
-			wd_files_move_comment(path, transfer->path, NULL, NULL);
-			
-			wd_files_index_add_file(transfer->path);
-		} else {
-			wi_log_warn(WI_STR("Could not move %@ to %@: %m"),
-				transfer->realpath, path);
-		}
-	}
+	wd_transfers_note_statistics(WD_TRANSFER_UPLOAD, WD_TRANSFER_STATISTICS_REMOVE, statsbytes);
+	
+	if(transfer->transferred == (transfer->datasize + transfer->rsrcsize))
+		wd_transfer_post_process_upload_transfer(transfer);
 
 	wd_transfer_close(transfer);
 }

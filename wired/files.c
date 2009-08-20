@@ -93,7 +93,7 @@ static void												wd_files_index_update(wi_timer_t *);
 static wi_boolean_t										wd_files_index_update_size(void);
 static void												wd_files_index_thread(wi_runtime_instance_t *);
 static void												wd_files_index_path_to_file(wi_string_t *, wi_file_t *, wi_string_t *);
-static void												wd_files_index_write_entry(wi_file_t *, wi_string_t *, wd_file_type_t, uint64_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t, uint32_t, uint32_t);
+static void												wd_files_index_write_entry(wi_file_t *, wi_string_t *, wd_file_type_t, uint64_t, uint64_t, uint32_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t, uint32_t, uint32_t);
 
 static void												wd_files_fsevents_thread(wi_runtime_instance_t *);
 static void												wd_files_fsevents_callback(wi_string_t *);
@@ -113,6 +113,8 @@ static wi_string_t *									wd_files_privileges_description(wi_runtime_instance
 static void												wd_files_privileges_dealloc(wi_runtime_instance_t *);
 
 static wd_files_privileges_t *							wd_files_privileges_with_string(wi_string_t *);
+static wd_files_privileges_t *							wd_files_privileges_default_privileges(void);
+static wd_files_privileges_t *							wd_files_privileges_default_drop_box_privileges(void);
 
 static wi_string_t *									wd_files_privileges_string(wd_files_privileges_t *);
 
@@ -214,9 +216,9 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 	wi_fs_statfs_t				sfb;
 	wi_fs_stat_t				sb, lsb;
 	wi_fsenumerator_status_t	status;
-	wi_file_offset_t			size, available;
+	wi_file_offset_t			datasize, rsrcsize, available;
 	wd_file_label_t				label;
-	wi_uinteger_t				pathlength, depthlimit;
+	wi_uinteger_t				pathlength, depthlimit, directorycount;
 	wd_file_type_t				type, pathtype;
 	wi_boolean_t				root, upload, alias, readable, writable;
 	
@@ -228,13 +230,12 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 	if(pathtype == WD_FILE_TYPE_DROPBOX) {
 		privileges = wd_files_drop_box_privileges(realpath);
 		
-		if(!privileges || !wd_files_privileges_is_readable_by_account(privileges, account))
+		if(!wd_files_privileges_is_readable_by_account(privileges, account))
 			goto done;
 	}
 	
-	depthlimit = wd_account_file_recursive_list_depth_limit(account);
-	
-	fsenumerator = wi_fs_enumerator_at_path(realpath);
+	depthlimit		= wd_account_file_recursive_list_depth_limit(account);
+	fsenumerator	= wi_fs_enumerator_at_path(realpath);
 	
 	if(!fsenumerator) {
 		wi_log_warn(WI_STR("Could not open %@: %m"), realpath);
@@ -296,35 +297,45 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		type		= wd_files_type_with_stat(resolvedpath, &sb);
 		
 		if(type == WD_FILE_TYPE_DROPBOX) {
-			privileges = wd_files_drop_box_privileges(resolvedpath);
-			
-			if(privileges) {
-				readable = wd_files_privileges_is_readable_by_account(privileges, account);
-				writable = wd_files_privileges_is_writable_by_account(privileges, account);
-			}
+			privileges	= wd_files_drop_box_privileges(resolvedpath);
+			readable	= wd_files_privileges_is_readable_by_account(privileges, account);
+			writable	= wd_files_privileges_is_writable_by_account(privileges, account);
 		}
 
 		switch(type) {
 			case WD_FILE_TYPE_DIR:
 			case WD_FILE_TYPE_UPLOADS:
-				size = wd_files_count_path(resolvedpath, user, message);
+				datasize		= 0;
+				rsrcsize		= 0;
+				directorycount	= wd_files_count_path(resolvedpath, user, message);
 				break;
 				
 			case WD_FILE_TYPE_DROPBOX:
-				size = readable ? wd_files_count_path(resolvedpath, user, message) : 0;
+				datasize		= 0;
+				rsrcsize		= 0;
+				directorycount	= readable ? wd_files_count_path(resolvedpath, user, message) : 0;
 				break;
 
 			case WD_FILE_TYPE_FILE:
 			default:
-				size = sb.size;
+				datasize		= sb.size;
+				rsrcsize		= wi_fs_resource_fork_size_for_path(resolvedpath);
+				directorycount	= 0;
 				break;
 		}
 		
 		label = wd_files_label(filepath);
 		
-		reply = wi_p7_message_init_with_name(wi_p7_message_alloc(), WI_STR("wired.file.list"), wd_p7_spec);
+		reply = wi_p7_message_init_with_name(wi_p7_message_alloc(), WI_STR("wired.file.file_list"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(reply, virtualpath, WI_STR("wired.file.path"));
-		wi_p7_message_set_uint64_for_name(reply, size, WI_STR("wired.file.size"));
+		
+		if(type == WD_FILE_TYPE_FILE) {
+			wi_p7_message_set_uint64_for_name(reply, datasize, WI_STR("wired.file.data_size"));
+			wi_p7_message_set_uint64_for_name(reply, rsrcsize, WI_STR("wired.file.rsrc_size"));
+		} else {
+			wi_p7_message_set_uint32_for_name(reply, directorycount, WI_STR("wired.file.directory_count"));
+		}
+		
 		wi_p7_message_set_date_for_name(reply, wi_date_with_time(sb.birthtime), WI_STR("wired.file.creation_time"));
 		wi_p7_message_set_date_for_name(reply, wi_date_with_time(sb.mtime), WI_STR("wired.file.modification_time"));
 		wi_p7_message_set_enum_for_name(reply, type, WI_STR("wired.file.type"));
@@ -341,7 +352,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		wd_user_reply_message(user, reply, message);
 		wi_release(reply);
 		
-		if(recursive && !readable) {
+		if(recursive && (type == WD_FILE_TYPE_DROPBOX && !readable)) {
 			wi_fsenumerator_skip_descendents(fsenumerator);
 				
 			continue;
@@ -361,7 +372,7 @@ done:
 	else
 		available = 0;
 	
-	reply = wi_p7_message_with_name(WI_STR("wired.file.list.done"), wd_p7_spec);
+	reply = wi_p7_message_with_name(WI_STR("wired.file.file_list.done"), wd_p7_spec);
 	wi_p7_message_set_string_for_name(reply, path, WI_STR("wired.file.path"));
 	wi_p7_message_set_uint64_for_name(reply, available, WI_STR("wired.file.available"));
 	wd_user_reply_message(user, reply, message);
@@ -417,16 +428,17 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	wi_string_t				*realpath, *comment;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges = NULL;
-	wi_file_offset_t		size;
+	wi_file_offset_t		datasize, rsrcsize;
 	wd_file_type_t			type;
 	wi_fs_stat_t			sb, lsb;
 	wd_file_label_t			label;
+	wi_uinteger_t			directorycount;
 	wi_boolean_t			alias, readable, writable;
 	
-	account		= wd_user_account(user);
-	realpath	= wd_files_real_path(path, user);
-	alias		= wi_fs_path_is_alias(realpath);
-	realpath	= wi_string_by_resolving_aliases_in_path(realpath);
+	account			= wd_user_account(user);
+	realpath		= wd_files_real_path(path, user);
+	alias			= wi_fs_path_is_alias(realpath);
+	realpath		= wi_string_by_resolving_aliases_in_path(realpath);
 
 	if(!wi_fs_lstat_path(realpath, &lsb)) {
 		wi_log_warn(WI_STR("Could not read info for %@: %m"), realpath);
@@ -443,16 +455,9 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	type		= wd_files_type_with_stat(realpath, &sb);
 	
 	if(type == WD_FILE_TYPE_DROPBOX) {
-		privileges = wd_files_drop_box_privileges(realpath);
-		
-		if(!privileges) {
-			wd_user_reply_internal_error(user, message);
-			
-			return;
-		}
-
-		readable = wd_files_privileges_is_readable_by_account(privileges, account);
-		writable = wd_files_privileges_is_writable_by_account(privileges, account);
+		privileges	= wd_files_drop_box_privileges(realpath);
+		readable	= wd_files_privileges_is_readable_by_account(privileges, account);
+		writable	= wd_files_privileges_is_writable_by_account(privileges, account);
 	}
 	
 	comment = wd_files_comment(realpath);
@@ -460,16 +465,22 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	switch(type) {
 		case WD_FILE_TYPE_DIR:
 		case WD_FILE_TYPE_UPLOADS:
-			size = wd_files_count_path(realpath, user, message);
+			datasize		= 0;
+			rsrcsize		= 0;
+			directorycount	= wd_files_count_path(realpath, user, message);
 			break;
 			
 		case WD_FILE_TYPE_DROPBOX:
-			size = readable ? wd_files_count_path(realpath, user, message) : 0;
+			datasize		= 0;
+			rsrcsize		= 0;
+			directorycount	= readable ? wd_files_count_path(realpath, user, message) : 0;
 			break;
 
 		case WD_FILE_TYPE_FILE:
 		default:
-			size = sb.size;
+			datasize		= sb.size;
+			rsrcsize		= wi_fs_resource_fork_size_for_path(realpath);
+			directorycount	= 0;
 			break;
 	}
 
@@ -478,7 +489,14 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	reply = wi_p7_message_with_name(WI_STR("wired.file.info"), wd_p7_spec);
 	wi_p7_message_set_string_for_name(reply, path, WI_STR("wired.file.path"));
 	wi_p7_message_set_enum_for_name(reply, type, WI_STR("wired.file.type"));
-	wi_p7_message_set_uint64_for_name(reply, size, WI_STR("wired.file.size"));
+	
+	if(type == WD_FILE_TYPE_FILE) {
+		wi_p7_message_set_uint64_for_name(reply, datasize, WI_STR("wired.file.data_size"));
+		wi_p7_message_set_uint64_for_name(reply, rsrcsize, WI_STR("wired.file.rsrc_size"));
+	} else {
+		wi_p7_message_set_uint32_for_name(reply, directorycount, WI_STR("wired.file.directory_count"));
+	}
+	
 	wi_p7_message_set_date_for_name(reply, wi_date_with_time(sb.birthtime), WI_STR("wired.file.creation_time"));
 	wi_p7_message_set_date_for_name(reply, wi_date_with_time(sb.mtime), WI_STR("wired.file.modification_time"));
 	wi_p7_message_set_string_for_name(reply, comment, WI_STR("wired.file.comment"));
@@ -540,7 +558,8 @@ wi_boolean_t wd_files_delete_path(wi_string_t *path, wd_user_t *user, wi_p7_mess
 	result = wi_fs_delete_path_with_callback(realpath, wd_files_delete_path_callback);
 	
 	if(result) {
-		wd_files_set_comment(path, NULL, user, message);
+		wd_files_remove_comment(path, NULL, NULL);
+		wd_files_remove_label(path, NULL, NULL);
 	} else {
 		wi_log_warn(WI_STR("Could not delete %@: %m"), realpath);
 		wd_user_reply_file_errno(user, message);
@@ -606,6 +625,7 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 	
 	if(result) {
 		wd_files_move_comment(frompath, topath, user, message);
+		wd_files_move_label(frompath, topath, user, message);
 	} else {
 		if(wi_error_code() == EXDEV) {
 			array = wi_array_init_with_data(wi_array_alloc(),
@@ -647,10 +667,12 @@ static void wd_files_move_thread(wi_runtime_instance_t *argument) {
 	realtopath		= WI_ARRAY(array, 3);
 	
 	if(wi_fs_copy_path(realfrompath, realtopath)) {
-		if(wi_fs_delete_path(realfrompath))
-			wd_files_move_comment(frompath, topath, NULL, NULL);
-		else
+		if(wi_fs_delete_path(realfrompath)) {
+			wd_files_remove_comment(frompath, NULL, NULL);
+			wd_files_remove_label(frompath, NULL, NULL);
+		} else {
 			wi_log_warn(WI_STR("Could not delete %@: %m"), realfrompath);
+		}
 	} else {
 		wi_log_warn(WI_STR("Could not copy %@ to %@: %m"), realfrompath, realtopath);
 	}
@@ -822,13 +844,11 @@ static wi_uinteger_t wd_files_search_replace_privileges_for_account(char *messag
 		realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, NULL));
 		privileges	= wd_files_drop_box_privileges(realpath);
 		
-		if(privileges) {
-			if(wd_files_privileges_is_readable_by_account(privileges, account))
-				memcpy(messagebuffer + typeoffset + sizeof(uint32_t) + sizeof(uint32_t), "\1", 1);
+		if(wd_files_privileges_is_readable_by_account(privileges, account))
+			memcpy(messagebuffer + typeoffset + sizeof(uint32_t) + sizeof(uint32_t), "\1", 1);
 
-			if(wd_files_privileges_is_writable_by_account(privileges, account))
-				memcpy(messagebuffer + typeoffset + sizeof(uint32_t) + sizeof(uint32_t) + 1 + sizeof(uint32_t), "\1", 1);
-		}
+		if(wd_files_privileges_is_writable_by_account(privileges, account))
+			memcpy(messagebuffer + typeoffset + sizeof(uint32_t) + sizeof(uint32_t) + 1 + sizeof(uint32_t), "\1", 1);
 	}
 	
 	return messagelength;
@@ -1022,11 +1042,11 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 	wi_string_t					*filepath, *virtualpath, *resolvedpath, *newpathprefix;
 	wi_mutable_set_t			*set;
 	wi_number_t					*number;
-	wi_file_offset_t			size;
+	wi_file_offset_t			datasize, rsrcsize;
 	wi_fs_stat_t				sb, lsb;
 	wi_fsenumerator_status_t	status;
 	wd_file_label_t				label;
-	wi_uinteger_t				i = 0, pathlength;
+	wi_uinteger_t				i = 0, pathlength, directorycount;
 	wi_boolean_t				alias, recurse;
 	wd_file_type_t				type;
 	
@@ -1100,17 +1120,23 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 				
 				switch(type) {
 					case WD_FILE_TYPE_DROPBOX:
-						size = 0;
+						datasize		= 0;
+						rsrcsize		= 0;
+						directorycount	= 0;
 						break;
 						
 					case WD_FILE_TYPE_DIR:
 					case WD_FILE_TYPE_UPLOADS:
-						size = wd_files_count_path(resolvedpath, NULL, NULL);
+						datasize		= 0;
+						rsrcsize		= 0;
+						directorycount	= wd_files_count_path(resolvedpath, NULL, NULL);
 						break;
 						
 					case WD_FILE_TYPE_FILE:
 					default:
-						size = sb.size;
+						datasize		= sb.size;
+						rsrcsize		= wi_fs_resource_fork_size_for_path(resolvedpath);
+						directorycount	= 0;
 						break;
 				}
 				
@@ -1124,7 +1150,9 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 				wd_files_index_write_entry(file,
 										   virtualpath,
 										   type,
-										   size,
+										   datasize,
+										   rsrcsize,
+										   directorycount,
 										   sb.birthtime,
 										   sb.mtime,
 										   (alias || S_ISLNK(lsb.mode)),
@@ -1136,7 +1164,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 					wd_directories_count++;
 				} else {
 					wd_files_count++;
-					wd_files_size += size;
+					wd_files_size += datasize + rsrcsize;
 				}
 				
 				if(type == WD_FILE_TYPE_DROPBOX) {
@@ -1166,48 +1194,57 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 
 
 
-static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_file_type_t type, uint64_t size, wi_time_interval_t creationtime, wi_time_interval_t modificationtime, wi_boolean_t link, wi_boolean_t executable, uint32_t label, uint32_t volume) {
+static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_file_type_t type, uint64_t datasize, uint64_t rsrcsize, uint32_t directorycount, wi_time_interval_t creationtime, wi_time_interval_t modificationtime, wi_boolean_t link, wi_boolean_t executable, uint32_t label, uint32_t volume) {
 	static char				*buffer;
 	static wi_uinteger_t	bufferlength;
-	static uint32_t			searchlistid, pathid, typeid, sizeid, creationid, modificationid, linkid, executableid, labelid, volumeid, readableid, writableid;
+	static uint32_t			searchlistid, pathid, typeid, datasizeid, rsrcsizeid, directorycountid, creationid, modificationid;
+	static uint32_t			linkid, executableid, labelid, volumeid, readableid, writableid;
 	wi_string_t				*name, *creationstring, *modificationstring;
 	uint32_t				totalentrylength, entrylength, namelength, pathlength, creationlength, modificationlength;
 	char					*p;
 	
 	if(searchlistid == 0) {
-		searchlistid	= wi_p7_spec_message_id(wi_p7_spec_message_with_name(wd_p7_spec, WI_STR("wired.file.search_list")));
-		pathid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.path")));
-		typeid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.type")));
-		sizeid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.size")));
-		creationid		= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.creation_time")));
-		modificationid	= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.modification_time")));
-		linkid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.link")));
-		executableid	= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.executable")));
-		labelid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.label")));
-		volumeid		= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.volume")));
-		readableid		= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.readable")));
-		writableid		= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.writable")));
+		searchlistid		= wi_p7_spec_message_id(wi_p7_spec_message_with_name(wd_p7_spec, WI_STR("wired.file.search_list")));
+		pathid				= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.path")));
+		typeid				= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.type")));
+		datasizeid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.data_size")));
+		rsrcsizeid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.rsrc_size")));
+		directorycountid	= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.directory_count")));
+		creationid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.creation_time")));
+		modificationid		= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.modification_time")));
+		linkid				= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.link")));
+		executableid		= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.executable")));
+		labelid				= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.label")));
+		volumeid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.volume")));
+		readableid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.readable")));
+		writableid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.writable")));
 	}
 
-	name				= wi_string_last_path_component(path);
-	creationstring		= wi_time_interval_rfc3339_string(creationtime);
-	modificationstring	= wi_time_interval_rfc3339_string(modificationtime);
+	name					= wi_string_last_path_component(path);
+	creationstring			= wi_time_interval_rfc3339_string(creationtime);
+	modificationstring		= wi_time_interval_rfc3339_string(modificationtime);
 
-	namelength			= wi_string_length(name) + 1;
-	pathlength			= wi_string_length(path) + 1;
-	creationlength		= wi_string_length(creationstring) + 1;
-	modificationlength	= wi_string_length(modificationstring) + 1;
-	entrylength			= sizeof(namelength) + namelength +
-						  sizeof(searchlistid) + 
-						  sizeof(pathid) + sizeof(pathlength) + pathlength +
-						  sizeof(typeid) + sizeof(type) + 
-						  sizeof(sizeid) + sizeof(size) +
-						  sizeof(creationid) + creationlength +
-						  sizeof(modificationid) + modificationlength +
-						  sizeof(linkid) + 1 +
-						  sizeof(executableid) + 1 +
-						  sizeof(labelid) + sizeof(label) +
-						  sizeof(volumeid) + sizeof(volume);
+	namelength				= wi_string_length(name) + 1;
+	pathlength				= wi_string_length(path) + 1;
+	creationlength			= wi_string_length(creationstring) + 1;
+	modificationlength		= wi_string_length(modificationstring) + 1;
+	entrylength				= sizeof(namelength) + namelength +
+							  sizeof(searchlistid) + 
+							  sizeof(pathid) + sizeof(pathlength) + pathlength +
+							  sizeof(typeid) + sizeof(type) + 
+							  sizeof(creationid) + creationlength +
+							  sizeof(modificationid) + modificationlength +
+							  sizeof(linkid) + 1 +
+							  sizeof(executableid) + 1 +
+							  sizeof(labelid) + sizeof(label) +
+							  sizeof(volumeid) + sizeof(volume);
+	
+	if(type == WD_FILE_TYPE_FILE) {
+		entrylength += sizeof(datasizeid) + sizeof(datasizeid);
+		entrylength += sizeof(rsrcsizeid) + sizeof(rsrcsizeid);
+	} else {
+		entrylength += sizeof(directorycountid) + sizeof(directorycount);
+	}
 	
 	if(type == WD_FILE_TYPE_DROPBOX) {
 		entrylength += sizeof(readableid) + 1;
@@ -1238,14 +1275,22 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	wi_write_swap_host_to_big_int32(p, 0, type);							p += sizeof(type);
 	
 	if(type == WD_FILE_TYPE_DROPBOX) {
-		wi_write_swap_host_to_big_int32(p, 0, readableid);						p += sizeof(readableid);
-		memcpy(p, "\0", 1);														p += 1;
-		wi_write_swap_host_to_big_int32(p, 0, writableid);						p += sizeof(writableid);
-		memcpy(p, "\0", 1);														p += 1;
+		wi_write_swap_host_to_big_int32(p, 0, readableid);					p += sizeof(readableid);
+		memcpy(p, "\0", 1);													p += 1;
+		wi_write_swap_host_to_big_int32(p, 0, writableid);					p += sizeof(writableid);
+		memcpy(p, "\0", 1);													p += 1;
 	}
 	
-	wi_write_swap_host_to_big_int32(p, 0, sizeid);							p += sizeof(sizeid);
-	wi_write_swap_host_to_big_int64(p, 0, size);							p += sizeof(size);
+	if(type == WD_FILE_TYPE_FILE) {
+		wi_write_swap_host_to_big_int32(p, 0, datasizeid);					p += sizeof(datasizeid);
+		wi_write_swap_host_to_big_int64(p, 0, datasize);					p += sizeof(datasize);
+		wi_write_swap_host_to_big_int32(p, 0, rsrcsizeid);					p += sizeof(rsrcsizeid);
+		wi_write_swap_host_to_big_int64(p, 0, rsrcsize);					p += sizeof(rsrcsize);
+	} else {
+		wi_write_swap_host_to_big_int32(p, 0, directorycountid);			p += sizeof(directorycountid);
+		wi_write_swap_host_to_big_int32(p, 0, directorycount);				p += sizeof(directorycount);
+	}
+	
 	wi_write_swap_host_to_big_int32(p, 0, creationid);						p += sizeof(creationid);
 	memcpy(p, wi_string_cstring(creationstring), creationlength);			p += creationlength;
 	wi_write_swap_host_to_big_int32(p, 0, modificationid);					p += sizeof(modificationid);
@@ -1337,6 +1382,45 @@ static void wd_files_fsevents_callback(wi_string_t *path) {
 
 #pragma mark -
 
+wi_boolean_t wd_files_set_type(wi_string_t *path, wd_file_type_t type, wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*realpath, *metapath, *typepath;
+	
+	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
+	metapath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PATH));
+	typepath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_TYPE_PATH));
+	
+	if(type != WD_FILE_TYPE_DIR) {
+		if(!wi_fs_create_directory(metapath, 0777)) {
+			if(wi_error_code() != EEXIST) {
+				wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
+				wd_user_reply_file_errno(user, message);
+				
+				return false;
+			}
+		}
+		
+		if(!wi_string_write_to_file(wi_string_with_format(WI_STR("%u\n"), type), typepath)) {
+			wi_log_warn(WI_STR("Could not write to %@: %m"), typepath);
+			wd_user_reply_file_errno(user, message);
+			
+			return false;
+		}
+	} else {
+		if(!wi_fs_delete_path(typepath)) {
+			wi_log_warn(WI_STR("Could not delete %@: %m"), typepath);
+			wd_user_reply_file_errno(user, message);
+			
+			return false;
+		}
+		
+		(void) rmdir(wi_string_cstring(metapath));
+	}
+	
+	return true;
+}
+
+
+
 wd_file_type_t wd_files_type(wi_string_t *path) {
 	wi_fs_stat_t	sb;
 	
@@ -1379,38 +1463,9 @@ static wd_file_type_t wd_files_type_with_stat(wi_string_t *realpath, wi_fs_stat_
 
 
 
-void wd_files_set_type(wi_string_t *path, wd_file_type_t type, wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*realpath, *metapath, *typepath;
-	
-	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
-	metapath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PATH));
-	typepath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_TYPE_PATH));
-	
-	if(type != WD_FILE_TYPE_DIR) {
-		if(!wi_fs_create_directory(metapath, 0777)) {
-			if(wi_error_code() != EEXIST) {
-				wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
-				wd_user_reply_file_errno(user, message);
-
-				return;
-			}
-		}
-		
-		if(!wi_string_write_to_file(wi_string_with_format(WI_STR("%u\n"), type), typepath)) {
-			wi_log_warn(WI_STR("Could not write to %@: %m"), typepath);
-			wd_user_reply_file_errno(user, message);
-		}
-	} else {
-		if(wi_fs_delete_path(typepath))
-			(void) rmdir(wi_string_cstring(metapath));
-	}
-}
-
-
-
 #pragma mark -
 
-void wd_files_set_executable(wi_string_t *path, wi_boolean_t executable, wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_files_set_executable(wi_string_t *path, wi_boolean_t executable, wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t		*realpath;
 	
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
@@ -1418,7 +1473,11 @@ void wd_files_set_executable(wi_string_t *path, wi_boolean_t executable, wd_user
 	if(!wi_fs_set_mode_for_path(realpath, executable ? 0755 : 0644)) {
 		wi_log_warn(WI_STR("Could not set mode for %@: %m"), realpath);
 		wd_user_reply_file_errno(user, message);
+		
+		return false;
 	}
+	
+	return true;
 }
 
 
@@ -1459,7 +1518,7 @@ static wi_string_t * wd_files_comment(wi_string_t *path) {
 
 
 
-void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *user, wi_p7_message_t *message) {
 	wi_runtime_instance_t	*instance;
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	wi_string_t				*realpath;
@@ -1480,7 +1539,7 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 				if(user)
 					wd_user_reply_file_errno(user, message);
 				
-				return;
+				return false;
 			}
 		}
 	}
@@ -1490,35 +1549,31 @@ void wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_user_t *us
 	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
 		instance = wi_mutable_dictionary();
 	
-	if(comment && wi_string_length(comment))
-		wi_mutable_dictionary_set_data_for_key(instance, comment, name);
-	else
-		wi_mutable_dictionary_remove_data_for_key(instance, name);
+	wi_mutable_dictionary_set_data_for_key(instance, comment, name);
 	
-	if(wi_dictionary_count(instance) > 0) {
-		if(!wi_plist_write_instance_to_file(instance, commentspath)) {
-			wi_log_warn(WI_STR("Could not write to %@: %m"), commentspath);
-			
-			if(user)
-				wd_user_reply_file_errno(user, message);
-			
-			return;
-		}
-	} else {
-		if(wi_fs_delete_path(commentspath))
-			(void) rmdir(wi_string_cstring(metapath));
+	if(!wi_plist_write_instance_to_file(instance, commentspath)) {
+		wi_log_warn(WI_STR("Could not write to %@: %m"), commentspath);
+		
+		if(user)
+			wd_user_reply_file_errno(user, message);
+		
+		return false;
 	}
 
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 
 	if(wi_fs_path_exists(realpath, NULL)) {
-		if(!wi_fs_set_finder_comment_for_path(realpath, comment)) {
+		if(!wi_fs_set_finder_comment_for_path(comment, realpath)) {
 			wi_log_err(WI_STR("Could not set Finder comment: %m"));
 			wd_user_reply_internal_error(user, message);
+			
+			return false;
 		}
 	}
 #endif
+	
+	return true;
 }
 
 
@@ -1530,9 +1585,53 @@ void wd_files_move_comment(wi_string_t *frompath, wi_string_t *topath, wd_user_t
 	comment			= wd_files_comment(realfrompath);
 	
 	if(comment) {
-		wd_files_set_comment(frompath, NULL, user, message);
+		wd_files_remove_comment(frompath, user, message);
 		wd_files_set_comment(topath, comment, user, message);
 	}
+}
+
+
+
+wi_boolean_t wd_files_remove_comment(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
+	wi_runtime_instance_t	*instance;
+	wi_string_t				*name, *dirpath, *realdirpath, *metapath, *commentspath;
+	
+	name			= wi_string_last_path_component(path);
+	dirpath			= wi_string_by_deleting_last_path_component(path);
+	realdirpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(dirpath, user));
+	metapath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_PATH));
+	commentspath	= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
+	
+	instance = wi_plist_read_instance_from_file(commentspath);
+	
+	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
+		instance = wi_mutable_dictionary();
+	
+	wi_mutable_dictionary_remove_data_for_key(instance, name);
+	
+	if(wi_dictionary_count(instance) > 0) {
+		if(!wi_plist_write_instance_to_file(instance, commentspath)) {
+			wi_log_warn(WI_STR("Could not write to %@: %m"), commentspath);
+			
+			if(user)
+				wd_user_reply_file_errno(user, message);
+			
+			return false;
+		}
+	} else {
+		if(!wi_fs_delete_path(commentspath)) {
+			wi_log_warn(WI_STR("Could not delete %@: %m"), commentspath);
+			
+			if(user)
+				wd_user_reply_file_errno(user, message);
+			
+			return false;
+		}
+
+		(void) rmdir(wi_string_cstring(metapath));
+	}
+	
+	return true;
 }
 
 
@@ -1559,7 +1658,7 @@ static wd_file_label_t wd_files_label(wi_string_t *path) {
 
 
 
-void wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_user_t *user, wi_p7_message_t *message) {
 	wi_runtime_instance_t	*instance;
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	wi_string_t				*realpath;
@@ -1572,16 +1671,14 @@ void wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_user_t *use
 	metapath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_PATH));
 	labelspath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_LABELS_PATH));
 	
-	if(label != WD_FILE_LABEL_NONE) {
-		if(!wi_fs_create_directory(metapath, 0777)) {
-			if(wi_error_code() != EEXIST) {
-				wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
-				
-				if(user)
-					wd_user_reply_file_errno(user, message);
-				
-				return;
-			}
+	if(!wi_fs_create_directory(metapath, 0777)) {
+		if(wi_error_code() != EEXIST) {
+			wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
+			
+			if(user)
+				wd_user_reply_file_errno(user, message);
+			
+			return false;
 		}
 	}
 	
@@ -1590,10 +1687,51 @@ void wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_user_t *use
 	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
 		instance = wi_mutable_dictionary();
 	
-	if(label != WD_FILE_LABEL_NONE)
-		wi_mutable_dictionary_set_data_for_key(instance, WI_INT32(label), name);
-	else
-		wi_mutable_dictionary_remove_data_for_key(instance, name);
+	wi_mutable_dictionary_set_data_for_key(instance, WI_INT32(label), name);
+	
+	if(!wi_plist_write_instance_to_file(instance, labelspath)) {
+		wi_log_warn(WI_STR("Could not write to %@: %m"), labelspath);
+		
+		if(user)
+			wd_user_reply_file_errno(user, message);
+		
+		return false;
+	}
+	
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
+
+	if(wi_fs_path_exists(realpath, NULL)) {
+		if(!wi_fs_set_finder_label_for_path(label, realpath)) {
+			wi_log_err(WI_STR("Could not set Finder label: %m"));
+			wd_user_reply_internal_error(user, message);
+			
+			return false;
+		}
+	}
+#endif
+	
+	return true;
+}
+
+
+
+wi_boolean_t wd_files_remove_label(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
+	wi_runtime_instance_t	*instance;
+	wi_string_t				*name, *dirpath, *realdirpath, *metapath, *labelspath;
+	
+	name			= wi_string_last_path_component(path);
+	dirpath			= wi_string_by_deleting_last_path_component(path);
+	realdirpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(dirpath, user));
+	metapath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_PATH));
+	labelspath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_LABELS_PATH));
+	
+	instance = wi_plist_read_instance_from_file(labelspath);
+	
+	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
+		instance = wi_mutable_dictionary();
+	
+	wi_mutable_dictionary_remove_data_for_key(instance, name);
 	
 	if(wi_dictionary_count(instance) > 0) {
 		if(!wi_plist_write_instance_to_file(instance, labelspath)) {
@@ -1602,23 +1740,22 @@ void wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_user_t *use
 			if(user)
 				wd_user_reply_file_errno(user, message);
 			
-			return;
+			return false;
 		}
 	} else {
-		if(wi_fs_delete_path(labelspath))
-			(void) rmdir(wi_string_cstring(metapath));
+		if(!wi_fs_delete_path(labelspath)) {
+			wi_log_warn(WI_STR("Could not delete %@: %m"), labelspath);
+			
+			if(user)
+				wd_user_reply_file_errno(user, message);
+			
+			return false;
+		}
+		
+		(void) rmdir(wi_string_cstring(metapath));
 	}
 	
-#ifdef HAVE_CORESERVICES_CORESERVICES_H
-	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
-
-	if(wi_fs_path_exists(realpath, NULL)) {
-		if(!wi_fs_set_finder_label_for_path(realpath, label)) {
-			wi_log_err(WI_STR("Could not set Finder label: %m"));
-			wd_user_reply_internal_error(user, message);
-		}
-	}
-#endif
+	return true;
 }
 
 
@@ -1631,7 +1768,7 @@ void wd_files_move_label(wi_string_t *frompath, wi_string_t *topath, wd_user_t *
 	label			= wd_files_label(realfrompath);
 	
 	if(label != WD_FILE_LABEL_NONE) {
-		wd_files_set_label(frompath, WD_FILE_LABEL_NONE, user, message);
+		wd_files_remove_label(frompath, user, message);
 		wd_files_set_label(topath, label, user, message);
 	}
 }
@@ -1640,7 +1777,7 @@ void wd_files_move_label(wi_string_t *frompath, wi_string_t *topath, wd_user_t *
 
 #pragma mark -
 
-void wd_files_set_privileges(wi_string_t *path, wd_files_privileges_t *privileges, wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_files_set_privileges(wi_string_t *path, wd_files_privileges_t *privileges, wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t		*realpath, *metapath, *permissionspath;
 	wi_string_t		*string;
 	
@@ -1653,7 +1790,7 @@ void wd_files_set_privileges(wi_string_t *path, wd_files_privileges_t *privilege
 			wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
 			wd_user_reply_file_errno(user, message);
 
-			return;
+			return false;
 		}
 	}
 	
@@ -1662,7 +1799,11 @@ void wd_files_set_privileges(wi_string_t *path, wd_files_privileges_t *privilege
 	if(!wi_string_write_to_file(string, permissionspath)) {
 		wi_log_warn(WI_STR("Could not write to %@: %m"), permissionspath);
 		wd_user_reply_file_errno(user, message);
+		
+		return false;
 	}
+	
+	return true;
 }
 
 
@@ -1673,7 +1814,7 @@ wd_files_privileges_t * wd_files_privileges(wi_string_t *path, wd_user_t *user) 
 	realpath = wd_files_drop_box_path_in_path(path, user);
 	
 	if(!realpath)
-		return NULL;
+		return wd_files_privileges_default_privileges();
 	
 	return wd_files_drop_box_privileges(realpath);
 }
@@ -1779,16 +1920,13 @@ static wd_files_privileges_t * wd_files_drop_box_privileges(wi_string_t *path) {
 	
 	permissionspath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PERMISSIONS_PATH));
 	
-	if(!wi_fs_stat_path(permissionspath, &sb)) {
-		wi_log_warn(WI_STR("Could not open %@: %m"), permissionspath);
-		
-		return NULL;
-	}
+	if(!wi_fs_stat_path(permissionspath, &sb))
+		return wd_files_privileges_default_drop_box_privileges();
 	
 	if(sb.size > 128) {
 		wi_log_warn(WI_STR("Could not read %@: Size is too large (%u"), permissionspath, sb.size);
 		
-		return NULL;
+		return wd_files_privileges_default_drop_box_privileges();
 	}
 	
 	string = wi_autorelease(wi_string_init_with_contents_of_file(wi_string_alloc(), permissionspath));
@@ -1796,7 +1934,7 @@ static wd_files_privileges_t * wd_files_drop_box_privileges(wi_string_t *path) {
 	if(!string) {
 		wi_log_warn(WI_STR("Could not read %@: %m"), permissionspath);
 		
-		return NULL;
+		return wd_files_privileges_default_drop_box_privileges();
 	}
 	
 	privileges = wd_files_privileges_with_string(string);
@@ -1804,7 +1942,7 @@ static wd_files_privileges_t * wd_files_drop_box_privileges(wi_string_t *path) {
 	if(!privileges) {
 		wi_log_info(WI_STR("Could not read %@: Contents is malformed (%@)"), permissionspath, string);
 		
-		return NULL;
+		return wd_files_privileges_default_drop_box_privileges();
 	}
 	
 	return privileges;
@@ -1988,6 +2126,32 @@ static wd_files_privileges_t * wd_files_privileges_with_string(wi_string_t *stri
 	privileges->owner	= wi_retain(WI_ARRAY(array, 0));
 	privileges->group	= wi_retain(WI_ARRAY(array, 1));
 	privileges->mode	= wi_string_uint32(WI_ARRAY(array, 2));
+	
+	return wi_autorelease(privileges);
+}
+
+
+
+static wd_files_privileges_t * wd_files_privileges_default_privileges(void) {
+	wd_files_privileges_t	*privileges;
+	
+	privileges			= wd_files_privileges_alloc();
+	privileges->owner	= wi_retain(WI_STR(""));
+	privileges->group	= wi_retain(WI_STR(""));
+	privileges->mode	= WD_FILE_EVERYONE_WRITE | WD_FILE_EVERYONE_READ;
+	
+	return wi_autorelease(privileges);
+}
+
+
+
+static wd_files_privileges_t * wd_files_privileges_default_drop_box_privileges(void) {
+	wd_files_privileges_t	*privileges;
+	
+	privileges			= wd_files_privileges_alloc();
+	privileges->owner	= wi_retain(WI_STR(""));
+	privileges->group	= wi_retain(WI_STR(""));
+	privileges->mode	= WD_FILE_EVERYONE_WRITE;
 	
 	return wi_autorelease(privileges);
 }

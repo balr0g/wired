@@ -153,7 +153,7 @@ void wd_settings_reply_settings(wd_user_t *user, wi_p7_message_t *message) {
 
 
 
-void wd_settings_set_settings(wi_p7_message_t *message) {
+wi_boolean_t wd_settings_set_settings(wd_user_t *user, wi_p7_message_t *message) {
 	wi_data_t		*banner;
 	wi_string_t		*path, *name, *description;
 	wi_number_t		*total_downloads, *total_uploads, *total_download_speed, *total_upload_speed;
@@ -198,6 +198,13 @@ void wd_settings_set_settings(wi_p7_message_t *message) {
 	
 	wd_settings_apply_settings(wi_config_changes(wd_config));
 	
-	if(!wi_config_write_file(wd_config))
+	if(!wi_config_write_file(wd_config)) {
 		wi_log_err(WI_STR("Could not write config: %m"));
+
+		wd_user_reply_internal_error(user, message);
+		
+		return false;
+	}
+	
+	return true;
 }

@@ -162,9 +162,10 @@ void wd_banlist_reply_bans(wd_user_t *user, wi_p7_message_t *message) {
 
 
 
-void wd_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_t *ip, wi_date_t *expiration_date) {
+wi_boolean_t wd_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_t *ip, wi_date_t *expiration_date) {
 	wi_file_t		*file;
 	wd_ban_t		*ban;
+	wi_boolean_t	result = false;
 	
 	if(expiration_date) {
 		if(wi_date_time_interval(expiration_date) - wi_time_interval() > 1.0) {
@@ -175,6 +176,8 @@ void wd_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_t *
 				wi_timer_schedule(ban->timer);
 				wi_mutable_dictionary_set_data_for_key(wd_bans, ban, ip);
 				wi_release(ban);
+				
+				result = true;
 			} else {
 				wd_user_reply_error(user, WI_STR("wired.error.ban_exists"), message);
 			}
@@ -182,7 +185,7 @@ void wd_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_t *
 			wi_dictionary_unlock(wd_bans);
 		} else {
 			wi_log_err(WI_STR("Ban has negative expiration date"), wd_banlist_path);
-			wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+			wd_user_reply_internal_error(user, message);
 		}
 	} else {
 		wi_rwlock_wrlock(wd_banlist_lock);
@@ -190,31 +193,40 @@ void wd_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_t *
 		file = wi_file_for_updating(wd_banlist_path);
 		
 		if(file) {
-			if(!wd_banlist_file_contains_ip(file, ip))
+			if(!wd_banlist_file_contains_ip(file, ip)) {
 				wi_file_write_format(file, WI_STR("%@\n"), ip);
-			else
+				
+				result = true;
+			} else {
 				wd_user_reply_error(user, WI_STR("wired.error.ban_exists"), message);
+			}
 		} else {
 			wi_log_err(WI_STR("Could not open %@: %m"), wd_banlist_path);
-			wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+			wd_user_reply_internal_error(user, message);
 		}
 		
 		wi_rwlock_unlock(wd_banlist_lock);
 	}
+	
+	return result;
 }
 
 
 
-void wd_banlist_delete_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_t *ip, wi_date_t *expiration_date) {
+wi_boolean_t wd_banlist_delete_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_t *ip, wi_date_t *expiration_date) {
 	wi_file_t		*file;
+	wi_boolean_t	result = false;
 	
 	if(expiration_date) {
 		wi_dictionary_wrlock(wd_bans);
 		
-		if(wi_dictionary_contains_key(wd_bans, ip))
+		if(wi_dictionary_contains_key(wd_bans, ip)) {
 			wi_mutable_dictionary_remove_data_for_key(wd_bans, ip);
-		else
+			
+			result = true;
+		} else {
 			wd_user_reply_error(user, WI_STR("wired.error.ban_not_found"), message);
+		}
 		
 		wi_dictionary_unlock(wd_bans);
 	} else {
@@ -223,15 +235,19 @@ void wd_banlist_delete_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_
 		file = wi_file_for_updating(wd_banlist_path);
 		
 		if(file) {
-			if(!wd_banlist_delete_ban_from_file(file, ip))
+			if(wd_banlist_delete_ban_from_file(file, ip))
+				result = true;
+			else
 				wd_user_reply_error(user, WI_STR("wired.error.ban_not_found"), message);
 		} else {
 			wi_log_err(WI_STR("Could not open %@: %m"), wd_banlist_path);
-			wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+			wd_user_reply_internal_error(user, message);
 		}
 		
 		wi_rwlock_unlock(wd_banlist_lock);
 	}
+	
+	return result;
 }
 
 

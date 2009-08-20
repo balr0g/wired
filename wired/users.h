@@ -32,6 +32,7 @@
 #include <wired/wired.h>
 
 #include "accounts.h"
+#include "main.h"
 #include "transfers.h"
 
 #define WD_USER_BUFFER_INITIAL_SIZE		BUFSIZ
@@ -106,9 +107,19 @@ wi_date_t *								wd_user_idle_time(wd_user_t *);
 void									wd_user_set_transfer(wd_user_t *, wd_transfer_t *);
 wd_transfer_t *							wd_user_transfer(wd_user_t *);
 
-void									wd_user_subscribe_log(wd_user_t *, wi_p7_uint32_t);
+wi_boolean_t							wd_user_supports_rsrc(wd_user_t *);
+
+void									wd_user_subscribe_boards(wd_user_t *);
+void									wd_user_unsubscribe_boards(wd_user_t *);
+wi_boolean_t							wd_user_is_subscribed_boards(wd_user_t *);
+
+void									wd_user_subscribe_accounts(wd_user_t *);
+void									wd_user_unsubscribe_accounts(wd_user_t *);
+wi_boolean_t							wd_user_is_subscribed_accounts(wd_user_t *);
+
+void									wd_user_subscribe_log(wd_user_t *);
 void									wd_user_unsubscribe_log(wd_user_t *);
-wi_boolean_t							wd_user_is_subscribed_log(wd_user_t *, wi_p7_uint32_t *);
+wi_boolean_t							wd_user_is_subscribed_log(wd_user_t *);
 
 void									wd_user_subscribe_path(wd_user_t *, wi_string_t *);
 void									wd_user_unsubscribe_path(wd_user_t *, wi_string_t *);

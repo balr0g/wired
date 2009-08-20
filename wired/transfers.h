@@ -60,8 +60,8 @@ struct _wd_transfer {
 	wi_boolean_t						disconnected;
 
 	wi_string_t							*path;
-	wi_string_t							*realpath;
-	int									fd;
+	wi_string_t							*realdatapath, *realrsrcpath;
+	int									datafd, rsrcfd;
 
 	wi_condition_lock_t					*state_lock;
 	wd_transfer_state_t					state;
@@ -72,10 +72,13 @@ struct _wd_transfer {
 	wi_time_interval_t					queue_time;
 	wi_time_interval_t					waiting_time;
 
-	wi_file_offset_t					offset;
-	wi_file_offset_t					size, remainingsize;
+	wi_file_offset_t					dataoffset, rsrcoffset;
+	wi_file_offset_t					datasize, rsrcsize;
+	wi_file_offset_t					remainingdatasize, remainingrsrcsize;
 	wi_file_offset_t					transferred;
 	uint32_t							speed;
+	
+	wi_data_t							*finderinfo;
 };
 typedef struct _wd_transfer				wd_transfer_t;
 
@@ -84,8 +87,8 @@ void									wd_transfers_init(void);
 void									wd_transfers_apply_settings(wi_set_t *);
 void									wd_transfers_schedule(void);
 
-void									wd_transfers_queue_download(wi_string_t *, wi_file_offset_t, wd_user_t *, wi_p7_message_t *);
-void									wd_transfers_queue_upload(wi_string_t *, wi_file_offset_t, wi_boolean_t, wd_user_t *, wi_p7_message_t *);
+void									wd_transfers_queue_download(wi_string_t *, wi_file_offset_t, wi_file_offset_t, wd_user_t *, wi_p7_message_t *);
+void									wd_transfers_queue_upload(wi_string_t *, wi_file_offset_t, wi_file_offset_t, wi_boolean_t, wd_user_t *, wi_p7_message_t *);
 void									wd_transfers_remove_user(wd_user_t *);
 wd_transfer_t *							wd_transfers_transfer_with_path(wd_user_t *, wi_string_t *);
 
