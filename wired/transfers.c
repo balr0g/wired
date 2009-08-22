@@ -809,6 +809,11 @@ static void wd_transfer_thread(wi_runtime_instance_t *argument) {
 	} else {
 		wi_condition_lock_unlock(transfer->state_lock);
 	}
+	
+	if(transfer->type == WD_TRANSFER_DOWNLOAD)
+		wd_accounts_add_download_statistics(wd_user_account(transfer->user), transfer->finished, transfer->actualtransferred);
+	else
+		wd_accounts_add_upload_statistics(wd_user_account(transfer->user), transfer->finished, transfer->actualtransferred);
 
 	wd_user_set_transfer(transfer->user, NULL);
 	wd_user_set_state(transfer->user, WD_USER_LOGGED_IN);
@@ -912,7 +917,7 @@ static void wd_transfer_post_process_upload_transfer(wd_transfer_t *transfer) {
 		wd_files_move_comment(transfer->realdatapath, path, NULL, NULL);
 		wd_files_move_label(transfer->realdatapath, path, NULL, NULL);
 		
-		if(transfer->finderinfo)
+		if(wi_data_length(transfer->finderinfo) > 0)
 			wi_fs_set_finder_info_for_path(transfer->finderinfo, path);
 		
 		wd_files_index_add_file(path);
@@ -1035,15 +1040,16 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 		}
 
 		if(data)
-			transfer->remainingdatasize -= sendbytes;
+			transfer->remainingdatasize		-= sendbytes;
 		else
-			transfer->remainingrsrcsize -= sendbytes;
+			transfer->remainingrsrcsize		-= sendbytes;
 		
-		interval				= wi_time_interval();
-		transfer->transferred	+= sendbytes;
-		speedbytes				+= sendbytes;
-		statsbytes				+= sendbytes;
-		transfer->speed			= speedbytes / (interval - speedinterval);
+		interval							= wi_time_interval();
+		transfer->transferred				+= sendbytes;
+		transfer->actualtransferred			+= sendbytes;
+		speedbytes							+= sendbytes;
+		statsbytes							+= sendbytes;
+		transfer->speed						= speedbytes / (interval - speedinterval);
 
 		wd_transfer_limit_speed(transfer,
 								wd_transfers_total_download_speed,
@@ -1189,15 +1195,16 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 		}
 
 		if(data)
-			transfer->remainingdatasize -= readbytes;
+			transfer->remainingdatasize		-= readbytes;
 		else
-			transfer->remainingrsrcsize -= readbytes;
+			transfer->remainingrsrcsize		-= readbytes;
 
-		interval				= wi_time_interval();
-		transfer->transferred	+= readbytes;
-		speedbytes				+= readbytes;
-		statsbytes				+= readbytes;
-		transfer->speed			= speedbytes / (interval - speedinterval);
+		interval							= wi_time_interval();
+		transfer->transferred				+= readbytes;
+		transfer->actualtransferred			+= readbytes;
+		speedbytes							+= readbytes;
+		statsbytes							+= readbytes;
+		transfer->speed						= speedbytes / (interval - speedinterval);
 
 		wd_transfer_limit_speed(transfer,
 								wd_transfers_total_upload_speed,
@@ -1243,7 +1250,9 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 	wd_transfers_add_or_remove_transfer(transfer, false);
 	wd_transfers_note_statistics(WD_TRANSFER_UPLOAD, WD_TRANSFER_STATISTICS_REMOVE, statsbytes);
 	
-	if(transfer->transferred == (transfer->datasize + transfer->rsrcsize))
+	transfer->finished = (transfer->transferred == (transfer->datasize + transfer->rsrcsize));
+	
+	if(transfer->finished)
 		wd_transfer_post_process_upload_transfer(transfer);
 
 	wd_transfer_close(transfer);

@@ -75,6 +75,8 @@ typedef enum _wd_account_field_account				wd_account_field_account_t;
 
 static wi_runtime_instance_t *						wd_accounts_instance_at_path(wi_string_t *);
 static wi_array_t *									wd_accounts_convert_accounts(wi_string_t *, wi_array_t *);
+static wi_boolean_t									wd_accounts_replace_user_account(wd_account_t *);
+static wi_boolean_t									wd_accounts_replace_group_account(wd_account_t *);
 static void											wd_accounts_reload_user_account(wi_string_t *);
 static void											wd_accounts_reload_group_account(wi_string_t *);
 static void											wd_accounts_reload_account(wd_user_t *, wd_account_t *);
@@ -142,6 +144,14 @@ void wd_accounts_init(void) {
 			WI_STR("wired.account.login_time"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER_AND_GROUP | WD_ACCOUNT_FIELD_USER_LIST_AND_GROUP_LIST, true),
 			WI_STR("wired.account.edited_by"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_NUMBER, WD_ACCOUNT_FIELD_USER | WD_ACCOUNT_FIELD_USER_LIST, true),
+			WI_STR("wired.account.downloads"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_NUMBER, WD_ACCOUNT_FIELD_USER | WD_ACCOUNT_FIELD_USER_LIST, true),
+			WI_STR("wired.account.download_transferred"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_NUMBER, WD_ACCOUNT_FIELD_USER | WD_ACCOUNT_FIELD_USER_LIST, true),
+			WI_STR("wired.account.uploads"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_NUMBER, WD_ACCOUNT_FIELD_USER | WD_ACCOUNT_FIELD_USER_LIST, true),
+			WI_STR("wired.account.upload_transferred"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER_AND_PRIVILEGE | WD_ACCOUNT_FIELD_USER_LIST, true),
 			WI_STR("wired.account.group"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_LIST, WD_ACCOUNT_FIELD_USER_AND_PRIVILEGE | WD_ACCOUNT_FIELD_USER_LIST, true),
@@ -354,8 +364,6 @@ void wd_accounts_init(void) {
 		WI_STR("wired.account.board.delete_threads"),
 		WI_STR("wired.account.board.edit_own_posts"),
 		WI_STR("wired.account.board.edit_all_posts"),
-		WI_STR("wired.account.user.disconnect_users"),
-		WI_STR("wired.account.file.search_files"),
 		NULL);
 	
 	wd_groups_fields = wi_array_init_with_data(wi_array_alloc(),
@@ -423,8 +431,6 @@ void wd_accounts_init(void) {
 		WI_STR("wired.account.board.delete_threads"),
 		WI_STR("wired.account.board.edit_own_posts"),
 		WI_STR("wired.account.board.edit_all_posts"),
-		WI_STR("wired.account.user.disconnect_users"),
-		WI_STR("wired.account.file.search_files"),
 		NULL);
 }
 
@@ -560,37 +566,15 @@ wi_string_t * wd_accounts_password_for_user(wi_string_t *name) {
 
 
 wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *password, wd_user_t *user, wi_p7_message_t *message) {
-	wi_enumerator_t			*enumerator;
-	wi_dictionary_t			*dictionary;
-	wi_mutable_array_t		*array;
-	wi_runtime_instance_t	*instance;
-	wi_boolean_t			result = false;
-	
 	wi_mutable_dictionary_set_data_for_key(account->values, password, WI_STR("wired.account.password"));
 	
-	wi_recursive_lock_lock(wd_users_lock);
-	
-	instance	= wd_accounts_instance_at_path(wd_users_path);
-	array		= wi_mutable_array();
-	enumerator	= wi_array_data_enumerator(instance);
-	
-	while((dictionary = wi_enumerator_next_data(enumerator))) {
-		if(!wi_is_equal(wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.name")), wd_account_name(account)))
-			wi_mutable_array_add_data(array, dictionary);
-	}
-
-	wi_mutable_array_add_data(array, account->values);
-	
-	result = wi_plist_write_instance_to_file(array, wd_users_path);
-	
-	if(!result) {
-		wi_log_err(WI_STR("Could not write %@: %m"));
+	if(!wd_accounts_replace_user_account(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+		
+		return false;
 	}
 	
-	wi_recursive_lock_unlock(wd_users_lock);
-
-	return result;
+	return true;
 }
 
 
@@ -654,46 +638,20 @@ wi_boolean_t wd_accounts_create_group(wd_account_t *account, wd_user_t *user, wi
 
 
 wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user, wi_p7_message_t *message) {
-	wi_enumerator_t			*enumerator;
-	wi_dictionary_t			*dictionary;
-	wi_mutable_array_t		*array;
-	wi_string_t				*name, *new_name;
-	wi_runtime_instance_t	*instance;
-	wi_boolean_t			result = false;
+	wi_string_t			*name, *new_name;
+	wi_boolean_t		result;
 	
 	wi_mutable_dictionary_set_data_for_key(account->values, wi_date(), WI_STR("wired.account.modification_time"));
 	wi_mutable_dictionary_set_data_for_key(account->values, wd_user_nick(user), WI_STR("wired.account.edited_by"));
 	
-	wi_recursive_lock_lock(wd_users_lock);
-	
-	instance	= wd_accounts_instance_at_path(wd_users_path);
-	array		= wi_mutable_array();
-	enumerator	= wi_array_data_enumerator(instance);
-	
-	while((dictionary = wi_enumerator_next_data(enumerator))) {
-		if(!wi_is_equal(wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.name")), wd_account_name(account)))
-			wi_mutable_array_add_data(array, dictionary);
-	}
-	
 	name		= wi_autorelease(wi_retain(wi_dictionary_data_for_key(account->values, WI_STR("wired.account.name"))));
-	new_name	= wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"));
-
-	if(new_name) {
-		wi_mutable_dictionary_set_data_for_key(account->values, new_name, WI_STR("wired.account.name"));
-		wi_mutable_dictionary_remove_data_for_key(account->values, WI_STR("wired.account.new_name"));
-	}
-
-	wi_mutable_array_add_data(array, account->values);
+	new_name	= wi_autorelease(wi_retain(wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"))));
 	
-	result = wi_plist_write_instance_to_file(array, wd_users_path);
-		
-	if(!result) {
-		wi_log_err(WI_STR("Could not write %@: %m"));
+	result = wd_accounts_replace_user_account(account);
+	
+	if(!result)
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
-	}
 
-	wi_recursive_lock_unlock(wd_users_lock);
-	
 	if(new_name && !wi_is_equal(name, new_name))
 		wd_accounts_notify_subscribers();
 	
@@ -705,46 +663,20 @@ wi_boolean_t wd_accounts_edit_user(wd_account_t *account, wd_user_t *user, wi_p7
 
 
 wi_boolean_t wd_accounts_edit_group(wd_account_t *account, wd_user_t *user, wi_p7_message_t *message) {
-	wi_enumerator_t			*enumerator;
-	wi_dictionary_t			*dictionary;
-	wi_mutable_array_t		*array;
-	wi_string_t				*name, *new_name;
-	wi_runtime_instance_t	*instance;
-	wi_boolean_t			result = false;
+	wi_string_t			*name, *new_name;
+	wi_boolean_t		result = false;
 	
 	wi_mutable_dictionary_set_data_for_key(account->values, wi_date(), WI_STR("wired.account.modification_time"));
 	wi_mutable_dictionary_set_data_for_key(account->values, wd_user_nick(user), WI_STR("wired.account.edited_by"));
 	
-	wi_recursive_lock_lock(wd_groups_lock);
-	
-	instance	= wd_accounts_instance_at_path(wd_groups_path);
-	array		= wi_mutable_array();
-	enumerator	= wi_array_data_enumerator(instance);
-	
-	while((dictionary = wi_enumerator_next_data(enumerator))) {
-		if(!wi_is_equal(wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.name")), wd_account_name(account)))
-			wi_mutable_array_add_data(array, dictionary);
-	}
-
 	name		= wi_autorelease(wi_retain(wi_dictionary_data_for_key(account->values, WI_STR("wired.account.name"))));
-	new_name	= wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"));
+	new_name	= wi_autorelease(wi_retain(wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"))));
 
-	if(new_name) {
-		wi_mutable_dictionary_set_data_for_key(account->values, new_name, WI_STR("wired.account.name"));
-		wi_mutable_dictionary_remove_data_for_key(account->values, WI_STR("wired.account.new_name"));
-	}
-
-	wi_mutable_array_add_data(array, account->values);
+	result = wd_accounts_replace_group_account(account);
 	
-	result = wi_plist_write_instance_to_file(array, wd_groups_path);
-		
-	if(!result) {
-		wi_log_err(WI_STR("Could not write %@: %m"));
+	if(!result)
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
-	}
 
-	wi_recursive_lock_unlock(wd_groups_lock);
-	
 	if(new_name && !wi_is_equal(name, new_name)) {
 		wd_accounts_rename_group(name, new_name);
 		wd_accounts_notify_subscribers();
@@ -867,30 +799,55 @@ wi_boolean_t wd_accounts_rename_group(wi_string_t *name, wi_string_t *new_name) 
 
 
 void wd_accounts_update_login_time(wd_account_t *account) {
-	wi_enumerator_t			*enumerator;
-	wi_dictionary_t			*dictionary;
-	wi_mutable_array_t		*array;
-	wi_runtime_instance_t	*instance;
-	
 	wi_mutable_dictionary_set_data_for_key(account->values, wi_date(), WI_STR("wired.account.login_time"));
 	
-	wi_recursive_lock_lock(wd_users_lock);
+	wd_accounts_replace_user_account(account);
+}
+
+
+
+void wd_accounts_add_download_statistics(wd_account_t *account, wi_boolean_t finished, wi_file_offset_t transferred) {
+	wi_number_t		*number;
 	
-	instance	= wd_accounts_instance_at_path(wd_users_path);
-	array		= wi_mutable_array();
-	enumerator	= wi_array_data_enumerator(instance);
-	
-	while((dictionary = wi_enumerator_next_data(enumerator))) {
-		if(!wi_is_equal(wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.name")), wd_account_name(account)))
-			wi_mutable_array_add_data(array, dictionary);
+	if(finished) {
+		number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.downloads"));
+		number = wi_number_with_int32(number ? wi_number_int32(number) + 1 : 1);
+		
+		wi_mutable_dictionary_set_data_for_key(account->values, number, WI_STR("wired.account.downloads"));
 	}
-
-	wi_mutable_array_add_data(array, account->values);
 	
-	if(!wi_plist_write_instance_to_file(array, wd_users_path))
-		wi_log_err(WI_STR("Could not write %@: %m"));
+	if(transferred > 0) {
+		number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.download_transferred"));
+		number = wi_number_with_int64(number ? wi_number_int64(number) + transferred : transferred);
+		
+		wi_mutable_dictionary_set_data_for_key(account->values, number, WI_STR("wired.account.download_transferred"));
+	}
+	
+	if(finished || transferred > 0)
+		wd_accounts_replace_user_account(account);
+}
 
-	wi_recursive_lock_unlock(wd_users_lock);
+
+
+void wd_accounts_add_upload_statistics(wd_account_t *account, wi_boolean_t finished, wi_file_offset_t transferred) {
+	wi_number_t		*number;
+	
+	if(finished) {
+		number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.uploads"));
+		number = wi_number_with_int32(number ? wi_number_int32(number) + 1 : 1);
+		
+		wi_mutable_dictionary_set_data_for_key(account->values, number, WI_STR("wired.account.uploads"));
+	}
+	
+	if(transferred > 0) {
+		number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.upload_transferred"));
+		number = wi_number_with_int64(number ? wi_number_int64(number) + transferred : transferred);
+		
+		wi_mutable_dictionary_set_data_for_key(account->values, number, WI_STR("wired.account.upload_transferred"));
+	}
+	
+	if(finished || transferred > 0)
+		wd_accounts_replace_user_account(account);
 }
 
 
@@ -1005,6 +962,88 @@ static wi_array_t * wd_accounts_convert_accounts(wi_string_t *path, wi_array_t *
 		wi_log_err(WI_STR("Could not write %@: %m"));
 	
 	return users;
+}
+
+
+
+static wi_boolean_t wd_accounts_replace_user_account(wd_account_t *account) {
+	wi_enumerator_t			*enumerator;
+	wi_dictionary_t			*dictionary;
+	wi_mutable_array_t		*array;
+	wi_string_t				*name, *new_name;
+	wi_runtime_instance_t	*instance;
+	wi_boolean_t			result;
+	
+	wi_recursive_lock_lock(wd_users_lock);
+	
+	instance	= wd_accounts_instance_at_path(wd_users_path);
+	array		= wi_mutable_array();
+	enumerator	= wi_array_data_enumerator(instance);
+	
+	while((dictionary = wi_enumerator_next_data(enumerator))) {
+		if(!wi_is_equal(wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.name")), wd_account_name(account)))
+			wi_mutable_array_add_data(array, dictionary);
+	}
+	
+	name		= wi_autorelease(wi_retain(wi_dictionary_data_for_key(account->values, WI_STR("wired.account.name"))));
+	new_name	= wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"));
+	
+	if(new_name) {
+		wi_mutable_dictionary_set_data_for_key(account->values, new_name, WI_STR("wired.account.name"));
+		wi_mutable_dictionary_remove_data_for_key(account->values, WI_STR("wired.account.new_name"));
+	}
+	
+	wi_mutable_array_add_data(array, account->values);
+	
+	result = wi_plist_write_instance_to_file(array, wd_users_path);
+	
+	if(!result)
+		wi_log_err(WI_STR("Could not write %@: %m"));
+	
+	wi_recursive_lock_unlock(wd_users_lock);
+	
+	return result;
+}
+
+
+
+static wi_boolean_t wd_accounts_replace_group_account(wd_account_t *account) {
+	wi_enumerator_t			*enumerator;
+	wi_dictionary_t			*dictionary;
+	wi_mutable_array_t		*array;
+	wi_string_t				*name, *new_name;
+	wi_runtime_instance_t	*instance;
+	wi_boolean_t			result = false;
+	
+	wi_recursive_lock_lock(wd_groups_lock);
+	
+	instance	= wd_accounts_instance_at_path(wd_groups_path);
+	array		= wi_mutable_array();
+	enumerator	= wi_array_data_enumerator(instance);
+	
+	while((dictionary = wi_enumerator_next_data(enumerator))) {
+		if(!wi_is_equal(wi_dictionary_data_for_key(dictionary, WI_STR("wired.account.name")), wd_account_name(account)))
+			wi_mutable_array_add_data(array, dictionary);
+	}
+	
+	name		= wi_autorelease(wi_retain(wi_dictionary_data_for_key(account->values, WI_STR("wired.account.name"))));
+	new_name	= wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"));
+	
+	if(new_name) {
+		wi_mutable_dictionary_set_data_for_key(account->values, new_name, WI_STR("wired.account.name"));
+		wi_mutable_dictionary_remove_data_for_key(account->values, WI_STR("wired.account.new_name"));
+	}
+	
+	wi_mutable_array_add_data(array, account->values);
+	
+	result = wi_plist_write_instance_to_file(array, wd_groups_path);
+	
+	if(!result)
+		wi_log_err(WI_STR("Could not write %@: %m"));
+	
+	wi_recursive_lock_unlock(wd_groups_lock);
+	
+	return result;
 }
 
 

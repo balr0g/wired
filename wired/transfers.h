@@ -75,8 +75,9 @@ struct _wd_transfer {
 	wi_file_offset_t					dataoffset, rsrcoffset;
 	wi_file_offset_t					datasize, rsrcsize;
 	wi_file_offset_t					remainingdatasize, remainingrsrcsize;
-	wi_file_offset_t					transferred;
+	wi_file_offset_t					transferred, actualtransferred;
 	uint32_t							speed;
+	wi_boolean_t						finished;
 	
 	wi_data_t							*finderinfo;
 };
