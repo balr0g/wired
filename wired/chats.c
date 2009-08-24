@@ -43,6 +43,7 @@ struct _wd_chat {
 	wd_cid_t						id;
 	wd_topic_t						*topic;
 	wi_mutable_array_t				*users;
+	wi_mutable_set_t				*invited_users;
 	
 	wi_recursive_lock_t				*lock;
 };
@@ -210,8 +211,9 @@ static wd_chat_t * wd_chat_alloc(void) {
 
 
 static wd_chat_t * wd_chat_init(wd_chat_t *chat) {
-	chat->users		= wi_array_init(wi_mutable_array_alloc());
-	chat->lock		= wi_recursive_lock_init(wi_recursive_lock_alloc());
+	chat->users				= wi_array_init(wi_mutable_array_alloc());
+	chat->lock				= wi_recursive_lock_init(wi_recursive_lock_alloc());
+	chat->invited_users		= wi_set_init(wi_mutable_set_alloc());
 	
 	return chat;
 }
@@ -243,6 +245,7 @@ static void wd_chat_dealloc(wi_runtime_instance_t *instance) {
 
 	wi_release(chat->users);
 	wi_release(chat->topic);
+	wi_release(chat->invited_users);
 	wi_release(chat->lock);
 }
 
@@ -428,6 +431,36 @@ wd_cid_t wd_chat_id(wd_chat_t *chat) {
 
 wi_array_t * wd_chat_users(wd_chat_t *chat) {
 	return chat->users;
+}
+
+
+
+#pragma mark -
+
+void wd_chat_add_invitation_for_user(wd_chat_t *chat, wd_user_t *user) {
+	wi_recursive_lock_lock(chat->lock);
+	wi_mutable_set_add_data(chat->invited_users, user);
+	wi_recursive_lock_unlock(chat->lock);
+}
+
+
+
+wi_boolean_t wd_chat_is_user_invited(wd_chat_t *chat, wd_user_t *user) {
+	wi_boolean_t		result;
+	
+	wi_recursive_lock_lock(chat->lock);
+	result = wi_set_contains_data(chat->invited_users, user);
+	wi_recursive_lock_unlock(chat->lock);
+
+	return result;
+}
+
+
+
+void wd_chat_remove_invitation_for_user(wd_chat_t *chat, wd_user_t *user) {
+	wi_recursive_lock_lock(chat->lock);
+	wi_mutable_set_remove_data(chat->invited_users, user);
+	wi_recursive_lock_unlock(chat->lock);
 }
 
 

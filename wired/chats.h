@@ -62,6 +62,10 @@ wd_topic_t *							wd_chat_topic(wd_chat_t *);
 wd_cid_t								wd_chat_id(wd_chat_t *);
 wi_array_t *							wd_chat_users(wd_chat_t *);
 
+void									wd_chat_add_invitation_for_user(wd_chat_t *, wd_user_t *);
+wi_boolean_t							wd_chat_is_user_invited(wd_chat_t *, wd_user_t *);
+void									wd_chat_remove_invitation_for_user(wd_chat_t *, wd_user_t *);
+
 
 wd_topic_t *							wd_topic_with_string(wi_string_t *);
 wd_topic_t *							wd_topic_with_user_and_string(wd_user_t *, wi_string_t *);
