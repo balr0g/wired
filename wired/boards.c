@@ -59,6 +59,8 @@ struct _wd_board_privileges {
 static void										wd_boards_broadcast_message(wi_p7_message_t *, wd_board_privileges_t *, wi_boolean_t);
 static void										wd_boards_send_thread_added(wi_string_t *, wi_uuid_t *, wd_user_t *);
 
+static wi_boolean_t								wd_boards_get_boards_and_privileges(wi_array_t **, wi_array_t **);
+static void										wd_boards_rename_account(wi_boolean_t, wi_string_t *, wi_string_t *);
 static wi_dictionary_t *						wd_boards_dictionary_with_post(wd_user_t *, wi_string_t *, wi_string_t *);
 static wi_p7_message_t *						wd_boards_message_with_post_for_user(wi_string_t *, wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_dictionary_t *, wd_user_t *);
 static wi_string_t *							wd_boards_board_path(wi_string_t *);
@@ -119,13 +121,13 @@ void wd_boards_init(void) {
 #pragma mark -
 
 void wd_boards_rename_owner(wi_string_t *name, wi_string_t *new_name) {
-	// TODO
+	wd_boards_rename_account(true, name, new_name);
 }
 
 
 
 void wd_boards_rename_group(wi_string_t *name, wi_string_t *new_name) {
-	// TODO
+	wd_boards_rename_account(false, name, new_name);
 }
 
 
@@ -133,61 +135,39 @@ void wd_boards_rename_group(wi_string_t *name, wi_string_t *new_name) {
 #pragma mark -
 
 void wd_boards_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
-	wi_fsenumerator_t			*fsenumerator;
+	wi_array_t					*boards, *privileges;
+	wi_string_t					*board;
 	wi_p7_message_t				*reply;
-	wi_string_t					*path, *board, *extension;
-	wd_board_privileges_t		*privileges;
-	wi_fsenumerator_status_t	status;
-	wi_uinteger_t				pathlength;
+	wd_board_privileges_t		*privs;
+	wi_uinteger_t				i, count;
 	
-	pathlength = wi_string_length(wd_boards_path);
-
-	wi_rwlock_rdlock(wd_boards_lock);
-
-	fsenumerator = wi_fs_enumerator_at_path(wd_boards_path);
-	
-	if(fsenumerator) {
-		while((status = wi_fsenumerator_get_next_path(fsenumerator, &path)) != WI_FSENUMERATOR_EOF) {
-			if(status == WI_FSENUMERATOR_ERROR) {
-				wi_log_err(WI_STR("Could not read board %@: %m"), path);
-
-				continue;
-			}
+	if(wd_boards_get_boards_and_privileges(&boards, &privileges)) {
+		count = wi_array_count(boards);
+		
+		for(i = 0; i < count; i++) {
+			board = WI_ARRAY(boards, i);
+			privs = WI_ARRAY(privileges, i);
 			
-			extension = wi_string_path_extension(path);
-			
-			if(wi_is_equal(extension, WI_STR(WD_BOARDS_POST_EXTENSION)) || wi_is_equal(extension, WI_STR(WD_BOARDS_THREAD_EXTENSION))) {
-				wi_fsenumerator_skip_descendents(fsenumerator);
-				
-				continue;
-			}
-			
-			board = wi_string_substring_from_index(path, pathlength + 1);
-			privileges = wd_boards_privileges(board);
-			
-			if(privileges && wd_board_privileges_is_readable_and_writable_by_user(privileges, user)) {
+			if(wd_board_privileges_is_readable_and_writable_by_user(privs, user)) {
 				reply = wi_p7_message_with_name(WI_STR("wired.board.board_list"), wd_p7_spec);
 				wi_p7_message_set_string_for_name(reply, board, WI_STR("wired.board.board"));
-				wi_p7_message_set_string_for_name(reply, privileges->owner, WI_STR("wired.board.owner"));
-				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
-				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
-				wi_p7_message_set_string_for_name(reply, privileges->group, WI_STR("wired.board.group"));
-				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
-				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
-				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
-				wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
+				wi_p7_message_set_string_for_name(reply, privs->owner, WI_STR("wired.board.owner"));
+				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
+				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
+				wi_p7_message_set_string_for_name(reply, privs->group, WI_STR("wired.board.group"));
+				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
+				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
+				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
+				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
 				wd_user_reply_message(user, reply, message);
 			}
 		}
-
+		
 		reply = wi_p7_message_with_name(WI_STR("wired.board.board_list.done"), wd_p7_spec);
 		wd_user_reply_message(user, reply, message);
 	} else {
-		wi_log_err(WI_STR("Could not open %@: %m"), wd_boards_path);
 		wd_user_reply_internal_error(user, message);
 	}
-
-	wi_rwlock_unlock(wd_boards_lock);
 }
 
 
@@ -482,6 +462,107 @@ static void wd_boards_send_thread_added(wi_string_t *board, wi_uuid_t *thread, w
 
 #pragma mark -
 
+static wi_boolean_t wd_boards_get_boards_and_privileges(wi_array_t **boards_out, wi_array_t **privileges_out) {
+	wi_fsenumerator_t			*fsenumerator;
+	wi_mutable_array_t			*boards, *privileges;
+	wi_string_t					*path, *board, *extension;
+	wd_board_privileges_t		*privs;
+	wi_fsenumerator_status_t	status;
+	wi_uinteger_t				pathlength;
+	
+	pathlength	= wi_string_length(wd_boards_path);
+	boards		= wi_mutable_array();
+	privileges	= wi_mutable_array();
+	
+	wi_rwlock_rdlock(wd_boards_lock);
+	
+	fsenumerator = wi_fs_enumerator_at_path(wd_boards_path);
+	
+	if(fsenumerator) {
+		while((status = wi_fsenumerator_get_next_path(fsenumerator, &path)) != WI_FSENUMERATOR_EOF) {
+			if(status == WI_FSENUMERATOR_ERROR) {
+				wi_log_err(WI_STR("Could not read board %@: %m"), path);
+				
+				continue;
+			}
+			
+			extension = wi_string_path_extension(path);
+			
+			if(wi_is_equal(extension, WI_STR(WD_BOARDS_POST_EXTENSION)) || wi_is_equal(extension, WI_STR(WD_BOARDS_THREAD_EXTENSION))) {
+				wi_fsenumerator_skip_descendents(fsenumerator);
+				
+				continue;
+			}
+			
+			board = wi_string_substring_from_index(path, pathlength + 1);
+			privs = wd_boards_privileges(board);
+			
+			if(privs) {
+				wi_mutable_array_add_data(boards, board);
+				wi_mutable_array_add_data(privileges, privs);
+			}
+		}
+	} else {
+		wi_log_err(WI_STR("Could not open %@: %m"), wd_boards_path);
+	}
+	
+	wi_rwlock_unlock(wd_boards_lock);
+	
+	if(wi_array_count(boards) > 0) {
+		*boards_out			= boards;
+		*privileges_out		= privileges;
+		
+		return true;
+	}
+	
+	return false;
+}
+
+
+
+static void wd_boards_rename_account(wi_boolean_t user, wi_string_t *name, wi_string_t *new_name) {
+	wi_array_t					*boards, *privileges;
+	wi_string_t					*board;
+	wi_p7_message_t				*broadcast;
+	wd_board_privileges_t		*privs;
+	wi_uinteger_t				i, count;
+	
+	if(wd_boards_get_boards_and_privileges(&boards, &privileges)) {
+		count = wi_array_count(boards);
+		
+		for(i = 0; i < count; i++) {
+			board = WI_ARRAY(boards, i);
+			privs = WI_ARRAY(privileges, i);
+			
+			if((user && wi_is_equal(privs->owner, name)) || (!user && wi_is_equal(privs->group, name))) {
+				if(user) {
+					wi_release(privs->owner);
+					privs->owner = wi_retain(new_name);
+				} else {
+					wi_release(privs->group);
+					privs->group = wi_retain(new_name);
+				}
+				
+				if(wd_boards_set_privileges(board, privs)) {
+					broadcast = wi_p7_message_with_name(WI_STR("wired.board.permissions_changed"), wd_p7_spec);
+					wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+					wi_p7_message_set_string_for_name(broadcast, privs->owner, WI_STR("wired.board.owner"));
+					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
+					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
+					wi_p7_message_set_string_for_name(broadcast, privs->group, WI_STR("wired.board.group"));
+					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
+					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
+					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
+					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
+					wd_boards_broadcast_message(broadcast, privs, false);
+				}
+			}
+		}
+	}
+}
+
+
+
 static wi_dictionary_t * wd_boards_dictionary_with_post(wd_user_t *user, wi_string_t *subject, wi_string_t *text) {
 	wi_mutable_dictionary_t		*dictionary;
 	wi_data_t					*icon;
@@ -622,7 +703,7 @@ static wd_board_privileges_t * wd_boards_privileges(wi_string_t *board) {
 	privileges = wd_board_privileges_with_string(string);
 	
 	if(!privileges) {
-		wi_log_info(WI_STR("Could not read %@: Contents is malformed (%@)"), permissionspath, string);
+		wi_log_warn(WI_STR("Could not read %@: Contents is malformed (%@)"), permissionspath, string);
 		
 		return NULL;
 	}
