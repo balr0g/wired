@@ -46,6 +46,9 @@ typedef struct _wd_board_privileges		wd_board_privileges_t;
 
 void									wd_board_init(void);
 
+void									wd_board_rename_owner(wi_string_t *, wi_string_t *);
+void									wd_board_rename_group(wi_string_t *, wi_string_t *);
+															  
 void									wd_board_reply_boards(wd_user_t *, wi_p7_message_t *);
 void									wd_board_reply_posts(wd_user_t *, wi_p7_message_t *);
 

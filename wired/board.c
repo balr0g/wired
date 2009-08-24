@@ -115,6 +115,20 @@ void wd_board_init(void) {
 
 #pragma mark -
 
+void wd_board_rename_owner(wi_string_t *name, wi_string_t *new_name) {
+	// TODO
+}
+
+
+
+void wd_board_rename_group(wi_string_t *name, wi_string_t *new_name) {
+	// TODO
+}
+
+
+
+#pragma mark -
+
 void wd_board_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 	wi_fsenumerator_t			*fsenumerator;
 	wi_p7_message_t				*reply;

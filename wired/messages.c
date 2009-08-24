@@ -2287,6 +2287,8 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	}
 
 	if(wd_accounts_edit_user(account, user, message)) {
+		wd_board_rename_owner(name, new_name);
+		
 		wi_log_info(WI_STR("%@ modified the user \"%@\""),
 			wd_user_identifier(user),
 			wd_account_name(account));
@@ -2339,6 +2341,8 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 	}
 
 	if(wd_accounts_edit_group(account, user, message)) {
+		wd_board_rename_group(name, new_name);
+		
 		wi_log_info(WI_STR("%@ modified the group \"%@\""),
 			wd_user_identifier(user),
 			wd_account_name(account));
