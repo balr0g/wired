@@ -40,7 +40,7 @@
 
 #include "accounts.h"
 #include "banlist.h"
-#include "board.h"
+#include "boards.h"
 #include "files.h"
 #include "main.h"
 #include "messages.h"
@@ -235,7 +235,7 @@ int main(int argc, const char **argv) {
 	wd_server_init();
 
 	wd_accounts_init();
-	wd_board_init();
+	wd_boards_init();
 	wd_chats_init();
 	wd_users_init();
 	wd_files_init();

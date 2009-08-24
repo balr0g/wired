@@ -31,7 +31,7 @@
 #include <wired/wired.h>
 
 #include "banlist.h"
-#include "board.h"
+#include "boards.h"
 #include "chats.h"
 #include "files.h"
 #include "main.h"
@@ -1053,7 +1053,7 @@ static void wd_message_board_get_boards(wd_user_t *user, wi_p7_message_t *messag
 		return;
 	}
 	
-	wd_board_reply_boards(user, message);
+	wd_boards_reply_boards(user, message);
 }
 
 
@@ -1067,7 +1067,7 @@ static void wd_message_board_get_posts(wd_user_t *user, wi_p7_message_t *message
 		return;
 	}
 	
-	wd_board_reply_posts(user, message);
+	wd_boards_reply_posts(user, message);
 }
 
 
@@ -1086,7 +1086,7 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_board_name_is_valid(board)) {
+	if(!wd_boards_board_is_valid(board)) {
 		wi_log_warn(WI_STR("Board not found for %@ when creating board \"%@\""),
 			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1096,7 +1096,7 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 	
 	privileges = wd_board_privileges_with_message(message);
 	
-	if(wd_board_add_board(board, privileges, user, message)) {
+	if(wd_boards_add_board(board, privileges, user, message)) {
 		wi_log_info(WI_STR("%@ added board \"%@\""),
 			wd_user_identifier(user),
 			board);
@@ -1121,7 +1121,7 @@ static void wd_message_board_rename_board(wd_user_t *user, wi_p7_message_t *mess
 	oldboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	newboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.new_board"));
 	
-	if(!wd_board_name_is_valid(oldboard) || !wd_board_name_is_valid(newboard)) {
+	if(!wd_boards_board_is_valid(oldboard) || !wd_boards_board_is_valid(newboard)) {
 		wi_log_warn(WI_STR("Board not found for %@ when renaming board \"%@\" to \"%@\""),
 			wd_user_identifier(user), oldboard, newboard);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1137,7 +1137,7 @@ static void wd_message_board_rename_board(wd_user_t *user, wi_p7_message_t *mess
 		return;
 	}
 	
-	if(wd_board_rename_board(oldboard, newboard, user, message)) {
+	if(wd_boards_rename_board(oldboard, newboard, user, message)) {
 		wi_log_info(WI_STR("%@ renamed board \"%@\" to \"%@\""),
 			wd_user_identifier(user),
 			oldboard,
@@ -1163,7 +1163,7 @@ static void wd_message_board_move_board(wd_user_t *user, wi_p7_message_t *messag
 	oldboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	newboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.new_board"));
 	
-	if(!wd_board_name_is_valid(oldboard) || !wd_board_name_is_valid(newboard)) {
+	if(!wd_boards_board_is_valid(oldboard) || !wd_boards_board_is_valid(newboard)) {
 		wi_log_warn(WI_STR("Board not found for %@ when moving board \"%@\" to \"%@\""),
 			wd_user_identifier(user), oldboard, newboard);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1171,7 +1171,7 @@ static void wd_message_board_move_board(wd_user_t *user, wi_p7_message_t *messag
 		return;
 	}
 	
-	if(wd_board_move_board(oldboard, newboard, user, message)) {
+	if(wd_boards_move_board(oldboard, newboard, user, message)) {
 		wi_log_info(WI_STR("%@ moved board \"%@\" to \"%@\""),
 			wd_user_identifier(user),
 			oldboard,
@@ -1196,7 +1196,7 @@ static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *mess
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_board_name_is_valid(board)) {
+	if(!wd_boards_board_is_valid(board)) {
 		wi_log_warn(WI_STR("Board not found for %@ when deleting board \"%@\""),
 			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1204,7 +1204,7 @@ static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *mess
 		return;
 	}
 	
-	if(wd_board_delete_board(board, user, message)) {
+	if(wd_boards_delete_board(board, user, message)) {
 		wi_log_info(WI_STR("%@ deleted board \"%@\""),
 			wd_user_identifier(user),
 			board);
@@ -1229,7 +1229,7 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_board_name_is_valid(board)) {
+	if(!wd_boards_board_is_valid(board)) {
 		wi_log_warn(WI_STR("Board not found for %@ when setting permissions for board \"%@\""),
 			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1239,7 +1239,7 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 	
 	privileges = wd_board_privileges_with_message(message);
 
-	if(wd_board_set_permissions(board, privileges, user, message)) {
+	if(wd_boards_set_board_privileges(board, privileges, user, message)) {
 		wi_log_info(WI_STR("%@ changed permissions for board \"%@\""),
 			wd_user_identifier(user),
 			board);
@@ -1263,7 +1263,7 @@ static void wd_message_board_add_thread(wd_user_t *user, wi_p7_message_t *messag
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_board_name_is_valid(board)) {
+	if(!wd_boards_board_is_valid(board)) {
 		wi_log_warn(WI_STR("Board not found for %@ when creating a thread in board \"%@\""),
 			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1274,7 +1274,7 @@ static void wd_message_board_add_thread(wd_user_t *user, wi_p7_message_t *messag
 	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 
-	if(wd_board_add_thread(board, subject, text, user, message)) {
+	if(wd_boards_add_thread(board, subject, text, user, message)) {
 		wi_log_info(WI_STR("%@ created a thread in board \"%@\""),
 			wd_user_identifier(user),
 			board);
@@ -1300,7 +1300,7 @@ static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *messa
 	oldboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	newboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.new_board"));
 	
-	if(!wd_board_name_is_valid(oldboard) || !wd_board_name_is_valid(newboard)) {
+	if(!wd_boards_board_is_valid(oldboard) || !wd_boards_board_is_valid(newboard)) {
 		wi_log_warn(WI_STR("Board not found for %@ when moving a thread from board \"%@\" to \"%@\""),
 			wd_user_identifier(user), oldboard, newboard);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1310,7 +1310,7 @@ static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *messa
 	
 	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	
-	if(wd_board_move_thread(oldboard, thread, newboard, user, message)) {
+	if(wd_boards_move_thread(oldboard, thread, newboard, user, message)) {
 		wi_log_info(WI_STR("%@ moved a thread from board \"%@\" to \"%@\""),
 			wd_user_identifier(user),
 			oldboard, newboard);
@@ -1335,7 +1335,7 @@ static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *mes
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_board_name_is_valid(board)) {
+	if(!wd_boards_board_is_valid(board)) {
 		wi_log_warn(WI_STR("Board not found for %@ when deleting a thread in board \"%@\""),
 			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1345,7 +1345,7 @@ static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *mes
 	
 	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	
-	if(wd_board_delete_thread(board, thread, user, message)) {
+	if(wd_boards_delete_thread(board, thread, user, message)) {
 		wi_log_info(WI_STR("%@ deleted a thread from board \"%@\""),
 			wd_user_identifier(user),
 			board);
@@ -1370,7 +1370,7 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_board_name_is_valid(board)) {
+	if(!wd_boards_board_is_valid(board)) {
 		wi_log_warn(WI_STR("Board not found for %@ when creating a post in board \"%@\""),
 			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1382,7 +1382,7 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 
-	if(wd_board_add_post(board, thread, subject, text, user, message)) {
+	if(wd_boards_add_post(board, thread, subject, text, user, message)) {
 		wi_log_info(WI_STR("%@ created a post in board \"%@\""),
 			wd_user_identifier(user),
 			board);
@@ -1410,7 +1410,7 @@ static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_board_name_is_valid(board)) {
+	if(!wd_boards_board_is_valid(board)) {
 		wi_log_warn(WI_STR("Board not found for %@ when editing a post in board \"%@\""),
 			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1423,7 +1423,7 @@ static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message
 	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 	
-	if(wd_board_edit_post(board, thread, post, subject, text, user, message)) {
+	if(wd_boards_edit_post(board, thread, post, subject, text, user, message)) {
 		wi_log_info(WI_STR("%@ edited a post in board \"%@\""),
 			wd_user_identifier(user),
 			board);
@@ -1451,7 +1451,7 @@ static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *messa
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_board_name_is_valid(board)) {
+	if(!wd_boards_board_is_valid(board)) {
 		wi_log_warn(WI_STR("Board not found for %@ when deleting a post in board \"%@\""),
 			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
@@ -1462,7 +1462,7 @@ static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *messa
 	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	post		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.post"));
 	
-	if(wd_board_delete_post(board, thread, post, user, message)) {
+	if(wd_boards_delete_post(board, thread, post, user, message)) {
 		wi_log_info(WI_STR("%@ deleted a post in board \"%@\""),
 			wd_user_identifier(user),
 			board);
@@ -2287,7 +2287,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	}
 
 	if(wd_accounts_edit_user(account, user, message)) {
-		wd_board_rename_owner(name, new_name);
+		wd_boards_rename_owner(name, new_name);
 		
 		wi_log_info(WI_STR("%@ modified the user \"%@\""),
 			wd_user_identifier(user),
@@ -2341,7 +2341,7 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 	}
 
 	if(wd_accounts_edit_group(account, user, message)) {
-		wd_board_rename_group(name, new_name);
+		wd_boards_rename_group(name, new_name);
 		
 		wi_log_info(WI_STR("%@ modified the group \"%@\""),
 			wd_user_identifier(user),
