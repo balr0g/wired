@@ -970,7 +970,7 @@ static wi_boolean_t wd_accounts_replace_user_account(wd_account_t *account) {
 	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
 	wi_mutable_array_t		*array;
-	wi_string_t				*name, *new_name;
+	wi_string_t				*new_name;
 	wi_runtime_instance_t	*instance;
 	wi_boolean_t			result;
 	
@@ -985,8 +985,7 @@ static wi_boolean_t wd_accounts_replace_user_account(wd_account_t *account) {
 			wi_mutable_array_add_data(array, dictionary);
 	}
 	
-	name		= wi_autorelease(wi_retain(wi_dictionary_data_for_key(account->values, WI_STR("wired.account.name"))));
-	new_name	= wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"));
+	new_name = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"));
 	
 	if(new_name) {
 		wi_mutable_dictionary_set_data_for_key(account->values, new_name, WI_STR("wired.account.name"));
@@ -1011,7 +1010,7 @@ static wi_boolean_t wd_accounts_replace_group_account(wd_account_t *account) {
 	wi_enumerator_t			*enumerator;
 	wi_dictionary_t			*dictionary;
 	wi_mutable_array_t		*array;
-	wi_string_t				*name, *new_name;
+	wi_string_t				*new_name;
 	wi_runtime_instance_t	*instance;
 	wi_boolean_t			result = false;
 	
@@ -1026,8 +1025,7 @@ static wi_boolean_t wd_accounts_replace_group_account(wd_account_t *account) {
 			wi_mutable_array_add_data(array, dictionary);
 	}
 	
-	name		= wi_autorelease(wi_retain(wi_dictionary_data_for_key(account->values, WI_STR("wired.account.name"))));
-	new_name	= wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"));
+	new_name = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.new_name"));
 	
 	if(new_name) {
 		wi_mutable_dictionary_set_data_for_key(account->values, new_name, WI_STR("wired.account.name"));

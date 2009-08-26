@@ -551,7 +551,6 @@ static void wd_message_user_disconnect_user(wd_user_t *user, wi_p7_message_t *me
 	wi_enumerator_t		*enumerator;
 	wi_p7_message_t		*broadcast;
 	wi_string_t			*disconnect_message;
-	wi_date_t			*expiration_date;
 	wd_user_t			*peer;
 	wd_chat_t			*chat;
 	wi_p7_uint32_t		uid;
@@ -583,7 +582,6 @@ static void wd_message_user_disconnect_user(wd_user_t *user, wi_p7_message_t *me
 		wd_user_identifier(peer));
 	
 	disconnect_message	= wi_p7_message_string_for_name(message, WI_STR("wired.user.disconnect_message"));
-	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
 	enumerator			= wi_array_data_enumerator(wd_chats_chats_with_user(user));
 	
 	while((chat = wi_enumerator_next_data(enumerator))) {

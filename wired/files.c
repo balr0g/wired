@@ -667,12 +667,11 @@ static void wd_files_move_thread(wi_runtime_instance_t *argument) {
 	realtopath		= WI_ARRAY(array, 3);
 	
 	if(wi_fs_copy_path(realfrompath, realtopath)) {
-		if(wi_fs_delete_path(realfrompath)) {
-			wd_files_remove_comment(frompath, NULL, NULL);
-			wd_files_remove_label(frompath, NULL, NULL);
-		} else {
+		wd_files_move_comment(frompath, topath, NULL, NULL);
+		wd_files_move_label(frompath, topath, NULL, NULL);
+		
+		if(!wi_fs_delete_path(realfrompath))
 			wi_log_warn(WI_STR("Could not delete %@: %m"), realfrompath);
-		}
 	} else {
 		wi_log_warn(WI_STR("Could not copy %@ to %@: %m"), realfrompath, realtopath);
 	}
@@ -684,13 +683,12 @@ static void wd_files_move_thread(wi_runtime_instance_t *argument) {
 
 wi_boolean_t wd_files_link_path(wi_string_t *frompath, wi_string_t *topath, wd_user_t *user, wi_p7_message_t *message) {
 	wi_mutable_string_t		*realfrompath, *realtopath;
-	wi_string_t				*realfromname, *realtoname;
+	wi_string_t				*realfromname;
 	wi_fs_stat_t			sb;
 	
 	realfrompath	= wi_autorelease(wi_mutable_copy(wd_files_real_path(frompath, user)));
 	realtopath		= wi_autorelease(wi_mutable_copy(wd_files_real_path(topath, user)));
 	realfromname	= wi_string_last_path_component(realfrompath);
-	realtoname		= wi_string_last_path_component(realtopath);
 
 	wi_mutable_string_delete_last_path_component(realfrompath);
 	wi_mutable_string_resolve_aliases_in_path(realfrompath);
@@ -731,7 +729,7 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 	wd_account_t		*account;
 	char				*buffer = NULL, *messagebuffer;
 	wi_uinteger_t		i = 0, bufferlength, messagelength, accountpathlength;
-	uint32_t			entrylength, namelength, pathlength;
+	uint32_t			entrylength, namelength;
 	wi_boolean_t		deleted, sendreply;
 	
 	wi_rwlock_rdlock(wd_files_index_lock);
@@ -773,7 +771,6 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 		
 		if(wd_files_name_matches_query(name, query)) {
 			messagebuffer	= buffer + sizeof(namelength) + namelength;
-			pathlength		= wi_read_swap_big_to_host_int32(messagebuffer, sizeof(int32_t) + sizeof(int32_t));
 			path			= wi_string_init_with_cstring_no_copy(wi_string_alloc(),
 																  messagebuffer + sizeof(int32_t) + sizeof(int32_t) + sizeof(int32_t),
 																  false);
@@ -857,11 +854,10 @@ static wi_uinteger_t wd_files_search_replace_privileges_for_account(char *messag
 
 
 static wi_uinteger_t wd_files_search_replace_path_with_path(char *messagebuffer, wi_uinteger_t messagelength, wi_string_t *oldpath, wi_string_t *newpath) {
-	wi_uinteger_t		oldpathlength, newpathlength, difference, pathlengthoffset, pathoffset;
+	wi_uinteger_t		oldpathlength, newpathlength, pathlengthoffset, pathoffset;
 	
 	oldpathlength		= wi_string_length(oldpath);
 	newpathlength		= wi_string_length(newpath);
-	difference			= newpathlength - oldpathlength;
 	pathlengthoffset	= sizeof(uint32_t) + sizeof(uint32_t);
 	pathoffset			= pathlengthoffset + sizeof(uint32_t);
 	
@@ -1302,7 +1298,7 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	wi_write_swap_host_to_big_int32(p, 0, labelid);							p += sizeof(labelid);
 	wi_write_swap_host_to_big_int32(p, 0, label);							p += sizeof(label);
 	wi_write_swap_host_to_big_int32(p, 0, volumeid);						p += sizeof(volumeid);
-	wi_write_swap_host_to_big_int32(p, 0, volume);							p += sizeof(volume);
+	wi_write_swap_host_to_big_int32(p, 0, volume);
 	
 	wi_file_write_buffer(file, buffer, totalentrylength);
 }
