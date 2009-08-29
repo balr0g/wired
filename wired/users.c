@@ -330,7 +330,8 @@ void wd_users_reply_users(wd_user_t *user, wi_p7_message_t *message) {
 			
 			wi_p7_message_set_enum_for_name(reply, peer->transfer->type, WI_STR("wired.transfer.type"));
 			wi_p7_message_set_string_for_name(reply, peer->transfer->path, WI_STR("wired.file.path"));
-			wi_p7_message_set_uint64_for_name(reply, peer->transfer->datasize + peer->transfer->rsrcsize, WI_STR("wired.file.size"));
+			wi_p7_message_set_uint64_for_name(reply, peer->transfer->datasize, WI_STR("wired.transfer.data_size"));
+			wi_p7_message_set_uint64_for_name(reply, peer->transfer->rsrcsize, WI_STR("wired.transfer.rsrc_size"));
 			wi_p7_message_set_uint64_for_name(reply, peer->transfer->transferred, WI_STR("wired.transfer.transferred"));
 			wi_p7_message_set_uint32_for_name(reply, peer->transfer->speed, WI_STR("wired.transfer.speed"));
 			wi_p7_message_set_uint32_for_name(reply, peer->transfer->queue, WI_STR("wired.transfer.queue_position"));
