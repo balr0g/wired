@@ -61,7 +61,7 @@
 #define WD_FILES_MAX_LEVEL								20
 
 #define WD_FILES_INDEX_MAGIC							"WDIX"
-#define WD_FILES_INDEX_VERSION							6
+#define WD_FILES_INDEX_VERSION							7
 
 
 struct _wd_files_index_header {
@@ -796,7 +796,7 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 	
 				if(sendreply) {
 					reply = wi_p7_message_with_bytes(messagebuffer, messagelength, WI_P7_BINARY, wd_p7_spec);
-
+					
 					if(reply)
 						wd_user_reply_message(user, reply, message);
 					else
@@ -1195,8 +1195,8 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	static wi_uinteger_t	bufferlength;
 	static uint32_t			searchlistid, pathid, typeid, datasizeid, rsrcsizeid, directorycountid, creationid, modificationid;
 	static uint32_t			linkid, executableid, labelid, volumeid, readableid, writableid;
-	wi_string_t				*name, *creationstring, *modificationstring;
-	uint32_t				totalentrylength, entrylength, namelength, pathlength, creationlength, modificationlength;
+	wi_string_t				*name;
+	uint32_t				totalentrylength, entrylength, namelength, pathlength;
 	char					*p;
 	
 	if(searchlistid == 0) {
@@ -1217,27 +1217,22 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	}
 
 	name					= wi_string_last_path_component(path);
-	creationstring			= wi_time_interval_rfc3339_string(creationtime);
-	modificationstring		= wi_time_interval_rfc3339_string(modificationtime);
-
 	namelength				= wi_string_length(name) + 1;
 	pathlength				= wi_string_length(path) + 1;
-	creationlength			= wi_string_length(creationstring) + 1;
-	modificationlength		= wi_string_length(modificationstring) + 1;
 	entrylength				= sizeof(namelength) + namelength +
 							  sizeof(searchlistid) + 
 							  sizeof(pathid) + sizeof(pathlength) + pathlength +
 							  sizeof(typeid) + sizeof(type) + 
-							  sizeof(creationid) + creationlength +
-							  sizeof(modificationid) + modificationlength +
+							  sizeof(creationid) + sizeof(creationtime) +
+							  sizeof(modificationid) + sizeof(modificationtime) +
 							  sizeof(linkid) + 1 +
 							  sizeof(executableid) + 1 +
 							  sizeof(labelid) + sizeof(label) +
 							  sizeof(volumeid) + sizeof(volume);
 	
 	if(type == WD_FILE_TYPE_FILE) {
-		entrylength += sizeof(datasizeid) + sizeof(datasizeid);
-		entrylength += sizeof(rsrcsizeid) + sizeof(rsrcsizeid);
+		entrylength += sizeof(datasizeid) + sizeof(datasize);
+		entrylength += sizeof(rsrcsizeid) + sizeof(rsrcsize);
 	} else {
 		entrylength += sizeof(directorycountid) + sizeof(directorycount);
 	}
@@ -1288,9 +1283,9 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 	}
 	
 	wi_write_swap_host_to_big_int32(p, 0, creationid);						p += sizeof(creationid);
-	memcpy(p, wi_string_cstring(creationstring), creationlength);			p += creationlength;
+	wi_write_double_to_ieee754(p, 0, creationtime);							p += sizeof(creationtime);
 	wi_write_swap_host_to_big_int32(p, 0, modificationid);					p += sizeof(modificationid);
-	memcpy(p, wi_string_cstring(modificationstring), modificationlength);	p += modificationlength;
+	wi_write_double_to_ieee754(p, 0, modificationtime);						p += sizeof(modificationtime);
 	wi_write_swap_host_to_big_int32(p, 0, linkid);							p += sizeof(linkid);
 	memcpy(p, link ? "\1" : "\0", 1);										p += 1;
 	wi_write_swap_host_to_big_int32(p, 0, executableid);					p += sizeof(executableid);
