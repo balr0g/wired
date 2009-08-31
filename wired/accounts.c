@@ -98,8 +98,8 @@ static wi_recursive_lock_t							*wd_users_lock;
 static wi_recursive_lock_t							*wd_groups_lock;
 
 static wi_dictionary_t								*wd_account_fields;
-static wi_array_t									*wd_users_fields;
-static wi_array_t									*wd_groups_fields;
+static wi_mutable_array_t							*wd_users_fields;
+static wi_mutable_array_t							*wd_groups_fields;
 
 static wi_runtime_id_t								wd_account_runtime_id = WI_RUNTIME_ID_NULL;
 static wi_runtime_class_t							wd_account_runtime_class = {
@@ -293,145 +293,115 @@ void wd_accounts_init(void) {
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
 			WI_STR("wired.account.tracker.register_servers"),
 		NULL);
-	
-	wd_users_fields = wi_array_init_with_data(wi_array_alloc(),
-		WI_STR("wired.account.name"),
-		WI_STR("wired.account.password"),
-		WI_STR("wired.account.group"),	
-		WI_STR("wired.account.user.get_info"),
-		WI_STR("wired.account.message.broadcast"),
-		WI_STR("wired.account.board.add_posts"),
-		WI_STR("wired.account.board.delete_all_posts"),
-		WI_STR("wired.account.transfer.download_files"),
-		WI_STR("wired.account.transfer.upload_files"),
-		WI_STR("wired.account.transfer.upload_anywhere"),
-		WI_STR("wired.account.file.create_directories"),
-		WI_STR("wired.account.file.move_files"),
-		WI_STR("wired.account.file.delete_files"),
-		WI_STR("wired.account.file.access_all_dropboxes"),
-		WI_STR("wired.account.account.create_users"),
-		WI_STR("wired.account.account.edit_users"),
-		WI_STR("wired.account.account.delete_users"),
-		WI_STR("wired.account.account.raise_account_privileges"),
-		WI_STR("wired.account.chat.kick_users"),
-		WI_STR("wired.account.user.ban_users"),	
-		WI_STR("wired.account.user.cannot_be_disconnected"),
-		WI_STR("wired.account.transfer.download_speed_limit"),
-		WI_STR("wired.account.transfer.upload_speed_limit"),
-		WI_STR("wired.account.transfer.download_limit"),
-		WI_STR("wired.account.transfer.upload_limit"),
-		WI_STR("wired.account.chat.set_topic"),
-		WI_STR("wired.account.files"),
-		WI_STR("wired.account.full_name"),
-		WI_STR("wired.account.creation_time"),
-		WI_STR("wired.account.modification_time"),
-		WI_STR("wired.account.login_time"),
-		WI_STR("wired.account.edited_by"),
-		WI_STR("wired.account.groups"),	
-		WI_STR("wired.account.chat.create_chats"),
-		WI_STR("wired.account.message.send_messages"),
-		WI_STR("wired.account.board.read_boards"),
-		WI_STR("wired.account.file.list_files"),
-		WI_STR("wired.account.file.get_info"),
-		WI_STR("wired.account.file.create_links"),
-		WI_STR("wired.account.file.rename_files"),
-		WI_STR("wired.account.file.set_type"),
-		WI_STR("wired.account.file.set_comment"),
-		WI_STR("wired.account.file.set_permissions"),
-		WI_STR("wired.account.file.set_executable"),
-		WI_STR("wired.account.file.recursive_list_depth_limit"),
-		WI_STR("wired.account.transfer.upload_directories"),
-		WI_STR("wired.account.account.change_password"),
-		WI_STR("wired.account.account.list_accounts"),
-		WI_STR("wired.account.account.read_accounts"),
-		WI_STR("wired.account.user.cannot_set_nick"),
-		WI_STR("wired.account.user.get_users"),
-		WI_STR("wired.account.log.view_log"),
-		WI_STR("wired.account.settings.get_settings"),
-		WI_STR("wired.account.settings.set_settings"),
-		WI_STR("wired.account.banlist.get_bans"),
-		WI_STR("wired.account.banlist.add_bans"),
-		WI_STR("wired.account.banlist.delete_bans"),
-		WI_STR("wired.account.tracker.list_servers"),
-		WI_STR("wired.account.tracker.register_servers"),
-		WI_STR("wired.account.board.add_boards"),
-		WI_STR("wired.account.board.move_boards"),
-		WI_STR("wired.account.board.rename_boards"),
-		WI_STR("wired.account.board.delete_boards"),
-		WI_STR("wired.account.board.set_permissions"),
-		WI_STR("wired.account.board.add_threads"),
-		WI_STR("wired.account.board.move_threads"),
-		WI_STR("wired.account.board.delete_threads"),
-		WI_STR("wired.account.board.edit_own_posts"),
-		WI_STR("wired.account.board.edit_all_posts"),
+
+	wd_users_fields = wi_array_init_with_data(wi_mutable_array_alloc(),
+		/* "Name" */
+		wi_array_with_data(WI_STR("wired.account.name"),
+						   WI_STR("wired.account.chat.create_chats"),
+						   WI_STR("wired.account.message.send_messages"),
+						   WI_STR("wired.account.board.read_boards"),
+						   WI_STR("wired.account.file.list_files"),
+						   WI_STR("wired.account.file.search_files"),
+						   WI_STR("wired.account.file.get_info"),
+						   NULL),
+		/* "Password" */
+		wi_array_with_data(WI_STR("wired.account.password"), NULL),
+		/* "Group" */
+		wi_array_with_data(WI_STR("wired.account.group"), NULL),
+		/* "Can get user info" */
+		wi_array_with_data(WI_STR("wired.account.user.get_info"), NULL),
+		/* "Can broadcast" */
+		wi_array_with_data(WI_STR("wired.account.message.broadcast"), NULL),
+		/* "Can post news" */
+		wi_array_with_data(WI_STR("wired.account.board.add_threads"),
+						   WI_STR("wired.account.board.add_posts"),
+						   WI_STR("wired.account.board.edit_own_posts"),
+						   WI_STR("wired.account.board.delete_own_posts"),
+						   NULL),
+		/* "Can clear news" */
+		wi_array_with_data(WI_STR("wired.account.board.add_boards"),
+						   WI_STR("wired.account.board.move_boards"),
+						   WI_STR("wired.account.board.rename_boards"),
+						   WI_STR("wired.account.board.delete_boards"),
+						   WI_STR("wired.account.board.set_permissions"),
+						   WI_STR("wired.account.board.move_threads"),
+						   WI_STR("wired.account.board.edit_all_posts"),
+						   WI_STR("wired.account.board.delete_all_posts"),
+						   WI_STR("wired.account.board.delete_threads"),
+						   NULL),
+		/* "Can download" */
+		wi_array_with_data(WI_STR("wired.account.transfer.download_files"), NULL),
+		/* "Can upload" */
+		wi_array_with_data(WI_STR("wired.account.transfer.upload_files"),
+						   WI_STR("wired.account.transfer.upload_directories"),
+						   NULL),
+		/* "Can upload anywhere" */
+		wi_array_with_data(WI_STR("wired.account.transfer.upload_anywhere"), NULL),
+		/* "Can create folders" */
+		wi_array_with_data(WI_STR("wired.account.file.create_directories"), NULL),
+		/* "Can move files" */
+		wi_array_with_data(WI_STR("wired.account.file.move_files"),
+						   WI_STR("wired.account.file.rename_files"),
+						   WI_STR("wired.account.file.create_links"),
+						   WI_STR("wired.account.file.rename_files"),
+						   WI_STR("wired.account.file.set_label"),
+						   WI_STR("wired.account.file.set_type"),
+						   WI_STR("wired.account.file.set_comment"),
+						   WI_STR("wired.account.file.set_permissions"),
+						   WI_STR("wired.account.file.set_executable"),
+						   NULL),
+		/* "Can delete files" */
+		wi_array_with_data(WI_STR("wired.account.file.delete_files"), NULL),
+		/* "Can view drop boxes" */
+		wi_array_with_data(WI_STR("wired.account.file.access_all_dropboxes"), NULL),
+		/* "Can create accounts" */
+		wi_array_with_data(WI_STR("wired.account.account.create_users"),
+						   WI_STR("wired.account.account.create_groups"),
+						   NULL),
+		/* "Can edit accounts" */
+		wi_array_with_data(WI_STR("wired.account.account.list_accounts"),
+						   WI_STR("wired.account.account.read_accounts"),
+						   WI_STR("wired.account.account.edit_users"),
+						   WI_STR("wired.account.account.edit_groups"),
+						   NULL),
+		/* "Can delete accounts" */
+		wi_array_with_data(WI_STR("wired.account.account.delete_users"),
+						   WI_STR("wired.account.account.delete_groups"),
+						   NULL),
+		/* "Can elevate privileges" */
+		wi_array_with_data(WI_STR("wired.account.account.raise_account_privileges"),
+						   WI_STR("wired.account.account.change_password"),
+						   WI_STR("wired.account.user.get_users"),
+						   WI_STR("wired.account.log.view_log"),
+						   WI_STR("wired.account.settings.get_settings"),
+						   WI_STR("wired.account.settings.set_settings"),
+						   WI_STR("wired.account.banlist.get_bans"),
+						   WI_STR("wired.account.banlist.add_bans"),
+						   WI_STR("wired.account.banlist.delete_bans"),
+						   NULL),
+		/* "Can kick users" */
+		wi_array_with_data(WI_STR("wired.account.chat.kick_users"),
+						   WI_STR("wired.account.user.disconnect_users"),
+						   NULL),
+		/* "Can ban users" */
+		wi_array_with_data(WI_STR("wired.account.user.ban_users"), NULL),
+		/* "Cannot be kicked" */
+		wi_array_with_data(WI_STR("wired.account.user.cannot_be_disconnected"), NULL),
+		/* "Download speed limit" */
+		wi_array_with_data(WI_STR("wired.account.transfer.download_speed_limit"), NULL),
+		/* "Upload speed limit" */
+		wi_array_with_data(WI_STR("wired.account.transfer.upload_speed_limit"), NULL),
+		/* "Download limit" */
+		wi_array_with_data(WI_STR("wired.account.transfer.download_limit"), NULL),
+		/* "Upload limit" */
+		wi_array_with_data(WI_STR("wired.account.transfer.upload_limit"), NULL),
+		/* "Can set topic" */
+		wi_array_with_data(WI_STR("wired.account.chat.set_topic"), NULL),
 		NULL);
 	
-	wd_groups_fields = wi_array_init_with_data(wi_array_alloc(),
-		WI_STR("wired.account.name"),
-		WI_STR("wired.account.user.get_info"),
-		WI_STR("wired.account.message.broadcast"),
-		WI_STR("wired.account.board.add_posts"),
-		WI_STR("wired.account.board.delete_all_posts"),
-		WI_STR("wired.account.transfer.download_files"),
-		WI_STR("wired.account.transfer.upload_files"),
-		WI_STR("wired.account.transfer.upload_anywhere"),
-		WI_STR("wired.account.file.create_directories"),
-		WI_STR("wired.account.file.move_files"),
-		WI_STR("wired.account.file.delete_files"),
-		WI_STR("wired.account.file.access_all_dropboxes"),
-		WI_STR("wired.account.account.create_users"),
-		WI_STR("wired.account.account.edit_users"),
-		WI_STR("wired.account.account.delete_users"),
-		WI_STR("wired.account.account.raise_account_privileges"),
-		WI_STR("wired.account.chat.kick_users"),
-		WI_STR("wired.account.user.ban_users"),	
-		WI_STR("wired.account.user.cannot_be_disconnected"),
-		WI_STR("wired.account.transfer.download_speed_limit"),
-		WI_STR("wired.account.transfer.upload_speed_limit"),
-		WI_STR("wired.account.transfer.download_limit"),
-		WI_STR("wired.account.transfer.upload_limit"),
-		WI_STR("wired.account.chat.set_topic"),
-		WI_STR("wired.account.files"),
-		WI_STR("wired.account.creation_time"),
-		WI_STR("wired.account.modification_time"),
-		WI_STR("wired.account.edited_by"),
-		WI_STR("wired.account.chat.create_chats"),
-		WI_STR("wired.account.message.send_messages"),
-		WI_STR("wired.account.board.read_boards"),
-		WI_STR("wired.account.file.list_files"),
-		WI_STR("wired.account.file.get_info"),
-		WI_STR("wired.account.file.create_links"),
-		WI_STR("wired.account.file.rename_files"),
-		WI_STR("wired.account.file.set_type"),
-		WI_STR("wired.account.file.set_comment"),
-		WI_STR("wired.account.file.set_permissions"),
-		WI_STR("wired.account.file.set_executable"),
-		WI_STR("wired.account.file.recursive_list_depth_limit"),
-		WI_STR("wired.account.transfer.upload_directories"),
-		WI_STR("wired.account.account.change_password"),
-		WI_STR("wired.account.account.list_accounts"),
-		WI_STR("wired.account.account.read_accounts"),
-		WI_STR("wired.account.user.cannot_set_nick"),
-		WI_STR("wired.account.user.get_users"),
-		WI_STR("wired.account.log.view_log"),
-		WI_STR("wired.account.settings.get_settings"),
-		WI_STR("wired.account.settings.set_settings"),
-		WI_STR("wired.account.banlist.get_bans"),
-		WI_STR("wired.account.banlist.add_bans"),
-		WI_STR("wired.account.banlist.delete_bans"),
-		WI_STR("wired.account.tracker.list_servers"),
-		WI_STR("wired.account.tracker.register_servers"),
-		WI_STR("wired.account.board.add_boards"),
-		WI_STR("wired.account.board.move_boards"),
-		WI_STR("wired.account.board.rename_boards"),
-		WI_STR("wired.account.board.delete_boards"),
-		WI_STR("wired.account.board.set_permissions"),
-		WI_STR("wired.account.board.add_threads"),
-		WI_STR("wired.account.board.move_threads"),
-		WI_STR("wired.account.board.delete_threads"),
-		WI_STR("wired.account.board.edit_own_posts"),
-		WI_STR("wired.account.board.edit_all_posts"),
-		NULL);
+	wd_groups_fields = wi_mutable_copy(wd_users_fields);
+	
+	wi_mutable_array_remove_data_in_range(wd_groups_fields, wi_make_range(1, 2));
 }
 
 
@@ -889,6 +859,7 @@ static wi_runtime_instance_t * wd_accounts_instance_at_path(wi_string_t *path) {
 
 
 static wi_array_t * wd_accounts_convert_accounts(wi_string_t *path, wi_array_t *fields) {
+	wi_enumerator_t				*enumerator;
 	wi_file_t					*file;
 	wi_string_t					*string, *name, *value;
 	wi_mutable_array_t			*users;
@@ -914,42 +885,50 @@ static wi_array_t * wd_accounts_convert_accounts(wi_string_t *path, wi_array_t *
 			
 			for(i = 0; i < count; i++) {
 				if(i < wi_array_count(array)) {
-					name		= WI_ARRAY(fields, i);
-					field		= wi_dictionary_data_for_key(wd_account_fields, name);
-					type		= wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)));
-					value		= WI_ARRAY(array, i);
-					instance	= NULL;
+					enumerator = wi_array_data_enumerator(WI_ARRAY(fields, i));
 					
-					switch(type) {
-						case WD_ACCOUNT_FIELD_STRING:
-							instance = value;
-							
-							if(wi_is_equal(name, WI_STR("wired.account.password")) && wi_string_length(instance) == 0)
-								instance = wi_string_sha1(WI_STR(""));
-							break;
+					while((name = wi_enumerator_next_data(enumerator))) {
+						field		= wi_dictionary_data_for_key(wd_account_fields, name);
+						if(!field)
+							wi_log_info(WI_STR("name=%@"), name);
+						type		= wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)));
+						value		= WI_ARRAY(array, i);
+						instance	= NULL;
+						
+						switch(type) {
+							case WD_ACCOUNT_FIELD_STRING:
+								instance = value;
+								
+								if(wi_is_equal(name, WI_STR("wired.account.password")) && wi_string_length(instance) == 0)
+									instance = wi_string_sha1(WI_STR(""));
+								break;
 
-						case WD_ACCOUNT_FIELD_DATE:
-							instance = wi_date_with_rfc3339_string(wi_string_by_replacing_string_with_string(value, WI_STR(";"), WI_STR(":"), 0));
-							break;
+							case WD_ACCOUNT_FIELD_DATE:
+								instance = wi_date_with_rfc3339_string(wi_string_by_replacing_string_with_string(value, WI_STR(";"), WI_STR(":"), 0));
+								break;
 
-						case WD_ACCOUNT_FIELD_NUMBER:
-							instance = wi_number_with_integer(wi_string_integer(value));
-							break;
+							case WD_ACCOUNT_FIELD_NUMBER:
+								instance = wi_number_with_integer(wi_string_integer(value));
+								break;
 
-						case WD_ACCOUNT_FIELD_BOOLEAN:
-							instance = wi_number_with_bool(wi_string_integer(value));
-							break;
+							case WD_ACCOUNT_FIELD_BOOLEAN:
+								if(i == 0)
+									instance = wi_number_with_bool(true);
+								else
+									instance = wi_number_with_bool(wi_string_integer(value));
+								break;
 
-						case WD_ACCOUNT_FIELD_LIST:
-							instance = wi_string_components_separated_by_string(value, WI_STR(","));
-							
-							if(wi_array_count(instance) == 1 && wi_string_length(WI_ARRAY(instance, 0)) == 0)
-								instance = NULL;
-							break;
+							case WD_ACCOUNT_FIELD_LIST:
+								instance = wi_string_components_separated_by_string(value, WI_STR(","));
+								
+								if(wi_array_count(instance) == 1 && wi_string_length(WI_ARRAY(instance, 0)) == 0)
+									instance = NULL;
+								break;
+						}
+						
+						if(instance)
+							wi_mutable_dictionary_set_data_for_key(dictionary, instance, name);
 					}
-					
-					if(instance)
-						wi_mutable_dictionary_set_data_for_key(dictionary, instance, name);
 				}
 			}
 			
