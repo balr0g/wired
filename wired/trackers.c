@@ -301,29 +301,34 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 			continue;
 		
 		if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.server_info"))) {
-			wi_log_err(WI_STR("Unexpected message %@ from tracker %@"),
+			wi_log_err(WI_STR("Unexpected message %@ from tracker %@ (expected wired.server_info)"),
 				wi_p7_message_name(message), tracker->host);
 			
-			continue;
+			break;
 		}
 
 		message = wi_p7_message_with_name(WI_STR("wired.user.set_nick"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(message, wi_config_string_for_name(wd_config, WI_STR("name")), WI_STR("wired.user.nick"));
 		
 		if(!wd_tracker_write_message(tracker, p7_socket, message))
-			continue;
+			break;
+		
+		message = wd_tracker_read_message(tracker, p7_socket);
+		
+		if(!message)
+			break;
 		
 		message = wi_p7_message_with_name(WI_STR("wired.send_login"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(message, tracker->user, WI_STR("wired.user.login"));
 		wi_p7_message_set_string_for_name(message, tracker->password, WI_STR("wired.user.password"));
 		
 		if(!wd_tracker_write_message(tracker, p7_socket, message))
-			continue;
+			break;
 
 		message = wd_tracker_read_message(tracker, p7_socket);
 		
 		if(!message)
-			continue;
+			break;
 		
 		if(wi_is_equal(wi_p7_message_name(message), WI_STR("wired.error"))) {
 			error = wi_p7_message_enum_name_for_name(message, WI_STR("wired.error"));
@@ -331,19 +336,19 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 			wi_log_err(WI_STR("Received error %@ from tracker %@"),
 				error, tracker->host);
 			
-			continue;
+			break;
 		}
 		else if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.login"))) {
-			wi_log_err(WI_STR("Unexpected message %@ from tracker %@"),
+			wi_log_err(WI_STR("Unexpected message %@ from tracker %@ (expected wired.login)"),
 				wi_p7_message_name(message), tracker->host);
 			
-			continue;
+			break;
 		}
 
 		message = wd_tracker_read_message(tracker, p7_socket);
 		
 		if(!message)
-			continue;
+			break;
 		
 		if(wi_is_equal(wi_p7_message_name(message), WI_STR("wired.error"))) {
 			error = wi_p7_message_enum_name_for_name(message, WI_STR("wired.error"));
@@ -351,13 +356,13 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 			wi_log_err(WI_STR("Received error %@ from tracker %@"),
 				error, tracker->host);
 			
-			continue;
+			break;
 		}
 		else if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.account.privileges"))) {
-			wi_log_err(WI_STR("Unexpected message %@ from tracker %@"),
+			wi_log_err(WI_STR("Unexpected message %@ from tracker %@ (expected wired.account.privileges)"),
 				wi_p7_message_name(message), tracker->host);
 			
-			continue;
+			break;
 		}
 		
 		message = wi_p7_message_with_name(WI_STR("wired.tracker.send_register"), wd_p7_spec);
@@ -376,12 +381,12 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 			wi_p7_message_set_string_for_name(message, string, WI_STR("wired.tracker.ip"));
 		
 		if(!wd_tracker_write_message(tracker, p7_socket, message))
-			continue;
+			break;
 		
 		message = wd_tracker_read_message(tracker, p7_socket);
 		
 		if(!message)
-			continue;
+			break;
 		
 		if(wi_is_equal(wi_p7_message_name(message), WI_STR("wired.error"))) {
 			error = wi_p7_message_enum_name_for_name(message, WI_STR("wired.error"));
@@ -389,13 +394,13 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 			wi_log_err(WI_STR("Received error %@ from tracker %@"),
 				error, tracker->host);
 			
-			continue;
+			break;
 		}
 		else if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.tracker.register"))) {
-			wi_log_err(WI_STR("Unexpected message %@ from tracker %@"),
+			wi_log_err(WI_STR("Unexpected message %@ from tracker %@ (expected wired.tracker.register)"),
 				wi_p7_message_name(message), tracker->host);
 			
-			continue;
+			break;
 		}
 		
 		tracker->public_key = wi_retain(wi_p7_socket_public_key(p7_socket));

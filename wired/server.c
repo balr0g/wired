@@ -310,6 +310,12 @@ wi_p7_message_t * wd_client_info_message(void) {
 	wi_p7_message_set_string_for_name(message, wi_process_os_release(wi_process()), WI_STR("wired.info.os.version"));
 	wi_p7_message_set_string_for_name(message, wi_process_os_arch(wi_process()), WI_STR("wired.info.arch"));
 	
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	wi_p7_message_set_bool_for_name(message, true, WI_STR("wired.info.supports_rsrc"));
+#else
+	wi_p7_message_set_bool_for_name(message, false, WI_STR("wired.info.supports_rsrc"));
+#endif
+
 	return message;
 }
 
