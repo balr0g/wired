@@ -1595,31 +1595,30 @@ wi_boolean_t wd_files_remove_comment(wi_string_t *path, wd_user_t *user, wi_p7_m
 	
 	instance = wi_plist_read_instance_from_file(commentspath);
 	
-	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
-		instance = wi_mutable_dictionary();
-	
-	wi_mutable_dictionary_remove_data_for_key(instance, name);
-	
-	if(wi_dictionary_count(instance) > 0) {
-		if(!wi_plist_write_instance_to_file(instance, commentspath)) {
-			wi_log_warn(WI_STR("Could not write to %@: %m"), commentspath);
-			
-			if(user)
-				wd_user_reply_file_errno(user, message);
-			
-			return false;
-		}
-	} else {
-		if(!wi_fs_delete_path(commentspath)) {
-			wi_log_warn(WI_STR("Could not delete %@: %m"), commentspath);
-			
-			if(user)
-				wd_user_reply_file_errno(user, message);
-			
-			return false;
-		}
+	if(instance && wi_runtime_id(instance) != wi_dictionary_runtime_id()) {
+		wi_mutable_dictionary_remove_data_for_key(instance, name);
+		
+		if(wi_dictionary_count(instance) > 0) {
+			if(!wi_plist_write_instance_to_file(instance, commentspath)) {
+				wi_log_warn(WI_STR("Could not write to %@: %m"), commentspath);
+				
+				if(user)
+					wd_user_reply_file_errno(user, message);
+				
+				return false;
+			}
+		} else {
+			if(!wi_fs_delete_path(commentspath)) {
+				wi_log_warn(WI_STR("Could not delete %@: %m"), commentspath);
+				
+				if(user)
+					wd_user_reply_file_errno(user, message);
+				
+				return false;
+			}
 
-		(void) rmdir(wi_string_cstring(metapath));
+			(void) rmdir(wi_string_cstring(metapath));
+		}
 	}
 	
 	return true;
@@ -1719,31 +1718,30 @@ wi_boolean_t wd_files_remove_label(wi_string_t *path, wd_user_t *user, wi_p7_mes
 	
 	instance = wi_plist_read_instance_from_file(labelspath);
 	
-	if(!instance || wi_runtime_id(instance) != wi_dictionary_runtime_id())
-		instance = wi_mutable_dictionary();
-	
-	wi_mutable_dictionary_remove_data_for_key(instance, name);
-	
-	if(wi_dictionary_count(instance) > 0) {
-		if(!wi_plist_write_instance_to_file(instance, labelspath)) {
-			wi_log_warn(WI_STR("Could not write to %@: %m"), labelspath);
-			
-			if(user)
-				wd_user_reply_file_errno(user, message);
-			
-			return false;
-		}
-	} else {
-		if(!wi_fs_delete_path(labelspath)) {
-			wi_log_warn(WI_STR("Could not delete %@: %m"), labelspath);
-			
-			if(user)
-				wd_user_reply_file_errno(user, message);
-			
-			return false;
-		}
+	if(instance && wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
+		wi_mutable_dictionary_remove_data_for_key(instance, name);
 		
-		(void) rmdir(wi_string_cstring(metapath));
+		if(wi_dictionary_count(instance) > 0) {
+			if(!wi_plist_write_instance_to_file(instance, labelspath)) {
+				wi_log_warn(WI_STR("Could not write to %@: %m"), labelspath);
+				
+				if(user)
+					wd_user_reply_file_errno(user, message);
+				
+				return false;
+			}
+		} else {
+			if(!wi_fs_delete_path(labelspath)) {
+				wi_log_warn(WI_STR("Could not delete %@: %m"), labelspath);
+				
+				if(user)
+					wd_user_reply_file_errno(user, message);
+				
+				return false;
+			}
+			
+			(void) rmdir(wi_string_cstring(metapath));
+		}
 	}
 	
 	return true;
