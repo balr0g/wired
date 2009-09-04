@@ -1936,14 +1936,6 @@ static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *m
 	wd_files_privileges_t	*privileges;
 	wd_file_type_t			type;
 	
-	account = wd_user_account(user);
-	
-	if(!wd_account_file_create_directories(account)) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-		
-		return;
-	}
-
 	path = wi_p7_message_string_for_name(message, WI_STR("wired.file.path"));
 
 	if(!wd_files_path_is_valid(path)) {
@@ -1952,13 +1944,22 @@ static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *m
 		return;
 	}
 	
-	properpath = wi_string_by_normalizing_path(path);
-	privileges = wd_files_privileges(properpath, user);
+	account		= wd_user_account(user);
+	properpath	= wi_string_by_normalizing_path(path);
+	privileges	= wd_files_privileges(properpath, user);
 	
-	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+	if(privileges) {
+		if(!wd_files_privileges_is_writable_by_account(privileges, account)) {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 
-		return;
+			return;
+		}
+	} else {
+		if(!wd_account_file_create_directories(account)) {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+			
+			return;
+		}
 	}
 	
 	if(!wi_p7_message_get_enum_for_name(message, &type, WI_STR("wired.file.type")))
