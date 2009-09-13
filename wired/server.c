@@ -36,6 +36,8 @@
 #include <dns_sd.h>
 #endif
 
+#include "thirdparty/natpmp/natpmp.h"
+
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <stdarg.h>
@@ -71,14 +73,9 @@ static void							wd_server_dnssd_register_service_callback(DNSServiceRef, DNSSe
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 static void							wd_server_dnssd_register_socket_callback(CFSocketRef, CFSocketCallBackType, CFDataRef, const void *, void *);
 #endif
-
-static void							wd_server_dnssd_portmap(void);
-static void							wd_server_dnssd_portmap_service_callback(DNSServiceRef, DNSServiceFlags, uint32_t, DNSServiceErrorType, uint32_t, uint32_t, uint16_t, uint16_t, uint32_t, void *);
-
-#ifdef HAVE_CORESERVICES_CORESERVICES_H
-static void							wd_server_dnssd_portmap_socket_callback(CFSocketRef, CFSocketCallBackType, CFDataRef, const void *, void *);
 #endif
-#endif
+
+static void							wd_server_natpmp_portmap(void);
 
 static void							wd_server_listen_thread(wi_runtime_instance_t *);
 static void							wd_server_accept_thread(wi_runtime_instance_t *);
@@ -99,13 +96,6 @@ static DNSServiceRef				wd_dnssd_register_service;
 static CFSocketRef					wd_dnssd_register_socket;
 static CFRunLoopSourceRef			wd_dnssd_register_source;
 #endif
-
-static DNSServiceRef				wd_dnssd_portmap_service;
-
-#ifdef HAVE_CORESERVICES_CORESERVICES_H
-static CFSocketRef					wd_dnssd_portmap_socket;
-static CFRunLoopSourceRef			wd_dnssd_portmap_source;
-#endif
 #endif
 
 static wi_timer_t					*wd_ping_timer;
@@ -117,6 +107,10 @@ static wi_mutable_array_t			*wd_log_entries;
 wi_uinteger_t						wd_port;
 wi_data_t							*wd_banner;
 wi_p7_spec_t						*wd_p7_spec;
+
+
+
+
 
 
 
@@ -254,7 +248,7 @@ void wd_server_listen(void) {
 	wd_server_dnssd_register();
 	
 	if(wi_config_bool_for_name(wd_config, WI_STR("map port")))
-		wd_server_dnssd_portmap();
+		wd_server_natpmp_portmap();
 #endif
 	
 	if(!wi_thread_create_thread(wd_server_listen_thread, NULL) ||
@@ -530,97 +524,80 @@ static void wd_server_dnssd_register_socket_callback(CFSocketRef socket, CFSocke
 
 #endif
 
+#endif
 
 
-static void wd_server_dnssd_portmap(void) {
-    DNSServiceErrorType		error;
+
+#pragma mark -
+
+static void wd_server_natpmp_portmap(void) {
+	wi_address_t		*address = NULL;
+	natpmp_t			natpmp;
+	natpmpresp_t		response;
+	fd_set				fds;
+	struct timeval		tv;
+	wi_uinteger_t		i;
+	int					result;
 	
-	if(DNSServiceNATPortMappingCreate == NULL)
-		return;
-	
-	error = DNSServiceNATPortMappingCreate(&wd_dnssd_portmap_service,
-										   0,
-										   0,
-										   0x10 | 0x20,
-										   htons(wd_port),
-										   htons(wd_port),
-										   0,
-										   wd_server_dnssd_portmap_service_callback,
-										   NULL);
-	
-	if(error != kDNSServiceErr_NoError) {
-		wi_log_warn(WI_STR("Could not create port mapping: %@"),
-			wd_server_dnssd_error_string(error));
+	if(initnatpmp(&natpmp) == 0) {
+		if(sendpublicaddressrequest(&natpmp)) {
+			while(true) {
+				FD_ZERO(&fds);
+				FD_SET(natpmp.s, &fds);
+				
+				getnatpmprequesttimeout(&natpmp, &tv);
+				
+				select(natpmp.s, &fds, NULL, NULL, &tv);
+				
+				result = readnatpmpresponseorretry(&natpmp, &response);
+				
+				if(result != NATPMP_TRYAGAIN) {
+					if(result == 0)
+						address = wi_autorelease(wi_address_init_with_ipv4_address(wi_address_alloc(), response.pnu.publicaddress.addr.s_addr));
+					
+					break;
+				}
+			}
+		}
 		
-		return;
+		closenatpmp(&natpmp);
 	}
 	
-#ifdef HAVE_CORESERVICES_CORESERVICES_H
-    wd_dnssd_portmap_socket = CFSocketCreateWithNative(NULL,
-													   DNSServiceRefSockFD(wd_dnssd_portmap_service),
-													   kCFSocketReadCallBack,
-													   &wd_server_dnssd_portmap_socket_callback,
-													   NULL);
-	
-	if(!wd_dnssd_portmap_socket) {
-		wi_log_warn(WI_STR("Could not create socket for port mapping"));
-
-		return;
-	}
-	
-	CFSocketSetSocketFlags(wd_dnssd_portmap_socket,
-		CFSocketGetSocketFlags(wd_dnssd_portmap_socket) & ~kCFSocketCloseOnInvalidate);
-
-	wd_dnssd_portmap_source = CFSocketCreateRunLoopSource(NULL, wd_dnssd_portmap_socket, 0);
-
-	if(!wd_dnssd_portmap_source) {
-		wi_log_warn(WI_STR("Could not create runloop source for port mapping"));
-		
-		return;
-	}
-	
-	wi_condition_lock_lock_when_condition(wd_cf_lock, 1, 0.0);
-	CFRunLoopAddSource(wd_cf_runloop, wd_dnssd_portmap_source, kCFRunLoopCommonModes);
-	wi_condition_lock_unlock(wd_cf_lock);
-#endif
-}
-
-
-
-static void wd_server_dnssd_portmap_service_callback(DNSServiceRef service, DNSServiceFlags flags, uint32_t interface, DNSServiceErrorType error, uint32_t public_address, uint32_t protocol, uint16_t private_port, uint16_t public_port, uint32_t ttl, void *context) {
-	wi_address_t		*address;
-	
-	address = wi_address_init_with_ipv4_address(wi_address_alloc(), public_address);
-	
-	if(error == kDNSServiceErr_NoError && public_port != 0) {
-		wi_log_info(WI_STR("Mapped internal port %u to external port %u on %@"),
-			ntohs(private_port), ntohs(public_port), wi_address_string(address));
-	} else {
-		wi_log_warn(WI_STR("Could not create port mapping on %@: %@"),
-			wi_address_string(address), wd_server_dnssd_error_string(error));
-	}
-	
-	wi_release(address);
-}
-
-
-
-#ifdef HAVE_CORESERVICES_CORESERVICES_H
-
-static void wd_server_dnssd_portmap_socket_callback(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, const void *data, void *context) {
-    DNSServiceErrorType		error;
-	
-	error = DNSServiceProcessResult(wd_dnssd_portmap_service);
-	
-	if(error != kDNSServiceErr_NoError) {
-		wi_log_warn(WI_STR("Could not process result for port mapping: %@"),
-			wd_server_dnssd_error_string(error));
+	for(i = 0; i < 2; i++) {
+		if(initnatpmp(&natpmp) == 0) {
+			if(sendnewportmappingrequest(&natpmp,
+										 (i == 0) ? NATPMP_PROTOCOL_TCP : NATPMP_PROTOCOL_UDP,
+										 wd_port,
+										 wd_port,
+										 365 * 24 * 60 * 60)) {
+				while(true) {
+					FD_ZERO(&fds);
+					FD_SET(natpmp.s, &fds);
+					
+					getnatpmprequesttimeout(&natpmp, &tv);
+					
+					select(natpmp.s, &fds, NULL, NULL, &tv);
+					
+					result = readnatpmpresponseorretry(&natpmp, &response);
+					
+					if(result != NATPMP_TRYAGAIN) {
+						if(result == 0) {
+							wi_log_info(WI_STR("Mapped internal %@ port %u to external port %u on %@"),
+										(response.type == NATPMP_RESPTYPE_TCPPORTMAPPING) ? WI_STR("TCP") : WI_STR("UDP"),
+										response.pnu.newportmapping.privateport,
+										response.pnu.newportmapping.mappedpublicport,
+										address ? wi_address_string(address) : WI_STR("unknown address"));
+						}
+						
+						break;
+					}
+				}
+			}
+			
+			closenatpmp(&natpmp);
+		}
 	}
 }
-
-#endif
-
-#endif
 
 
 

@@ -22,6 +22,7 @@ DISTFILES		= INSTALL LICENSE NEWS README Makefile Makefile.in \
 SUBDIRS			= libwired
 
 WIREDOBJECTS	= $(addprefix $(objdir)/wired/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/wired -name "[a-z]*.c"))))
+NATPMPOBJECTS	= $(addprefix $(objdir)/natpmp/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/thirdparty/natpmp -name "[a-z]*.c"))))
 
 DEFS			= @DEFS@ -DWD_ROOT="\"$(fake_prefix)/$(wireddir)\""
 CC				= @CC@
@@ -65,9 +66,9 @@ all-recursive clean-recursive distclean-recursive:
 		(cd $$subdir && $(MAKE) -e $$target) || exit 1; \
 	done
 
-$(rundir)/wired: $(WIREDOBJECTS) $(rundir)/libwired/lib/libwired.a
+$(rundir)/wired: $(WIREDOBJECTS) $(NATPMPOBJECTS) $(rundir)/libwired/lib/libwired.a
 	@test -d $(@D) || mkdir -p $(@D)
-	$(LINK) $(WIREDOBJECTS) $(LIBS)
+	$(LINK) $(WIREDOBJECTS) $(NATPMPOBJECTS) $(LIBS)
 
 $(rundir)/wiredctl: $(abs_top_srcdir)/wired/wiredctl.in
 	@test -d $(@D) || mkdir -p $(@D)
@@ -83,6 +84,14 @@ $(objdir)/wired/%.o: $(abs_top_srcdir)/wired/%.c
 	$(COMPILE) -I$(<D) -c $< -o $@
 
 $(objdir)/wired/%.d: $(abs_top_srcdir)/wired/%.c
+	@test -d $(@D) || mkdir -p $(@D)
+	($(DEPEND) $< | sed 's,$*.o,$(@D)/&,g'; echo "$@: $<") > $@
+
+$(objdir)/natpmp/%.o: $(abs_top_srcdir)/thirdparty/natpmp/%.c
+	@test -d $(@D) || mkdir -p $(@D)
+	$(COMPILE) -I$(<D) -c $< -o $@
+
+$(objdir)/natpmp/%.d: $(abs_top_srcdir)/thirdparty/natpmp/%.c
 	@test -d $(@D) || mkdir -p $(@D)
 	($(DEPEND) $< | sed 's,$*.o,$(@D)/&,g'; echo "$@: $<") > $@
 
@@ -193,6 +202,8 @@ dist:
 clean: clean-recursive
 	rm -f $(objdir)/wired/*.o
 	rm -f $(objdir)/wired/*.d
+	rm -f $(objdir)/natpmp/*.o
+	rm -f $(objdir)/natpmp/*.d
 	rm -f $(rundir)/wired
 	rm -f $(rundir)/wiredctl
 	rm -f $(rundir)/etc/wired.conf
