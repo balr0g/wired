@@ -246,10 +246,10 @@ void wd_server_listen(void) {
 	
 #ifdef HAVE_DNS_SD_H
 	wd_server_dnssd_register();
+#endif
 	
 	if(wi_config_bool_for_name(wd_config, WI_STR("map port")))
 		wd_server_natpmp_portmap();
-#endif
 	
 	if(!wi_thread_create_thread(wd_server_listen_thread, NULL) ||
 	   !wi_thread_create_thread(wd_server_receive_thread, NULL))
