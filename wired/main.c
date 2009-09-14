@@ -303,6 +303,7 @@ int main(int argc, const char **argv) {
 
 
 static void wd_cleanup(void) {
+	wd_server_cleanup();
 	wd_delete_pid();
 	wd_delete_status();
 }

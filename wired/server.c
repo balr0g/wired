@@ -41,13 +41,12 @@
 #include <stdarg.h>
 #include <wired/wired.h>
 
-#include "natpmp/natpmp.h"
-
 #include "accounts.h"
 #include "banlist.h"
 #include "files.h"
 #include "main.h"
 #include "messages.h"
+#include "portmap.h"
 #include "server.h"
 #include "servers.h"
 #include "settings.h"
@@ -56,10 +55,6 @@
 
 #define WD_SERVER_PING_INTERVAL		60.0
 #define WD_SERVER_MAX_LOG_ENTRIES	500
-
-#if defined(HAVE_DNS_SD_H) && defined(MAC_OS_X_VERSION_MIN_REQUIRED) && defined(MAC_OS_X_VERSION_10_5) && MAC_OS_X_VERSION_MIN_REQUIRED < MAC_OS_X_VERSION_10_5
-extern DNSServiceErrorType			DNSServiceNATPortMappingCreate(DNSServiceRef *, DNSServiceFlags, uint32_t, uint32_t, uint16_t, uint16_t, uint32_t, void *, void *) __attribute__((weak_import));
-#endif
 
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 static void							wd_server_cf_thread(wi_runtime_instance_t *);
@@ -74,8 +69,6 @@ static void							wd_server_dnssd_register_service_callback(DNSServiceRef, DNSSe
 static void							wd_server_dnssd_register_socket_callback(CFSocketRef, CFSocketCallBackType, CFDataRef, const void *, void *);
 #endif
 #endif
-
-static void							wd_server_natpmp_portmap(void);
 
 static void							wd_server_listen_thread(wi_runtime_instance_t *);
 static void							wd_server_accept_thread(wi_runtime_instance_t *);
@@ -248,8 +241,10 @@ void wd_server_listen(void) {
 	wd_server_dnssd_register();
 #endif
 	
-	if(wi_config_bool_for_name(wd_config, WI_STR("map port")))
-		wd_server_natpmp_portmap();
+	if(wi_config_bool_for_name(wd_config, WI_STR("map port"))) {
+		wd_portmap_map_natpmp();
+		wd_portmap_map_upnp();
+	}
 	
 	if(!wi_thread_create_thread(wd_server_listen_thread, NULL) ||
 	   !wi_thread_create_thread(wd_server_receive_thread, NULL))
@@ -287,6 +282,15 @@ void wd_server_apply_settings(wi_set_t *changes) {
 			wd_server_dnssd_register();
 	}
 #endif
+}
+
+
+
+void wd_server_cleanup(void) {
+	if(wi_config_bool_for_name(wd_config, WI_STR("map port"))) {
+		wd_portmap_unmap_natpmp();
+		wd_portmap_unmap_upnp();
+	}
 }
 
 
@@ -525,79 +529,6 @@ static void wd_server_dnssd_register_socket_callback(CFSocketRef socket, CFSocke
 #endif
 
 #endif
-
-
-
-#pragma mark -
-
-static void wd_server_natpmp_portmap(void) {
-	wi_address_t		*address = NULL;
-	natpmp_t			natpmp;
-	natpmpresp_t		response;
-	fd_set				fds;
-	struct timeval		tv;
-	wi_uinteger_t		i;
-	int					result;
-	
-	if(initnatpmp(&natpmp) == 0) {
-		if(sendpublicaddressrequest(&natpmp)) {
-			while(true) {
-				FD_ZERO(&fds);
-				FD_SET(natpmp.s, &fds);
-				
-				getnatpmprequesttimeout(&natpmp, &tv);
-				
-				select(natpmp.s, &fds, NULL, NULL, &tv);
-				
-				result = readnatpmpresponseorretry(&natpmp, &response);
-				
-				if(result != NATPMP_TRYAGAIN) {
-					if(result == 0)
-						address = wi_autorelease(wi_address_init_with_ipv4_address(wi_address_alloc(), response.pnu.publicaddress.addr.s_addr));
-					
-					break;
-				}
-			}
-		}
-		
-		closenatpmp(&natpmp);
-	}
-	
-	for(i = 0; i < 2; i++) {
-		if(initnatpmp(&natpmp) == 0) {
-			if(sendnewportmappingrequest(&natpmp,
-										 (i == 0) ? NATPMP_PROTOCOL_TCP : NATPMP_PROTOCOL_UDP,
-										 wd_port,
-										 wd_port,
-										 365 * 24 * 60 * 60)) {
-				while(true) {
-					FD_ZERO(&fds);
-					FD_SET(natpmp.s, &fds);
-					
-					getnatpmprequesttimeout(&natpmp, &tv);
-					
-					select(natpmp.s, &fds, NULL, NULL, &tv);
-					
-					result = readnatpmpresponseorretry(&natpmp, &response);
-					
-					if(result != NATPMP_TRYAGAIN) {
-						if(result == 0) {
-							wi_log_info(WI_STR("Mapped internal %@ port %u to external port %u on %@"),
-										(response.type == NATPMP_RESPTYPE_TCPPORTMAPPING) ? WI_STR("TCP") : WI_STR("UDP"),
-										response.pnu.newportmapping.privateport,
-										response.pnu.newportmapping.mappedpublicport,
-										address ? wi_address_string(address) : WI_STR("unknown address"));
-						}
-						
-						break;
-					}
-				}
-			}
-			
-			closenatpmp(&natpmp);
-		}
-	}
-}
 
 
 
