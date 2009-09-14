@@ -242,8 +242,8 @@ void wd_server_listen(void) {
 #endif
 	
 	if(wi_config_bool_for_name(wd_config, WI_STR("map port"))) {
-		wd_portmap_map_natpmp();
-		wd_portmap_map_upnp();
+		if(!wd_portmap_map_natpmp())
+			wd_portmap_map_upnp();
 	}
 	
 	if(!wi_thread_create_thread(wd_server_listen_thread, NULL) ||
