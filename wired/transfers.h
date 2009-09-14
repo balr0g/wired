@@ -90,7 +90,7 @@ void									wd_transfers_schedule(void);
 
 void									wd_transfers_queue_download(wi_string_t *, wi_file_offset_t, wi_file_offset_t, wd_user_t *, wi_p7_message_t *);
 void									wd_transfers_queue_upload(wi_string_t *, wi_file_offset_t, wi_file_offset_t, wi_boolean_t, wd_user_t *, wi_p7_message_t *);
-void									wd_transfers_remove_user(wd_user_t *);
+void									wd_transfers_remove_user(wd_user_t *, wi_boolean_t);
 wd_transfer_t *							wd_transfers_transfer_with_path(wd_user_t *, wi_string_t *);
 
 void									wd_transfer_start(wd_transfer_t *transfer);

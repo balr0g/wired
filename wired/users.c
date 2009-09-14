@@ -246,7 +246,7 @@ void wd_users_add_user(wd_user_t *user) {
 
 void wd_users_remove_user(wd_user_t *user) {
 	wd_chats_remove_user(user);
-	wd_transfers_remove_user(user);
+	wd_transfers_remove_user(user, false);
 	
 	wd_user_unsubscribe_paths(user);
 	
@@ -267,7 +267,7 @@ void wd_users_remove_all_users(void) {
 	
 	while((user = wi_enumerator_next_data(enumerator))) {
 		wd_chats_remove_user(user);
-		wd_transfers_remove_user(user);
+		wd_transfers_remove_user(user, true);
 
 		wd_user_unsubscribe_paths(user);
 	}
@@ -430,9 +430,10 @@ static void wd_user_dealloc(wi_runtime_instance_t *instance) {
 static wi_string_t * wd_user_description(wi_runtime_instance_t *instance) {
 	wd_user_t		*user = instance;
 	
-	return wi_string_with_format(WI_STR("<%@ %p>{nick = %@, login = %@, ip = %@}"),
+	return wi_string_with_format(WI_STR("<%@ %p>{uid = %u, nick = %@, login = %@, ip = %@}"),
 		wi_runtime_class_name(user),
 		user,
+		user->id,
 		user->nick,
 		user->login,
 		user->ip);
