@@ -5,7 +5,7 @@
  * This software is subjet to the conditions detailed in the
  * provided LICENCE file. */
 #define __EXTENSIONS__ 1
-#define _DARWIN_C_SOURCE
+#define _DARWIN_C_SOURCE 1
 #ifndef MACOSX
 #if !defined(_XOPEN_SOURCE) && !defined(__OpenBSD__) && !defined(__NetBSD__)
 #ifndef __cplusplus
@@ -38,6 +38,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#undef _POSIX_C_SOURCE
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <poll.h>
