@@ -75,7 +75,7 @@ static wi_string_t *						wd_transfer_description(wi_runtime_instance_t *);
 
 static void									wd_transfer_set_state(wd_transfer_t *, wd_transfer_state_t);
 static wd_transfer_state_t					wd_transfer_state(wd_transfer_t *);
-static inline void							wd_transfer_limit_speed(wd_transfer_t *, wi_uinteger_t, wi_uinteger_t, wi_uinteger_t, ssize_t, wi_time_interval_t, wi_time_interval_t);
+static inline void							wd_transfer_limit_speed(wd_transfer_t *, wi_uinteger_t, wi_uinteger_t, wi_uinteger_t, wi_uinteger_t, ssize_t, wi_time_interval_t, wi_time_interval_t);
 
 static void									wd_transfer_thread(wi_runtime_instance_t *);
 static wi_boolean_t							wd_transfer_open(wd_transfer_t *);
@@ -763,20 +763,19 @@ static wd_transfer_state_t wd_transfer_state(wd_transfer_t *transfer) {
 
 
 
-static inline void wd_transfer_limit_speed(wd_transfer_t *transfer, wi_uinteger_t totalspeed, wi_uinteger_t accountspeed, wi_uinteger_t count, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
-	wi_uinteger_t	limit, totallimit;
+static inline void wd_transfer_limit_speed(wd_transfer_t *transfer, wi_uinteger_t totalspeed, wi_uinteger_t accountspeed, wi_uinteger_t totalcount, wi_uinteger_t accountcount, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
+	wi_uinteger_t	limit, totallimit, accountlimit;
 	
 	if(totalspeed > 0 || accountspeed > 0) {
-		totallimit = (totalspeed > 0 && count > 0)
-			? (float) totalspeed / (float) count
-			: 0;
+		totallimit		= (totalspeed > 0 && totalcount > 0) ? (float) totalspeed / (float) totalcount : 0;
+		accountlimit	= (accountspeed > 0 && accountcount > 0) ? (float) accountspeed / (float) accountcount : 0;
 		
-		if(totallimit > 0 && accountspeed > 0)
-			limit = WI_MIN(totallimit, accountspeed);
+		if(totallimit > 0 && accountlimit > 0)
+			limit = WI_MIN(totallimit, accountlimit);
 		else if(totallimit > 0)
 			limit = totallimit;
 		else
-			limit = accountspeed;
+			limit = accountlimit;
 
 		if(limit > 0) {
 			while(transfer->speed > limit) {
@@ -956,7 +955,7 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 	wi_socket_state_t		state;
 	wi_time_interval_t		timeout, interval, speedinterval, statusinterval, accountinterval;
 	wi_file_offset_t		sendbytes, speedbytes, statsbytes;
-	wi_uinteger_t			i;
+	wi_uinteger_t			i, transfers;
 	wi_integer_t			result;
 	ssize_t					readbytes;
 	int						sd;
@@ -986,6 +985,10 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 	wd_transfers_note_statistics(WD_TRANSFER_DOWNLOAD, WD_TRANSFER_STATISTICS_ADD, 0);
 	wd_transfers_add_or_remove_transfer(transfer, true);
 	
+	wi_lock_lock(wd_transfers_status_lock);
+	transfers = wi_array_count(wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key));
+	wi_lock_unlock(wd_transfers_status_lock);
+
 	lseek(transfer->datafd, transfer->dataoffset, SEEK_SET);
 	
 	if(transfer->rsrcfd >= 0)
@@ -1073,6 +1076,7 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 								wd_transfers_total_download_speed,
 								wd_account_transfer_download_speed_limit(account),
 								wd_current_downloads,
+								transfers,
 								speedbytes,
 								interval,
 								speedinterval);
@@ -1092,6 +1096,10 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 		if(interval - accountinterval > 15.0) {
 			account = wd_user_account(transfer->user);
 			accountinterval = interval;
+
+			wi_lock_lock(wd_transfers_status_lock);
+			transfers = wi_array_count(wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key));
+			wi_lock_unlock(wd_transfers_status_lock);
 		}
 		
 		if(++i % 1000 == 0)
@@ -1127,7 +1135,7 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 	wi_time_interval_t		timeout, interval, speedinterval, statusinterval, accountinterval;
 	wi_socket_state_t		state;
 	ssize_t					result, speedbytes, statsbytes;
-	wi_uinteger_t			i;
+	wi_uinteger_t			i, transfers;
 	wi_integer_t			readbytes;
 	int						sd;
 	wi_boolean_t			data;
@@ -1153,6 +1161,10 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 	
 	wd_transfers_note_statistics(WD_TRANSFER_UPLOAD, WD_TRANSFER_STATISTICS_ADD, 0);
 	wd_transfers_add_or_remove_transfer(transfer, true);
+
+	wi_lock_lock(wd_transfers_status_lock);
+	transfers = wi_array_count(wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key));
+	wi_lock_unlock(wd_transfers_status_lock);
 
 	pool = wi_pool_init(wi_pool_alloc());
 	
@@ -1228,6 +1240,7 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 								wd_transfers_total_upload_speed,
 								wd_account_transfer_upload_speed_limit(account),
 								wd_current_uploads,
+								transfers,
 								speedbytes,
 								interval,
 								speedinterval);
@@ -1247,6 +1260,10 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 		if(interval - accountinterval > 15.0) {
 			account = wd_user_account(transfer->user);
 			accountinterval = interval;
+			
+			wi_lock_lock(wd_transfers_status_lock);
+			transfers = wi_array_count(wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key));
+			wi_lock_unlock(wd_transfers_status_lock);
 		}
 		
 		if(++i % 1000 == 0)
