@@ -679,6 +679,8 @@ int ReceiveData(int socket, char * data, int length, int timeout)
 }
 
 int
+UPNPIGD_IsConnected(struct UPNPUrls *, struct IGDdatas *);
+int
 UPNPIGD_IsConnected(struct UPNPUrls * urls, struct IGDdatas * data)
 {
 	char status[64];
