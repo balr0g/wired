@@ -159,7 +159,7 @@ void wd_portmap_map_upnp(void) {
 			snprintf(externaladdress, sizeof(externaladdress), "unknown address");
 		}
 
-		snprintf(port, sizeof(port), "%u", wd_port);
+		snprintf(port, sizeof(port), "%u", (unsigned int) wd_port);
 
 		for(i = 0; i < 2; i++) {
 			if(UPNP_AddPortMapping(wd_portmap_upnp_urls.controlURL,
@@ -187,7 +187,7 @@ void wd_portmap_unmap_upnp(void) {
 	wi_uinteger_t		i;
 
 	if(strlen(wd_portmap_upnp_urls.controlURL) > 0) {
-		snprintf(port, sizeof(port), "%u", wd_port);
+		snprintf(port, sizeof(port), "%u", (unsigned int) wd_port);
 
 		for(i = 0; i < 2; i++) {
 			if(UPNP_DeletePortMapping(wd_portmap_upnp_urls.controlURL,
