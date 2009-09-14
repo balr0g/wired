@@ -1,43 +1,44 @@
 # Makefile.in
 
-abs_top_srcdir	= @abs_top_srcdir@
-datarootdir		= @datarootdir@
-exec_prefix		= @exec_prefix@
-fake_prefix		= @fake_prefix@
-installdir		= $(prefix)/$(wireddir)
-objdir			= @objdir@
-rundir			= @rundir@
-mandir			= @mandir@
-prefix			= @prefix@
-wireddir		= @wireddir@
+abs_top_srcdir		= @abs_top_srcdir@
+datarootdir			= @datarootdir@
+exec_prefix			= @exec_prefix@
+fake_prefix			= @fake_prefix@
+installdir			= $(prefix)/$(wireddir)
+objdir				= @objdir@
+rundir				= @rundir@
+mandir				= @mandir@
+prefix				= @prefix@
+wireddir			= @wireddir@
 
-WD_VERSION		= @WD_VERSION@
-WD_MAINTAINER	= @WD_MAINTAINER@
-WD_USER			= @WD_USER@
-WD_GROUP		= @WD_GROUP@
+WD_VERSION			= @WD_VERSION@
+WD_MAINTAINER		= @WD_MAINTAINER@
+WD_USER				= @WD_USER@
+WD_GROUP			= @WD_GROUP@
 
-DISTFILES		= INSTALL LICENSE NEWS README Makefile Makefile.in \
-				  config.guess config.status config.h.in config.sub configure \
-				  configure.in install-sh libwired man run wired
-SUBDIRS			= libwired
+DISTFILES			= INSTALL LICENSE NEWS README Makefile Makefile.in \
+					  config.guess config.status config.h.in config.sub configure \
+					  configure.in install-sh libwired man run wired
+SUBDIRS				= libwired
 
-WIREDOBJECTS	= $(addprefix $(objdir)/wired/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/wired -name "[a-z]*.c"))))
-NATPMPOBJECTS	= $(addprefix $(objdir)/natpmp/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/thirdparty/natpmp -name "[a-z]*.c"))))
+WIREDOBJECTS		= $(addprefix $(objdir)/wired/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/wired -name "[a-z]*.c"))))
+NATPMPOBJECTS		= $(addprefix $(objdir)/natpmp/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/thirdparty/natpmp -name "[a-z]*.c"))))
+MINIUPNPCOBJECTS	= $(addprefix $(objdir)/miniupnpc/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/thirdparty/miniupnpc -name "[a-z]*.c"))))
 
-DEFS			= @DEFS@ -DWD_ROOT="\"$(fake_prefix)/$(wireddir)\""
-CC				= @CC@
-CFLAGS			= @CFLAGS@
-CPPFLAGS		= @CPPFLAGS@
-LDFLAGS			= -L$(rundir)/libwired/lib @LDFLAGS@
-LIBS			= -lwired @LIBS@
-INCLUDES		= -I$(abs_top_srcdir) -I$(rundir)/libwired/include
+DEFS				= @DEFS@ -DWD_ROOT="\"$(fake_prefix)/$(wireddir)\"" -DENABLE_STRNATPMPERR -DMINIUPNPC_SET_SOCKET_TIMEOUT
+CC					= @CC@
+CFLAGS				= @CFLAGS@
+CPPFLAGS			= @CPPFLAGS@
+LDFLAGS				= -L$(rundir)/libwired/lib @LDFLAGS@
+LIBS				= -lwired @LIBS@
+INCLUDES			= -I$(abs_top_srcdir) -I$(rundir)/libwired/include -I$(abs_top_srcdir)/thirdparty
 
-INSTALL			= @INSTALL@
-COMPILE			= $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
-PREPROCESS		= $(CC) -E $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
-DEPEND			= $(CC) -MM $(INCLUDES)
-LINK			= $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
-ARCHIVE			= ar rcs $@
+INSTALL				= @INSTALL@
+COMPILE				= $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
+PREPROCESS			= $(CC) -E $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
+DEPEND				= $(CC) -MM $(INCLUDES)
+LINK				= $(CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@
+ARCHIVE				= ar rcs $@
 
 .PHONY: all all-recursive clean-recursive distclean-recursive install install-only install-wired install-man dist clean distclean scmclean
 .NOTPARALLEL:
@@ -66,9 +67,9 @@ all-recursive clean-recursive distclean-recursive:
 		(cd $$subdir && $(MAKE) -e $$target) || exit 1; \
 	done
 
-$(rundir)/wired: $(WIREDOBJECTS) $(NATPMPOBJECTS) $(rundir)/libwired/lib/libwired.a
+$(rundir)/wired: $(WIREDOBJECTS) $(NATPMPOBJECTS) $(MINIUPNPCOBJECTS) $(rundir)/libwired/lib/libwired.a
 	@test -d $(@D) || mkdir -p $(@D)
-	$(LINK) $(WIREDOBJECTS) $(NATPMPOBJECTS) $(LIBS)
+	$(LINK) $(WIREDOBJECTS) $(NATPMPOBJECTS) $(MINIUPNPCOBJECTS) $(LIBS)
 
 $(rundir)/wiredctl: $(abs_top_srcdir)/wired/wiredctl.in
 	@test -d $(@D) || mkdir -p $(@D)
@@ -92,6 +93,14 @@ $(objdir)/natpmp/%.o: $(abs_top_srcdir)/thirdparty/natpmp/%.c
 	$(COMPILE) -I$(<D) -c $< -o $@
 
 $(objdir)/natpmp/%.d: $(abs_top_srcdir)/thirdparty/natpmp/%.c
+	@test -d $(@D) || mkdir -p $(@D)
+	($(DEPEND) $< | sed 's,$*.o,$(@D)/&,g'; echo "$@: $<") > $@
+
+$(objdir)/miniupnpc/%.o: $(abs_top_srcdir)/thirdparty/miniupnpc/%.c
+	@test -d $(@D) || mkdir -p $(@D)
+	$(COMPILE) -I$(<D) -c $< -o $@
+
+$(objdir)/miniupnpc/%.d: $(abs_top_srcdir)/thirdparty/miniupnpc/%.c
 	@test -d $(@D) || mkdir -p $(@D)
 	($(DEPEND) $< | sed 's,$*.o,$(@D)/&,g'; echo "$@: $<") > $@
 
@@ -204,6 +213,8 @@ clean: clean-recursive
 	rm -f $(objdir)/wired/*.d
 	rm -f $(objdir)/natpmp/*.o
 	rm -f $(objdir)/natpmp/*.d
+	rm -f $(objdir)/miniupnpc/*.o
+	rm -f $(objdir)/miniupnpc/*.d
 	rm -f $(rundir)/wired
 	rm -f $(rundir)/wiredctl
 	rm -f $(rundir)/etc/wired.conf

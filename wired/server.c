@@ -36,12 +36,12 @@
 #include <dns_sd.h>
 #endif
 
-#include "thirdparty/natpmp/natpmp.h"
-
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <stdarg.h>
 #include <wired/wired.h>
+
+#include "natpmp/natpmp.h"
 
 #include "accounts.h"
 #include "banlist.h"
