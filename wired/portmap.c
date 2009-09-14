@@ -128,7 +128,7 @@ void wd_portmap_map_upnp(void) {
 	char				internaladdress[16], externaladdress[16], port[6];
 	wi_uinteger_t		i;
 
-	devlist = upnpDiscover(2000, NULL, NULL, 1);
+	devlist = upnpDiscover(1000, NULL, NULL, 1);
 
 	if(devlist) {
 		dev = devlist;
@@ -151,8 +151,8 @@ void wd_portmap_map_upnp(void) {
 
 		freeUPNPDevlist(devlist);
 	}
-
-	if(strlen(wd_portmap_upnp_urls.controlURL) > 0) {
+	
+	if(wd_portmap_upnp_urls.controlURL && strlen(wd_portmap_upnp_urls.controlURL) > 0) {
 		if(UPNP_GetExternalIPAddress(wd_portmap_upnp_urls.controlURL,
 									 wd_portmap_upnp_data.servicetype,
 									 externaladdress) != 0) {
@@ -186,7 +186,7 @@ void wd_portmap_unmap_upnp(void) {
 	char				port[6];
 	wi_uinteger_t		i;
 
-	if(strlen(wd_portmap_upnp_urls.controlURL) > 0) {
+	if(wd_portmap_upnp_urls.controlURL && strlen(wd_portmap_upnp_urls.controlURL) > 0) {
 		snprintf(port, sizeof(port), "%u", (unsigned int) wd_port);
 
 		for(i = 0; i < 2; i++) {
