@@ -111,9 +111,9 @@ void wd_server_init(void) {
 	wi_string_t		*path;
 	
 	wd_ping_timer = wi_timer_init_with_function(wi_timer_alloc(),
-												 wd_server_ping_users,
-												 WD_SERVER_PING_INTERVAL,
-												 true);
+												wd_server_ping_users,
+												WD_SERVER_PING_INTERVAL,
+												true);
 
 	wd_rsa = wi_rsa_init_with_bits(wi_rsa_alloc(), 1024);
 	

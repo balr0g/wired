@@ -122,7 +122,50 @@ wi_boolean_t wd_portmap_map_natpmp(void) {
 
  
 wi_boolean_t wd_portmap_unmap_natpmp(void) {
-	return true;
+	natpmp_t			natpmp;
+	natpmpresp_t		response;
+	fd_set				fds;
+	struct timeval		tv;
+	wi_uinteger_t		i;
+	int					r;
+	wi_boolean_t		result = false;
+	
+	for(i = 0; i < 2; i++) {
+		if(initnatpmp(&natpmp) == 0) {
+			if(sendnewportmappingrequest(&natpmp,
+										 (i == 0) ? NATPMP_PROTOCOL_TCP : NATPMP_PROTOCOL_UDP,
+										 wd_port,
+										 wd_port,
+										 0)) {
+				while(true) {
+					FD_ZERO(&fds);
+					FD_SET(natpmp.s, &fds);
+					
+					getnatpmprequesttimeout(&natpmp, &tv);
+					
+					select(natpmp.s, &fds, NULL, NULL, &tv);
+					
+					r = readnatpmpresponseorretry(&natpmp, &response);
+					
+					if(r != NATPMP_TRYAGAIN) {
+						if(r == 0) {
+							wi_log_info(WI_STR("Unmapped internal %@ port %u using NAT-PMP"),
+								(response.type == NATPMP_RESPTYPE_TCPPORTMAPPING) ? WI_STR("TCP") : WI_STR("UDP"),
+								wd_port);
+							
+							result = true;
+						}
+						
+						break;
+					}
+				}
+			}
+			
+			closenatpmp(&natpmp);
+		}
+	}
+	
+	return result;
 }
 
 
