@@ -41,14 +41,14 @@
 #include "portmap.h"
 #include "server.h"
 
-static wi_lock_t				*wd_portmap_lock;
+static wi_lock_t				*wd_portmap_upnp_lock;
 
 static struct UPNPUrls			wd_portmap_upnp_urls;
 static struct IGDdatas			wd_portmap_upnp_data;
 
 
 void wd_portmap_init(void) {
-	wd_portmap_lock = wi_lock_init(wi_lock_alloc());
+	wd_portmap_upnp_lock = wi_lock_init(wi_lock_alloc());
 }
 
 
@@ -177,7 +177,7 @@ void wd_portmap_map_upnp(void) {
 	char				internaladdress[16], externaladdress[16], port[6];
 	wi_uinteger_t		i;
 	
-	wi_lock_lock(wd_portmap_lock);
+	wi_lock_lock(wd_portmap_upnp_lock);
 
 	devlist = upnpDiscover(2000, NULL, NULL, 1);
 
@@ -230,7 +230,7 @@ void wd_portmap_map_upnp(void) {
 		}
 	}
 	
-	wi_lock_unlock(wd_portmap_lock);
+	wi_lock_unlock(wd_portmap_upnp_lock);
 }
 
 
@@ -239,23 +239,23 @@ void wd_portmap_unmap_upnp(void) {
 	char				port[6];
 	wi_uinteger_t		i;
 
-	wi_lock_lock(wd_portmap_lock);
-	
-	if(wd_portmap_upnp_urls.controlURL && strlen(wd_portmap_upnp_urls.controlURL) > 0) {
-		snprintf(port, sizeof(port), "%u", (unsigned int) wd_port);
+	if(wi_lock_trylock(wd_portmap_upnp_lock)) {
+		if(wd_portmap_upnp_urls.controlURL && strlen(wd_portmap_upnp_urls.controlURL) > 0) {
+			snprintf(port, sizeof(port), "%u", (unsigned int) wd_port);
 
-		for(i = 0; i < 2; i++) {
-			if(UPNP_DeletePortMapping(wd_portmap_upnp_urls.controlURL,
-									  wd_portmap_upnp_data.servicetype,
-									  port,
-									  (i == 0) ? "TCP" : "UDP",
-									  "") == 0) {
-				wi_log_info(WI_STR("Unmapped %@ port %u using UPnP"),
-					(i == 0) ? WI_STR("TCP") : WI_STR("UDP"),
-					wd_port);
+			for(i = 0; i < 2; i++) {
+				if(UPNP_DeletePortMapping(wd_portmap_upnp_urls.controlURL,
+										  wd_portmap_upnp_data.servicetype,
+										  port,
+										  (i == 0) ? "TCP" : "UDP",
+										  "") == 0) {
+					wi_log_info(WI_STR("Unmapped %@ port %u using UPnP"),
+						(i == 0) ? WI_STR("TCP") : WI_STR("UDP"),
+						wd_port);
+				}
 			}
 		}
+		
+		wi_lock_unlock(wd_portmap_upnp_lock);
 	}
-	
-	wi_lock_unlock(wd_portmap_lock);
 }
