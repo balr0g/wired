@@ -425,9 +425,8 @@ void wd_transfers_remove_user(wd_user_t *user, wi_boolean_t removingallusers) {
 	wi_string_t				*key;
 	wd_user_t				*each_user;
 	wd_transfer_t			*transfer;
-	wi_uinteger_t			i;
+	wi_uinteger_t			i, count;
 	wi_boolean_t			update = false, present = false;
-	wd_transfer_state_t		state;
 	
 	key = wd_transfers_transfer_key_for_user(user);
 	
@@ -453,30 +452,34 @@ void wd_transfers_remove_user(wd_user_t *user, wi_boolean_t removingallusers) {
 	if(!present) {
 		wi_array_wrlock(wd_transfers);
 		
-		for(i = 0; i < wi_array_count(wd_transfers); i++) {
-			transfer = wi_autorelease(wi_retain(WI_ARRAY(wd_transfers, i)));
+		count = wi_array_count(wd_transfers);
+		
+		for(i = 0; i < count; i++) {
+			transfer = WI_ARRAY(wd_transfers, i);
 			
 			if(wi_is_equal(key, transfer->key)) {
-				state = wd_transfer_state(transfer);
+				wi_retain(transfer);
+				wi_condition_lock_lock(transfer->state_lock);
 				
-				if(state == WD_TRANSFER_RUNNING) {
-					wi_array_unlock(wd_transfers);
-					
+				if(transfer->state == WD_TRANSFER_RUNNING) {
 					transfer->disconnected = true;
+					transfer->state = WD_TRANSFER_STOP;
 					
-					wd_transfer_set_state(transfer, WD_TRANSFER_STOP);
-					
+					wi_condition_lock_unlock_with_condition(transfer->state_lock, transfer->state);
 					wi_condition_lock_lock_when_condition(transfer->state_lock, WD_TRANSFER_STOPPED, 1.0);
-					wi_condition_lock_unlock(transfer->state_lock);
-					
-					wi_array_wrlock(wd_transfers);
 				}
-				else if(state == WD_TRANSFER_QUEUED || state == WD_TRANSFER_WAITING) {
-					wi_mutable_array_remove_data(wd_transfers, transfer);
+				else if(transfer->state == WD_TRANSFER_QUEUED || transfer->state == WD_TRANSFER_WAITING) {
 					wd_user_set_state(transfer->user, WD_USER_DISCONNECTED);
+					wi_mutable_array_remove_data_at_index(wd_transfers, i);
+					
+					i--;
+					count--;
 
 					update = true;
 				}
+				
+				wi_condition_lock_unlock(transfer->state_lock);
+				wi_release(transfer);
 			}
 		}
 		
