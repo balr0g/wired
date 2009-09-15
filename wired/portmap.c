@@ -179,7 +179,7 @@ void wd_portmap_map_upnp(void) {
 	
 	wi_lock_lock(wd_portmap_lock);
 
-	devlist = upnpDiscover(1000, NULL, NULL, 1);
+	devlist = upnpDiscover(2000, NULL, NULL, 1);
 
 	if(devlist) {
 		dev = devlist;
