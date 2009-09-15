@@ -41,11 +41,21 @@
 #include "portmap.h"
 #include "server.h"
 
+static wi_lock_t				*wd_portmap_lock;
+
 static struct UPNPUrls			wd_portmap_upnp_urls;
 static struct IGDdatas			wd_portmap_upnp_data;
 
 
-wi_boolean_t wd_portmap_map_natpmp(void) {
+void wd_portmap_init(void) {
+	wd_portmap_lock = wi_lock_init(wi_lock_alloc());
+}
+
+
+
+#pragma mark -
+
+void wd_portmap_map_natpmp(void) {
 	wi_address_t		*address = NULL;
 	natpmp_t			natpmp;
 	natpmpresp_t		response;
@@ -53,7 +63,6 @@ wi_boolean_t wd_portmap_map_natpmp(void) {
 	struct timeval		tv;
 	wi_uinteger_t		i;
 	int					r;
-	wi_boolean_t		result = false;
 	
 	if(initnatpmp(&natpmp) == 0) {
 		if(sendpublicaddressrequest(&natpmp)) {
@@ -103,8 +112,6 @@ wi_boolean_t wd_portmap_map_natpmp(void) {
 										response.pnu.newportmapping.privateport,
 										response.pnu.newportmapping.mappedpublicport,
 										address ? wi_address_string(address) : WI_STR("unknown address"));
-							
-							result = true;
 						}
 						
 						break;
@@ -115,20 +122,17 @@ wi_boolean_t wd_portmap_map_natpmp(void) {
 			closenatpmp(&natpmp);
 		}
 	}
-	
-	return result;
 }
 
 
  
-wi_boolean_t wd_portmap_unmap_natpmp(void) {
+void wd_portmap_unmap_natpmp(void) {
 	natpmp_t			natpmp;
 	natpmpresp_t		response;
 	fd_set				fds;
 	struct timeval		tv;
 	wi_uinteger_t		i;
 	int					r;
-	wi_boolean_t		result = false;
 	
 	for(i = 0; i < 2; i++) {
 		if(initnatpmp(&natpmp) == 0) {
@@ -152,8 +156,6 @@ wi_boolean_t wd_portmap_unmap_natpmp(void) {
 							wi_log_info(WI_STR("Unmapped internal %@ port %u using NAT-PMP"),
 								(response.type == NATPMP_RESPTYPE_TCPPORTMAPPING) ? WI_STR("TCP") : WI_STR("UDP"),
 								wd_port);
-							
-							result = true;
 						}
 						
 						break;
@@ -164,19 +166,18 @@ wi_boolean_t wd_portmap_unmap_natpmp(void) {
 			closenatpmp(&natpmp);
 		}
 	}
-	
-	return result;
 }
 
 
 
 #pragma mark -
 
-wi_boolean_t wd_portmap_map_upnp(void) {
+void wd_portmap_map_upnp(void) {
 	struct UPNPDev		*devlist, *dev;
 	char				internaladdress[16], externaladdress[16], port[6];
 	wi_uinteger_t		i;
-	wi_boolean_t		result = false;
+	
+	wi_lock_lock(wd_portmap_lock);
 
 	devlist = upnpDiscover(1000, NULL, NULL, 1);
 
@@ -225,22 +226,21 @@ wi_boolean_t wd_portmap_map_upnp(void) {
 					wd_port,
 					wd_port,
 					externaladdress);
-				
-				result = true;
 			}
 		}
 	}
 	
-	return result;
+	wi_lock_unlock(wd_portmap_lock);
 }
 
 
 
-wi_boolean_t wd_portmap_unmap_upnp(void) {
+void wd_portmap_unmap_upnp(void) {
 	char				port[6];
 	wi_uinteger_t		i;
-	wi_boolean_t		result = false;
 
+	wi_lock_lock(wd_portmap_lock);
+	
 	if(wd_portmap_upnp_urls.controlURL && strlen(wd_portmap_upnp_urls.controlURL) > 0) {
 		snprintf(port, sizeof(port), "%u", (unsigned int) wd_port);
 
@@ -253,11 +253,9 @@ wi_boolean_t wd_portmap_unmap_upnp(void) {
 				wi_log_info(WI_STR("Unmapped %@ port %u using UPnP"),
 					(i == 0) ? WI_STR("TCP") : WI_STR("UDP"),
 					wd_port);
-				
-				result = true;
 			}
 		}
 	}
 	
-	return result;
+	wi_lock_unlock(wd_portmap_lock);
 }

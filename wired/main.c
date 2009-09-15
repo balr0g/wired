@@ -44,6 +44,7 @@
 #include "files.h"
 #include "main.h"
 #include "messages.h"
+#include "portmap.h"
 #include "server.h"
 #include "servers.h"
 #include "settings.h"
@@ -240,6 +241,7 @@ int main(int argc, const char **argv) {
 	wd_users_init();
 	wd_files_init();
 	wd_messages_init();
+	wd_portmap_init();
 	wd_banlist_init();
 	wd_servers_init();
 	wd_settings_init();

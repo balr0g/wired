@@ -29,10 +29,12 @@
 #ifndef WD_PORTMAP_H
 #define WD_PORTMAP_H 1
 
-wi_boolean_t							wd_portmap_map_natpmp(void);
-wi_boolean_t							wd_portmap_unmap_natpmp(void);
+void							wd_portmap_init(void);
 
-wi_boolean_t							wd_portmap_map_upnp(void);
-wi_boolean_t							wd_portmap_unmap_upnp(void);
+void							wd_portmap_map_natpmp(void);
+void							wd_portmap_unmap_natpmp(void);
+
+void							wd_portmap_map_upnp(void);
+void							wd_portmap_unmap_upnp(void);
 
 #endif /* WD_PORTMAP_H */

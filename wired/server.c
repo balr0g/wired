@@ -70,6 +70,7 @@ static void							wd_server_dnssd_register_socket_callback(CFSocketRef, CFSocket
 #endif
 #endif
 
+static void							wd_server_portmap_thread(wi_runtime_instance_t *);
 static void							wd_server_listen_thread(wi_runtime_instance_t *);
 static void							wd_server_accept_thread(wi_runtime_instance_t *);
 static void							wd_server_receive_thread(wi_runtime_instance_t *);
@@ -100,10 +101,6 @@ static wi_mutable_array_t			*wd_log_entries;
 wi_uinteger_t						wd_port;
 wi_data_t							*wd_banner;
 wi_p7_spec_t						*wd_p7_spec;
-
-
-
-
 
 
 
@@ -242,8 +239,8 @@ void wd_server_listen(void) {
 #endif
 	
 	if(wi_config_bool_for_name(wd_config, WI_STR("map port"))) {
-		if(!wd_portmap_map_natpmp())
-			wd_portmap_map_upnp();
+		if(!wi_thread_create_thread(wd_server_portmap_thread, NULL))
+			wi_log_fatal(WI_STR("Could not create a portmap thread: %m"));
 	}
 	
 	if(!wi_thread_create_thread(wd_server_listen_thread, NULL) ||
@@ -533,6 +530,19 @@ static void wd_server_dnssd_register_socket_callback(CFSocketRef socket, CFSocke
 
 
 #pragma mark -
+
+static void wd_server_portmap_thread(wi_runtime_instance_t *argument) {
+	wi_pool_t			*pool;
+	
+	pool = wi_pool_init(wi_pool_alloc());
+
+	wd_portmap_map_natpmp();
+	wd_portmap_map_upnp();
+	
+	wi_release(pool);
+}
+
+
 
 static void wd_server_listen_thread(wi_runtime_instance_t *argument) {
 	wi_pool_t			*pool;
