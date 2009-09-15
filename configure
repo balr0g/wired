@@ -3778,6 +3778,20 @@ fi
 
 		fi
 
+		if test -d /usr/pkg/include; then
+
+	if test -z "$CPPFLAGS"; then
+		CPPFLAGS="-I/usr/pkg/include"
+	else
+		MATCH=`expr -- "$CPPFLAGS" : ".*-I/usr/pkg/include"`
+
+		if test "$MATCH" = "0"; then
+			CPPFLAGS="$CPPFLAGS -I/usr/pkg/include"
+		fi
+	fi
+
+		fi
+
 		wi_include_extra_include_paths_done="yes"
 	fi
 
@@ -3792,6 +3806,20 @@ fi
 
 		if test "$MATCH" = "0"; then
 			LDFLAGS="$LDFLAGS -L/usr/local/lib"
+		fi
+	fi
+
+		fi
+
+		if test -d /usr/pkg/lib; then
+
+	if test -z "$LDFLAGS"; then
+		LDFLAGS="-L/usr/pkg/lib"
+	else
+		MATCH=`expr -- "$LDFLAGS" : ".*-L/usr/pkg/lib"`
+
+		if test "$MATCH" = "0"; then
+			LDFLAGS="$LDFLAGS -L/usr/pkg/lib"
 		fi
 	fi
 
@@ -6546,6 +6574,20 @@ fi
 
 		if test "$MATCH" = "0"; then
 			CPPFLAGS="$CPPFLAGS -I/usr/local/include/libxml2"
+		fi
+	fi
+
+		fi
+
+		if test -d /usr/pkg/include/libxml2; then
+
+	if test -z "$CPPFLAGS"; then
+		CPPFLAGS="-I/usr/pkg/include/libxml2"
+	else
+		MATCH=`expr -- "$CPPFLAGS" : ".*-I/usr/pkg/include/libxml2"`
+
+		if test "$MATCH" = "0"; then
+			CPPFLAGS="$CPPFLAGS -I/usr/pkg/include/libxml2"
 		fi
 	fi
 
