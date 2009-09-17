@@ -94,9 +94,9 @@ static void							wd_message_file_set_label(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_delete(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_create_directory(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_search(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_file_preview_file(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_subscribe_directory(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_file_unsubscribe_directory(wd_user_t *, wi_p7_message_t *);
-static void							wd_message_file_preview_file(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_account_change_password(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_account_list_users(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_account_list_groups(wd_user_t *, wi_p7_message_t *);
@@ -189,9 +189,9 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.delete"), wd_message_file_delete);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.create_directory"), wd_message_file_create_directory);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.search"), wd_message_file_search);
+	WD_MESSAGE_HANDLER(WI_STR("wired.file.preview_file"), wd_message_file_preview_file);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.subscribe_directory"), wd_message_file_subscribe_directory);
 	WD_MESSAGE_HANDLER(WI_STR("wired.file.unsubscribe_directory"), wd_message_file_unsubscribe_directory);
-	WD_MESSAGE_HANDLER(WI_STR("wired.file.preview_file"), wd_message_file_preview_file);
 	WD_MESSAGE_HANDLER(WI_STR("wired.account.change_password"), wd_message_account_change_password);
 	WD_MESSAGE_HANDLER(WI_STR("wired.account.list_users"), wd_message_account_list_users);
 	WD_MESSAGE_HANDLER(WI_STR("wired.account.list_groups"), wd_message_account_list_groups);
@@ -2004,6 +2004,40 @@ static void wd_message_file_search(wd_user_t *user, wi_p7_message_t *message) {
 
 
 
+static void wd_message_file_preview_file(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t				*path;
+	wd_account_t			*account;
+	wd_files_privileges_t	*privileges;
+	
+	account = wd_user_account(user);
+	
+	if(!wd_account_transfer_download_files(account)) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return;
+	}
+
+	path = wi_p7_message_string_for_name(message, WI_STR("wired.file.path"));
+
+	if(!wd_files_path_is_valid(path)) {
+		wd_user_reply_error(user, WI_STR("wired.error.file_not_found"), message);
+
+		return;
+	}
+	
+	privileges = wd_files_privileges(path, user);
+	
+	if(privileges && !wd_files_privileges_is_readable_by_account(privileges, account)) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+
+		return;
+	}
+
+	wd_files_reply_preview(wi_string_by_normalizing_path(path), user, message);
+}
+
+
+
 static void wd_message_file_subscribe_directory(wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t		*path, *realpath;
 	
@@ -2060,40 +2094,6 @@ static void wd_message_file_unsubscribe_directory(wd_user_t *user, wi_p7_message
 	
 	wd_user_unsubscribe_path(user, realpath);
 	wd_user_reply_okay(user, message);
-}
-
-
-
-static void wd_message_file_preview_file(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path;
-	wd_account_t			*account;
-	wd_files_privileges_t	*privileges;
-	
-	account = wd_user_account(user);
-	
-	if(!wd_account_file_get_info(account)) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-		
-		return;
-	}
-
-	path = wi_p7_message_string_for_name(message, WI_STR("wired.file.path"));
-
-	if(!wd_files_path_is_valid(path)) {
-		wd_user_reply_error(user, WI_STR("wired.error.file_not_found"), message);
-
-		return;
-	}
-	
-	privileges = wd_files_privileges(path, user);
-	
-	if(privileges && !wd_files_privileges_is_readable_by_account(privileges, account)) {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-
-		return;
-	}
-
-	wd_files_reply_preview(wi_string_by_normalizing_path(path), user, message);
 }
 
 
