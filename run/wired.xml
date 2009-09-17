@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b31">
+			 version="2.0b32">
 	<p7:documentation>
 		TBD
 		
@@ -547,6 +547,11 @@
 			<p7:documentation>
 				Indicates whether the currently logged in account can upload and modify files in the
 				directory.
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.file.preview" type="data" id="7026" version="2.0">
+			<p7:documentation>
+				TBD
 			</p7:documentation>
 		</p7:field>
 
@@ -2209,7 +2214,24 @@
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 
-		<p7:message name="wired.file.subscribe_directory" id="7017" version="2.0">
+		<p7:message name="wired.file.preview_file" id="7017" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.file.path" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.file.preview" id="7018" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.file.path" use="required" version="2.0" />
+			<p7:parameter field="wired.file.preview" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.file.subscribe_directory" id="7019" version="2.0">
 			<p7:documentation>
 				Subscribe to a directory message. [field:wired.file.path] may not be the empty string.
 			</p7:documentation>
@@ -2217,7 +2239,7 @@
 			<p7:parameter field="wired.file.path" use="required" version="2.0" />
 		</p7:message>
 
-		<p7:message name="wired.file.unsubscribe_directory" id="7018" version="2.0">
+		<p7:message name="wired.file.unsubscribe_directory" id="7020" version="2.0">
 			<p7:documentation>
 				Subscribe to a directory message. [field:wired.file.path] may not be the empty string.
 			</p7:documentation>
@@ -2225,7 +2247,7 @@
 			<p7:parameter field="wired.file.path" use="required" version="2.0" />
 		</p7:message>
 
-		<p7:message name="wired.file.directory_changed" id="7019" version="2.0">
+		<p7:message name="wired.file.directory_changed" id="7021" version="2.0">
 			<p7:documentation>
 				Directory changed message. [field:wired.file.path] may not be the empty string.
 			</p7:documentation>
@@ -3809,6 +3831,16 @@
 					<p7:reply message="wired.file.search_list" count="*" use="required" version="2.0" />
 					<p7:reply message="wired.file.search_list.done" count="1" use="required" version="2.0" />
 				</p7:and>
+				<p7:reply message="wired.error" count="1" use="required" version="2.0" />
+			</p7:or>
+		</p7:transaction>
+
+		<p7:transaction message="wired.file.preview_file" originator="client" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:or>
+				<p7:reply message="wired.file.preview" count="1" use="required" version="2.0" />
 				<p7:reply message="wired.error" count="1" use="required" version="2.0" />
 			</p7:or>
 		</p7:transaction>

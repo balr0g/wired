@@ -75,6 +75,7 @@ void									wd_files_schedule(void);
 
 void									wd_files_reply_list(wi_string_t *, wi_boolean_t, wd_user_t *, wi_p7_message_t *);
 void									wd_files_reply_info(wi_string_t *, wd_user_t *, wi_p7_message_t *);
+void									wd_files_reply_preview(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_files_create_path(wi_string_t *, wd_file_type_t, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_files_delete_path(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_files_move_path(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);

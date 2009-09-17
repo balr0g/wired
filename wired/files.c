@@ -523,6 +523,46 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 
 
 
+void wd_files_reply_preview(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
+	wi_p7_message_t			*reply;
+	wi_string_t				*realpath;
+	wi_data_t				*data;
+	wi_fs_stat_t			sb;
+	
+	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
+
+	if(!wi_fs_stat_path(realpath, &sb)) {
+		wi_log_warn(WI_STR("Could not preview %@: %m"), realpath);
+		wd_user_reply_file_errno(user, message);
+		
+		return;
+	}
+	
+	if(sb.size > 250 * 1024) {
+		wi_log_warn(WI_STR("Could not preview %@: Too large"), realpath);
+		wd_user_reply_internal_error(user, message);
+		
+		return;
+	}
+	
+	data = wi_data_with_contents_of_file(realpath);
+	
+	if(!data) {
+		wi_log_warn(WI_STR("Could not preview %@: %m"), realpath);
+		wd_user_reply_file_errno(user, message);
+		
+		return;
+	}
+	
+	reply = wi_p7_message_with_name(WI_STR("wired.file.preview"), wd_p7_spec);
+	wi_p7_message_set_string_for_name(reply, path, WI_STR("wired.file.path"));
+	wi_p7_message_set_data_for_name(reply, data, WI_STR("wired.file.preview"));
+	
+	wd_user_reply_message(user, reply, message);
+}
+
+
+
 wi_boolean_t wd_files_create_path(wi_string_t *path, wd_file_type_t type, wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t		*realpath;
 	
