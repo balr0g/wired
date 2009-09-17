@@ -18,7 +18,7 @@ WD_GROUP			= @WD_GROUP@
 
 DISTFILES			= INSTALL LICENSE NEWS README Makefile Makefile.in \
 					  config.guess config.status config.h.in config.sub configure \
-					  configure.in install-sh libwired man run wired
+					  configure.in install-sh libwired man run thirdparty wired
 SUBDIRS				= libwired
 
 WIREDOBJECTS		= $(addprefix $(objdir)/wired/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/wired -name "[a-z]*.c"))))
