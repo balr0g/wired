@@ -1716,8 +1716,13 @@ static void wd_message_file_set_type(wd_user_t *user, wi_p7_message_t *message) 
 
 	wi_p7_message_get_enum_for_name(message, &type, WI_STR("wired.file.type"));
 
-	if(wd_files_set_type(properpath, type, user, message))
+	if(wd_files_set_type(properpath, type, user, message)) {
+		wi_log_info(WI_STR("%@ changed type of \"%@\""),
+			wd_user_identifier(user),
+			wd_files_virtual_path(properpath, user));
+		
 		wd_user_reply_okay(user, message);
+	}
 }
 
 
@@ -1760,8 +1765,13 @@ static void wd_message_file_set_comment(wd_user_t *user, wi_p7_message_t *messag
 	else
 		okay = wd_files_remove_comment(properpath, user, message);
 	
-	if(okay)
+	if(okay) {
+		wi_log_info(WI_STR("%@ changed comment of \"%@\""),
+			wd_user_identifier(user),
+			wd_files_virtual_path(properpath, user));
+		
 		wd_user_reply_okay(user, message);
+	}
 }
 
 
@@ -1799,8 +1809,13 @@ static void wd_message_file_set_executable(wd_user_t *user, wi_p7_message_t *mes
 	
 	wi_p7_message_get_bool_for_name(message, &executable, WI_STR("wired.file.executable"));
 
-	if(wd_files_set_executable(properpath, executable, user, message))
+	if(wd_files_set_executable(properpath, executable, user, message)) {
+		wi_log_info(WI_STR("%@ changed executable mode of \"%@\""),
+			wd_user_identifier(user),
+			wd_files_virtual_path(properpath, user));
+		
 		wd_user_reply_okay(user, message);
+	}
 }
 
 
@@ -1837,8 +1852,13 @@ static void wd_message_file_set_permissions(wd_user_t *user, wi_p7_message_t *me
 	
 	privileges = wd_files_privileges_with_message(message);
 	
-	if(wd_files_set_privileges(properpath, privileges, user, message))
+	if(wd_files_set_privileges(properpath, privileges, user, message)) {
+		wi_log_info(WI_STR("%@ changed permissions of \"%@\""),
+			wd_user_identifier(user),
+			wd_files_virtual_path(properpath, user));
+		
 		wd_user_reply_okay(user, message);
+	}
 }
 
 
@@ -1882,8 +1902,13 @@ static void wd_message_file_set_label(wd_user_t *user, wi_p7_message_t *message)
 	else
 		okay = wd_files_remove_label(properpath, user, message);
 	
-	if(okay)
+	if(okay) {
+		wi_log_info(WI_STR("%@ changed label of \"%@\""),
+			wd_user_identifier(user),
+			wd_files_virtual_path(properpath, user));
+		
 		wd_user_reply_okay(user, message);
+	}
 }
 
 
