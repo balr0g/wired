@@ -1599,7 +1599,7 @@ static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 	properfrompath	= wi_string_by_normalizing_path(frompath);
 	privileges		= wd_files_privileges(properfrompath, user);
 	
-	if(privileges && wd_files_privileges_is_writable_by_account(privileges, account)) {
+	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1608,7 +1608,7 @@ static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 	propertopath	= wi_string_by_normalizing_path(topath);
 	privileges		= wd_files_privileges(propertopath, user);
 	
-	if(privileges && wd_files_privileges_is_writable_by_account(privileges, account)) {
+	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
