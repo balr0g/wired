@@ -889,8 +889,6 @@ static wi_array_t * wd_accounts_convert_accounts(wi_string_t *path, wi_array_t *
 					
 					while((name = wi_enumerator_next_data(enumerator))) {
 						field		= wi_dictionary_data_for_key(wd_account_fields, name);
-						if(!field)
-							wi_log_info(WI_STR("name=%@"), name);
 						type		= wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)));
 						value		= WI_ARRAY(array, i);
 						instance	= NULL;
@@ -908,13 +906,14 @@ static wi_array_t * wd_accounts_convert_accounts(wi_string_t *path, wi_array_t *
 								break;
 
 							case WD_ACCOUNT_FIELD_NUMBER:
-								instance = wi_number_with_integer(wi_string_integer(value));
+								if(wi_string_integer(value) != 0)
+									instance = wi_number_with_integer(wi_string_integer(value));
 								break;
 
 							case WD_ACCOUNT_FIELD_BOOLEAN:
 								if(i == 0)
 									instance = wi_number_with_bool(true);
-								else
+								else if(wi_string_integer(value) != 0)
 									instance = wi_number_with_bool(wi_string_integer(value));
 								break;
 
