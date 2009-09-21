@@ -1748,6 +1748,9 @@ wi_boolean_t wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_use
 
 wi_boolean_t wd_files_remove_label(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
 	wi_runtime_instance_t	*instance;
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	wi_string_t				*realpath;
+#endif
 	wi_string_t				*name, *dirpath, *realdirpath, *metapath, *labelspath;
 	
 	name			= wi_string_last_path_component(path);
@@ -1783,6 +1786,19 @@ wi_boolean_t wd_files_remove_label(wi_string_t *path, wd_user_t *user, wi_p7_mes
 			(void) rmdir(wi_string_cstring(metapath));
 		}
 	}
+	
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
+
+	if(wi_fs_path_exists(realpath, NULL)) {
+		if(!wi_fs_set_finder_label_for_path(WI_FS_FINDER_LABEL_NONE, realpath)) {
+			wi_log_err(WI_STR("Could not set Finder label: %m"));
+			wd_user_reply_internal_error(user, message);
+			
+			return false;
+		}
+	}
+#endif
 	
 	return true;
 }
