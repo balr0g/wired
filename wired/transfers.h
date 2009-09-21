@@ -58,6 +58,7 @@ struct _wd_transfer {
 	wi_p7_uint32_t						transaction;
 	wi_string_t							*key;
 	wi_boolean_t						disconnected;
+	wi_boolean_t						failed;
 
 	wi_string_t							*path;
 	wi_string_t							*realdatapath, *realrsrcpath;

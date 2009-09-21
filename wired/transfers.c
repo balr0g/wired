@@ -838,7 +838,7 @@ static void wd_transfer_thread(wi_runtime_instance_t *argument) {
 	wd_user_set_transfer(transfer->user, NULL);
 	wd_user_set_state(transfer->user, WD_USER_LOGGED_IN);
 	
-	if(transfer->disconnected)
+	if(transfer->disconnected || transfer->failed)
 		wd_user_set_state(transfer->user, WD_USER_DISCONNECTED);
 
 	wi_array_wrlock(wd_transfers);
@@ -1012,6 +1012,8 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 			if(readbytes < 0) {
 				wi_log_err(WI_STR("Could not read download from %@: %m"),
 					data ? transfer->realdatapath : transfer->realrsrcpath, strerror(errno));
+				
+				transfer->failed = true;
 			}
 			
 			break;
@@ -1033,7 +1035,8 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 		if(state == WI_SOCKET_ERROR) {
 			wi_log_err(WI_STR("Could not wait for download to %@: %m"),
 				wd_user_identifier(transfer->user));
-
+				
+			transfer->failed = true;
 			break;
 		}
 		
@@ -1041,6 +1044,7 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 			wi_log_err(WI_STR("Timed out waiting to write download to %@"),
 				wd_user_identifier(transfer->user));
 		
+			transfer->failed = true;
 			break;
 		}
 
@@ -1060,9 +1064,10 @@ static void wd_transfer_download(wd_transfer_t *transfer) {
 			wi_log_err(WI_STR("Could not write download to %@: %m"),
 				wd_user_identifier(transfer->user));
 			
+			transfer->failed = true;
 			break;
 		}
-
+		
 		if(data)
 			transfer->remainingdatasize		-= sendbytes;
 		else
@@ -1195,6 +1200,7 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 			wi_log_err(WI_STR("Could not wait for upload from %@: %m"),
 				wd_user_identifier(transfer->user));
 
+			transfer->failed = true;
 			break;
 		}
 		
@@ -1202,6 +1208,7 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 			wi_log_err(WI_STR("Timed out waiting to read upload from %@"),
 				wd_user_identifier(transfer->user));
 			
+			transfer->failed = true;
 			break;
 		}
 		
@@ -1211,6 +1218,8 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 			if(readbytes < 0) {
 				wi_log_err(WI_STR("Could not read upload from %@: %m"),
 					wd_user_identifier(transfer->user));
+				
+				transfer->failed = true;
 			}
 			
 			break;
@@ -1222,6 +1231,8 @@ static void wd_transfer_upload(wd_transfer_t *transfer) {
 			if(result < 0) {
 				wi_log_err(WI_STR("Could not write upload to %@: %s"),
 					data ? transfer->realdatapath : transfer->realrsrcpath, strerror(errno));
+				
+				transfer->failed = true;
 			}
 			
 			break;
