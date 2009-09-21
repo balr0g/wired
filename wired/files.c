@@ -538,9 +538,9 @@ void wd_files_reply_preview(wi_string_t *path, wd_user_t *user, wi_p7_message_t 
 		return;
 	}
 	
-	if(sb.size > 250 * 1024) {
+	if(sb.size > (10 * 1024 * 1024) - (10 * 1024)) {
 		wi_log_warn(WI_STR("Could not preview %@: Too large"), realpath);
-		wd_user_reply_internal_error(user, message);
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 		
 		return;
 	}
