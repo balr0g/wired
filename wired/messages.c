@@ -234,6 +234,7 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 	wd_message_func_t		*handler;
 	wi_socket_state_t		state;
 	wd_user_state_t			user_state;
+	wi_time_interval_t		timeout;
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
@@ -241,8 +242,18 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 	p7_socket = wd_user_p7_socket(user);
 
 	while(true) {
+		timeout = 0.0;
+		
 		do {
 			state = wi_socket_wait(socket, 0.1);
+			
+			if(state == WI_SOCKET_TIMEOUT) {
+				timeout += 0.1;
+				
+				if(timeout >= 120.0)
+					break;
+			}
+			
 			user_state = wd_user_state(user);
 		} while(state == WI_SOCKET_TIMEOUT && user_state <= WD_USER_LOGGED_IN);
 		
@@ -256,13 +267,20 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 		}
 
 		if(state == WI_SOCKET_ERROR) {
-			wi_log_err(WI_STR("Could not wait for command from %@: %m"),
+			wi_log_err(WI_STR("Could not wait for message from %@: %m"),
 				wd_user_ip(user));
 
 			break;
 		}
 
-		message = wi_p7_socket_read_message(p7_socket, 0.0);
+		if(timeout >= 120.0) {
+			wi_log_err(WI_STR("Timed out waiting for message from %@"),
+				wd_user_ip(user));
+			
+			break;
+		}
+		
+		message = wi_p7_socket_read_message(p7_socket, 120.0);
 		
 		if(!message) {
 			if(wi_error_domain() != WI_ERROR_DOMAIN_LIBWIRED && wi_error_code() != WI_ERROR_SOCKET_EOF) {
