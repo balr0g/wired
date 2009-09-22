@@ -96,7 +96,4 @@ wd_transfer_t *							wd_transfers_transfer_with_path(wd_user_t *, wi_string_t *
 
 void									wd_transfer_start(wd_transfer_t *transfer);
 
-
-extern wi_array_t						*wd_transfers;
-
 #endif /* WD_TRANFERS_H */

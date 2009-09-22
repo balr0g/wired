@@ -86,7 +86,7 @@ static void									wd_transfer_download(wd_transfer_t *);
 static void									wd_transfer_upload(wd_transfer_t *);
 
 
-wi_mutable_array_t							*wd_transfers;
+static wi_mutable_array_t					*wd_transfers;
 
 static wi_timer_t							*wd_transfers_timer;
 
