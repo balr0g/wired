@@ -74,7 +74,7 @@ typedef enum _wd_account_field_account				wd_account_field_account_t;
 
 
 static wi_runtime_instance_t *						wd_accounts_instance_at_path(wi_string_t *);
-static wi_array_t *									wd_accounts_convert_accounts(wi_string_t *, wi_array_t *);
+static wi_boolean_t									wd_accounts_convert_accounts(wi_string_t *, wi_array_t *);
 static wi_boolean_t									wd_accounts_replace_user_account(wd_account_t *);
 static wi_boolean_t									wd_accounts_replace_group_account(wd_account_t *);
 static void											wd_accounts_reload_user_account(wi_string_t *);
@@ -98,8 +98,6 @@ static wi_recursive_lock_t							*wd_users_lock;
 static wi_recursive_lock_t							*wd_groups_lock;
 
 static wi_dictionary_t								*wd_account_fields;
-static wi_mutable_array_t							*wd_users_fields;
-static wi_mutable_array_t							*wd_groups_fields;
 
 static wi_runtime_id_t								wd_account_runtime_id = WI_RUNTIME_ID_NULL;
 static wi_runtime_class_t							wd_account_runtime_class = {
@@ -121,6 +119,9 @@ static wi_runtime_class_t							wd_account_runtime_class = {
 		NULL)
 
 void wd_accounts_init(void) {
+	wi_mutable_array_t		*users_fields;
+	wi_mutable_array_t		*groups_fields;
+	
 	wd_account_runtime_id = wi_runtime_register_class(&wd_account_runtime_class);
 
 	wd_users_path = WI_STR("users");
@@ -294,7 +295,7 @@ void wd_accounts_init(void) {
 			WI_STR("wired.account.tracker.register_servers"),
 		NULL);
 
-	wd_users_fields = wi_array_init_with_data(wi_mutable_array_alloc(),
+	users_fields = wi_array_with_data(
 		/* "Name" */
 		wi_array_with_data(WI_STR("wired.account.name"),
 						   WI_STR("wired.account.chat.create_chats"),
@@ -399,9 +400,19 @@ void wd_accounts_init(void) {
 		wi_array_with_data(WI_STR("wired.account.chat.set_topic"), NULL),
 		NULL);
 	
-	wd_groups_fields = wi_mutable_copy(wd_users_fields);
+	groups_fields = wi_autorelease(wi_mutable_copy(users_fields));
 	
-	wi_mutable_array_remove_data_in_range(wd_groups_fields, wi_make_range(1, 2));
+	wi_mutable_array_remove_data_in_range(groups_fields, wi_make_range(1, 2));
+	
+	if(!wi_plist_read_instance_from_file(wd_users_path)) {
+		if(wd_accounts_convert_accounts(wd_users_path, users_fields))
+			wi_log_info(WI_STR("Converted users to \"%@\""), wd_users_path);
+	}
+	
+	if(!wi_plist_read_instance_from_file(wd_groups_path)) {
+		if(wd_accounts_convert_accounts(wd_groups_path, groups_fields))
+			wi_log_info(WI_STR("Converted groups to \"%@\""), wd_groups_path);
+	}
 }
 
 
@@ -441,13 +452,6 @@ wd_account_t * wd_accounts_read_user(wi_string_t *name) {
 	
 	instance = wi_plist_read_instance_from_file(wd_users_path);
 	
-	if(!instance) {
-		instance = wd_accounts_convert_accounts(wd_users_path, wd_users_fields);
-		
-		if(instance)
-			wi_log_info(WI_STR("Converted users to \"%@\""), wd_users_path);
-	}
-	
 	if(instance) {
 		if(wi_runtime_id(instance) == wi_array_runtime_id()) {
 			enumerator = wi_array_data_enumerator(instance);
@@ -484,13 +488,6 @@ wd_account_t * wd_accounts_read_group(wi_string_t *name) {
 	wi_recursive_lock_lock(wd_groups_lock);
 	
 	instance = wi_plist_read_instance_from_file(wd_groups_path);
-	
-	if(!instance) {
-		instance = wd_accounts_convert_accounts(wd_groups_path, wd_groups_fields);
-		
-		if(instance)
-			wi_log_info(WI_STR("Converted groups to \"%@\""), wd_groups_path);
-	}
 	
 	if(instance) {
 		if(wi_runtime_id(instance) == wi_array_runtime_id()) {
@@ -536,9 +533,19 @@ wi_string_t * wd_accounts_password_for_user(wi_string_t *name) {
 
 
 wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *password, wd_user_t *user, wi_p7_message_t *message) {
-	wi_mutable_dictionary_set_data_for_key(account->values, password, WI_STR("wired.account.password"));
+	wd_account_t		*new_account;
 	
-	if(!wd_accounts_replace_user_account(account)) {
+	new_account = wd_accounts_read_user(wd_account_name(account));
+	
+	if(!new_account) {
+		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+		
+		return false;
+	}
+	
+	wi_mutable_dictionary_set_data_for_key(new_account->values, password, WI_STR("wired.account.password"));
+	
+	if(!wd_accounts_replace_user_account(new_account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
 		
 		return false;
@@ -769,55 +776,74 @@ wi_boolean_t wd_accounts_rename_group(wi_string_t *name, wi_string_t *new_name) 
 
 
 void wd_accounts_update_login_time(wd_account_t *account) {
-	wi_mutable_dictionary_set_data_for_key(account->values, wi_date(), WI_STR("wired.account.login_time"));
+	wd_account_t		*new_account;
 	
-	wd_accounts_replace_user_account(account);
+	new_account = wd_accounts_read_user(wd_account_name(account));
+	
+	if(new_account)
+		return;
+	
+	wi_mutable_dictionary_set_data_for_key(new_account->values, wi_date(), WI_STR("wired.account.login_time"));
+	
+	wd_accounts_replace_user_account(new_account);
 }
 
 
 
 void wd_accounts_add_download_statistics(wd_account_t *account, wi_boolean_t finished, wi_file_offset_t transferred) {
 	wi_number_t		*number;
+	wd_account_t	*new_account;
+	
+	new_account = wd_accounts_read_user(wd_account_name(account));
+	
+	if(!new_account)
+		return;
 	
 	if(finished) {
-		number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.downloads"));
+		number = wi_dictionary_data_for_key(new_account->values, WI_STR("wired.account.downloads"));
 		number = wi_number_with_int32(number ? wi_number_int32(number) + 1 : 1);
 		
-		wi_mutable_dictionary_set_data_for_key(account->values, number, WI_STR("wired.account.downloads"));
+		wi_mutable_dictionary_set_data_for_key(new_account->values, number, WI_STR("wired.account.downloads"));
 	}
 	
 	if(transferred > 0) {
-		number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.download_transferred"));
+		number = wi_dictionary_data_for_key(new_account->values, WI_STR("wired.account.download_transferred"));
 		number = wi_number_with_int64(number ? wi_number_int64(number) + transferred : transferred);
 		
-		wi_mutable_dictionary_set_data_for_key(account->values, number, WI_STR("wired.account.download_transferred"));
+		wi_mutable_dictionary_set_data_for_key(new_account->values, number, WI_STR("wired.account.download_transferred"));
 	}
 	
 	if(finished || transferred > 0)
-		wd_accounts_replace_user_account(account);
+		wd_accounts_replace_user_account(new_account);
 }
 
 
 
 void wd_accounts_add_upload_statistics(wd_account_t *account, wi_boolean_t finished, wi_file_offset_t transferred) {
 	wi_number_t		*number;
+	wd_account_t	*new_account;
+	
+	new_account = wd_accounts_read_user(wd_account_name(account));
+	
+	if(!new_account)
+		return;
 	
 	if(finished) {
-		number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.uploads"));
+		number = wi_dictionary_data_for_key(new_account->values, WI_STR("wired.account.uploads"));
 		number = wi_number_with_int32(number ? wi_number_int32(number) + 1 : 1);
 		
-		wi_mutable_dictionary_set_data_for_key(account->values, number, WI_STR("wired.account.uploads"));
+		wi_mutable_dictionary_set_data_for_key(new_account->values, number, WI_STR("wired.account.uploads"));
 	}
 	
 	if(transferred > 0) {
-		number = wi_dictionary_data_for_key(account->values, WI_STR("wired.account.upload_transferred"));
+		number = wi_dictionary_data_for_key(new_account->values, WI_STR("wired.account.upload_transferred"));
 		number = wi_number_with_int64(number ? wi_number_int64(number) + transferred : transferred);
 		
-		wi_mutable_dictionary_set_data_for_key(account->values, number, WI_STR("wired.account.upload_transferred"));
+		wi_mutable_dictionary_set_data_for_key(new_account->values, number, WI_STR("wired.account.upload_transferred"));
 	}
 	
 	if(finished || transferred > 0)
-		wd_accounts_replace_user_account(account);
+		wd_accounts_replace_user_account(new_account);
 }
 
 
@@ -858,7 +884,7 @@ static wi_runtime_instance_t * wd_accounts_instance_at_path(wi_string_t *path) {
 
 
 
-static wi_array_t * wd_accounts_convert_accounts(wi_string_t *path, wi_array_t *fields) {
+static wi_boolean_t wd_accounts_convert_accounts(wi_string_t *path, wi_array_t *fields) {
 	wi_enumerator_t				*enumerator;
 	wi_file_t					*file;
 	wi_string_t					*string, *name, *value;
@@ -875,7 +901,7 @@ static wi_array_t * wd_accounts_convert_accounts(wi_string_t *path, wi_array_t *
 	file		= wi_file_for_reading(path);
 	
 	if(!file)
-		return NULL;
+		return false;
 	
 	while((string = wi_file_read_config_line(file))) {
 		array = wi_string_components_separated_by_string(string, WI_STR(":"));
@@ -939,7 +965,7 @@ static wi_array_t * wd_accounts_convert_accounts(wi_string_t *path, wi_array_t *
 	if(!wi_plist_write_instance_to_file(users, path))
 		wi_log_err(WI_STR("Could not write %@: %m"));
 	
-	return users;
+	return true;
 }
 
 
