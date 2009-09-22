@@ -246,6 +246,7 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 		
 		do {
 			state = wi_socket_wait(socket, 0.1);
+			user_state = wd_user_state(user);
 			
 			if(state == WI_SOCKET_TIMEOUT) {
 				timeout += 0.1;
@@ -253,8 +254,6 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 				if(timeout >= 120.0)
 					break;
 			}
-			
-			user_state = wd_user_state(user);
 		} while(state == WI_SOCKET_TIMEOUT && user_state <= WD_USER_LOGGED_IN);
 		
 		if(user_state == WD_USER_DISCONNECTED)
