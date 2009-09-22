@@ -2086,12 +2086,6 @@ static void wd_message_file_subscribe_directory(wd_user_t *user, wi_p7_message_t
 		return;
 	}
 	
-	if(wi_set_contains_data(wd_user_subscribed_paths(user), realpath)) {
-		wd_user_reply_error(user, WI_STR("wired.error.already_subscribed"), message);
-		
-		return;
-	}
-
 	wd_user_subscribe_path(user, realpath);
 	wd_user_reply_okay(user, message);
 }
