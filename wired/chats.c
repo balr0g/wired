@@ -65,7 +65,7 @@ static wd_chat_t *					wd_chat_init_private_chat(wd_chat_t *);
 static void							wd_chat_dealloc(wi_runtime_instance_t *);
 static wi_string_t *				wd_chat_description(wi_runtime_instance_t *);
 
-static wd_cid_t						wd_chat_random_id(void);
+static wd_cid_t						wd_chat_next_id(void);
 
 static wd_topic_t *					wd_topic_alloc(void);
 static wd_topic_t *					wd_topic_init_with_user_and_string(wd_topic_t *, wd_user_t *, wi_string_t *);
@@ -76,6 +76,9 @@ static wi_dictionary_t *			wd_topic_dictionary(wd_topic_t *topic);
 
 
 wd_chat_t							*wd_public_chat;
+
+static wd_uid_t						wd_chats_current_id;
+static wi_lock_t					*wd_chats_id_lock;
 
 static wi_mutable_dictionary_t		*wd_chats;
 
@@ -111,6 +114,10 @@ void wd_chats_init(void) {
 
 	wd_chats = wi_dictionary_init(wi_mutable_dictionary_alloc());
 
+	wd_chats_id_lock = wi_lock_init(wi_lock_alloc());
+	
+	wd_chats_current_id = WD_PUBLIC_CHAT_ID;
+	
 	wd_topic_path = WI_STR("topic");
 
 	wd_public_chat = wd_chat_init_public_chat(wd_chat_alloc());
@@ -233,7 +240,7 @@ static wd_chat_t * wd_chat_init_public_chat(wd_chat_t *chat) {
 static wd_chat_t * wd_chat_init_private_chat(wd_chat_t *chat) {
 	chat = wd_chat_init(chat);
 	
-	chat->id = wd_chat_random_id();
+	chat->id = wd_chat_next_id();
 	
 	return chat;
 }
@@ -265,13 +272,15 @@ static wi_string_t * wd_chat_description(wi_runtime_instance_t *instance) {
 
 #pragma mark -
 
-static wd_cid_t wd_chat_random_id(void) {
+static wd_cid_t wd_chat_next_id(void) {
 	wd_cid_t	id;
-
-	do {
-		id = ((wd_cid_t) random() % UINT_MAX) + 1;
-	} while(wd_chats_chat_with_id(id));
 	
+	wi_lock_lock(wd_chats_id_lock);
+	
+	id = ++wd_chats_current_id;
+
+	wi_lock_unlock(wd_chats_id_lock);
+
 	return id;
 }
 
