@@ -587,9 +587,14 @@ wd_user_state_t wd_user_state(wd_user_t *user) {
 
 
 
-void wd_user_wait_until_state(wd_user_t *user, wd_user_state_t state) {
-	wi_condition_lock_lock_when_condition(user->state_lock, state, 0.0);
-	wi_condition_lock_unlock(user->state_lock);
+wi_boolean_t wd_user_wait_until_state(wd_user_t *user, wd_user_state_t state) {
+	if(wi_condition_lock_lock_when_condition(user->state_lock, state, 1.0)) {
+		wi_condition_lock_unlock(user->state_lock);
+		
+		return true;
+	}
+	
+	return false;
 }
 
 

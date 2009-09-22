@@ -234,7 +234,6 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 	wd_message_func_t		*handler;
 	wi_socket_state_t		state;
 	wd_user_state_t			user_state;
-	wi_time_interval_t		timeout;
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
@@ -242,49 +241,38 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 	p7_socket = wd_user_p7_socket(user);
 
 	while(true) {
-		timeout = 0.0;
-		
 		do {
 			state = wi_socket_wait(socket, 0.1);
 			user_state = wd_user_state(user);
-			
-			if(state == WI_SOCKET_TIMEOUT) {
-				timeout += 0.1;
-				
-				if(timeout >= 120.0)
-					break;
-			}
 		} while(state == WI_SOCKET_TIMEOUT && user_state <= WD_USER_LOGGED_IN);
 		
 		if(user_state == WD_USER_DISCONNECTED)
 			break;
 		
 		if(user_state == WD_USER_TRANSFERRING) {
-			wd_user_wait_until_state(user, WD_USER_LOGGED_IN);
+			while(!wd_user_wait_until_state(user, WD_USER_LOGGED_IN)) {
+				user_state = wd_user_state(user);
+				
+				if(user_state == WD_USER_LOGGED_IN || user_state == WD_USER_DISCONNECTED)
+					break;
+			}
 			
 			continue;
 		}
 
 		if(state == WI_SOCKET_ERROR) {
 			wi_log_err(WI_STR("Could not wait for message from %@: %m"),
-				wd_user_ip(user));
+				wd_user_identifier(user));
 
 			break;
 		}
 
-		if(timeout >= 120.0) {
-			wi_log_err(WI_STR("Timed out waiting for message from %@"),
-				wd_user_ip(user));
-			
-			break;
-		}
-		
 		message = wi_p7_socket_read_message(p7_socket, 120.0);
 		
 		if(!message) {
 			if(wi_error_domain() != WI_ERROR_DOMAIN_LIBWIRED && wi_error_code() != WI_ERROR_SOCKET_EOF) {
 				wi_log_info(WI_STR("Could not read message from %@: %m"),
-					wd_user_ip(user));
+					wd_user_identifier(user));
 			}
 			
 			break;
@@ -359,7 +347,7 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 	if(wd_chat_contains_user(wd_public_chat, user))
 		wd_chat_broadcast_user_leave(wd_public_chat, user);
 
-	wi_log_info(WI_STR("Disconnect from %@"), wd_user_ip(user));
+	wi_log_info(WI_STR("Disconnect from %@"), wd_user_identifier(user));
 	
 	wi_p7_socket_close(p7_socket);
 	wi_socket_close(socket);

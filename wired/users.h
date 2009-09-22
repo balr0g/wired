@@ -84,7 +84,7 @@ void									wd_user_unlock_socket(wd_user_t *);
 
 void									wd_user_set_state(wd_user_t *, wd_user_state_t);
 wd_user_state_t							wd_user_state(wd_user_t *);
-void									wd_user_wait_until_state(wd_user_t *, wd_user_state_t);
+wi_boolean_t							wd_user_wait_until_state(wd_user_t *, wd_user_state_t);
 
 void									wd_user_set_idle(wd_user_t *, wi_boolean_t);
 wi_boolean_t							wd_user_is_idle(wd_user_t *);

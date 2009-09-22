@@ -466,7 +466,9 @@ void wd_transfers_remove_user(wd_user_t *user, wi_boolean_t removingallusers) {
 					transfer->state = WD_TRANSFER_STOP;
 					
 					wi_condition_lock_unlock_with_condition(transfer->state_lock, transfer->state);
-					wi_condition_lock_lock_when_condition(transfer->state_lock, WD_TRANSFER_STOPPED, 1.0);
+					
+					if(!wi_condition_lock_lock_when_condition(transfer->state_lock, WD_TRANSFER_STOPPED, 1.0))
+						wi_condition_lock_lock(transfer->state_lock);
 				}
 				else if(transfer->state == WD_TRANSFER_QUEUED || transfer->state == WD_TRANSFER_WAITING) {
 					wd_user_set_state(transfer->user, WD_USER_DISCONNECTED);
