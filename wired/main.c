@@ -518,6 +518,5 @@ static void wd_schedule(void) {
 	wd_files_schedule();
 	wd_servers_schedule();
 	wd_trackers_schedule();
-	wd_transfers_schedule();
 	wd_users_schedule();
 }

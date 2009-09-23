@@ -90,7 +90,6 @@ struct _wd_user {
 	
 	wi_recursive_lock_t					*user_lock;
 	wi_recursive_lock_t					*socket_lock;
-	wi_condition_lock_t					*state_lock;
 	
 	wi_socket_t							*socket;
 	wi_p7_socket_t						*p7_socket;
@@ -303,7 +302,6 @@ void wd_users_reply_users(wd_user_t *user, wi_p7_message_t *message) {
 	
 	while((peer = wi_enumerator_next_data(enumerator))) {
 		wi_recursive_lock_lock(peer->user_lock);
-		wi_condition_lock_lock(peer->state_lock);
 		
 		switch(user->state) {
 			default:
@@ -312,7 +310,6 @@ void wd_users_reply_users(wd_user_t *user, wi_p7_message_t *message) {
 			case WD_USER_SAID_HELLO:		state = WD_USER_PROTOCOL_LOGGING_IN;	break;
 			case WD_USER_GAVE_USER:			state = WD_USER_PROTOCOL_LOGGING_IN;	break;
 			case WD_USER_LOGGED_IN:			state = WD_USER_PROTOCOL_LOGGED_IN;		break;
-			case WD_USER_TRANSFERRING:		state = WD_USER_PROTOCOL_TRANSFERRING;	break;
 			case WD_USER_DISCONNECTED:		state = WD_USER_PROTOCOL_DISCONNECTING;	break;
 		}
 		
@@ -339,7 +336,6 @@ void wd_users_reply_users(wd_user_t *user, wi_p7_message_t *message) {
 
 		wi_p7_message_set_enum_for_name(reply, state, WI_STR("wired.user.state"));
 
-		wi_condition_lock_unlock(peer->state_lock);
 		wi_recursive_lock_unlock(peer->user_lock);
 
 		wd_user_reply_message(user, reply, message);
@@ -358,8 +354,8 @@ void wd_users_reply_users(wd_user_t *user, wi_p7_message_t *message) {
 wd_user_t * wd_user_with_p7_socket(wi_p7_socket_t *p7_socket) {
 	wd_user_t		*user;
 	
-	user = wd_user_init_with_socket(wd_user_alloc(), wi_p7_socket_socket(p7_socket));
-	user->p7_socket = wi_retain(p7_socket);
+	user				= wd_user_init_with_socket(wd_user_alloc(), wi_p7_socket_socket(p7_socket));
+	user->p7_socket		= wi_retain(p7_socket);
 
 	return wi_autorelease(user);
 }
@@ -389,7 +385,6 @@ static wd_user_t * wd_user_init_with_socket(wd_user_t *user, wi_socket_t *socket
 	
 	user->user_lock			= wi_recursive_lock_init(wi_recursive_lock_alloc());
 	user->socket_lock		= wi_recursive_lock_init(wi_recursive_lock_alloc());
-	user->state_lock		= wi_condition_lock_init(wi_condition_lock_alloc());
 	
 	user->subscribed_paths	= wi_set_init_with_capacity(wi_mutable_set_alloc(), 0, true);
 	
@@ -403,9 +398,9 @@ static void wd_user_dealloc(wi_runtime_instance_t *instance) {
 	
 	wi_release(user->user_lock);
 	wi_release(user->socket_lock);
-	wi_release(user->state_lock);
 
 	wi_release(user->socket);
+	wi_release(user->p7_socket);
 	
 	wi_release(user->account);
 	
@@ -568,33 +563,13 @@ void wd_user_unlock_socket(wd_user_t *user) {
 #pragma mark -
 
 void wd_user_set_state(wd_user_t *user, wd_user_state_t state) {
-	wi_condition_lock_lock(user->state_lock);
-	user->state = state;
-	wi_condition_lock_unlock_with_condition(user->state_lock, state);
+	WD_USER_SET_VALUE(user, user->state, state);
 }
 
 
 
 wd_user_state_t wd_user_state(wd_user_t *user) {
-	wd_user_state_t		state;
-	
-	wi_condition_lock_lock(user->state_lock);
-	state = user->state;
-	wi_condition_lock_unlock(user->state_lock);
-	
-	return state;
-}
-
-
-
-wi_boolean_t wd_user_wait_until_state(wd_user_t *user, wd_user_state_t state) {
-	if(wi_condition_lock_lock_when_condition(user->state_lock, state, 1.0)) {
-		wi_condition_lock_unlock(user->state_lock);
-		
-		return true;
-	}
-	
-	return false;
+	WD_USER_RETURN_VALUE(user, user->state);
 }
 
 
@@ -1011,10 +986,10 @@ static wi_string_t * wd_client_info_description(wi_runtime_instance_t *instance)
 
 wi_string_t * wd_client_info_string(wd_client_info_t *client_info) {
 	return wi_string_with_format(WI_STR("%@ %@ (%u) on %@ %@ (%@)"),
-								 client_info->application_name,
-								 client_info->application_version,
-								 client_info->application_build,
-								 client_info->os_name,
-								 client_info->os_version,
-								 client_info->arch);
+		client_info->application_name,
+		client_info->application_version,
+		client_info->application_build,
+		client_info->os_name,
+		client_info->os_version,
+		client_info->arch);
 }

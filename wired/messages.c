@@ -112,7 +112,6 @@ static void							wd_message_account_subscribe_accounts(wd_user_t *, wi_p7_messa
 static void							wd_message_account_unsubscribe_accounts(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_transfer_download_file(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_transfer_upload_file(wd_user_t *, wi_p7_message_t *);
-static void							wd_message_transfer_upload(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_transfer_upload_directory(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_log_get_log(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_log_subscribe(wd_user_t *, wi_p7_message_t *);
@@ -207,7 +206,6 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.account.unsubscribe_accounts"), wd_message_account_unsubscribe_accounts);
 	WD_MESSAGE_HANDLER(WI_STR("wired.transfer.download_file"), wd_message_transfer_download_file);
 	WD_MESSAGE_HANDLER(WI_STR("wired.transfer.upload_file"), wd_message_transfer_upload_file);
-	WD_MESSAGE_HANDLER(WI_STR("wired.transfer.upload"), wd_message_transfer_upload);
 	WD_MESSAGE_HANDLER(WI_STR("wired.transfer.upload_directory"), wd_message_transfer_upload_directory);
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.get_log"), wd_message_log_get_log);
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.subscribe"), wd_message_log_subscribe);
@@ -230,10 +228,9 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 	wi_socket_t				*socket;
 	wi_p7_socket_t			*p7_socket;
 	wi_p7_message_t			*message;
-	wi_string_t				*name;
-	wd_message_func_t		*handler;
 	wi_socket_state_t		state;
 	wd_user_state_t			user_state;
+	wi_time_interval_t		timeout;
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
@@ -241,33 +238,40 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 	p7_socket = wd_user_p7_socket(user);
 
 	while(true) {
+		timeout = wi_time_interval();
+		
 		do {
-			state = wi_socket_wait(socket, 0.1);
-			user_state = wd_user_state(user);
+			state		= wi_socket_wait(socket, 0.1);
+			user_state	= wd_user_state(user);
+			
+			if(state == WI_SOCKET_TIMEOUT) {
+				if(wi_time_interval() - timeout >= 120.0)
+					break;
+			}
 		} while(state == WI_SOCKET_TIMEOUT && user_state <= WD_USER_LOGGED_IN);
 		
 		if(user_state == WD_USER_DISCONNECTED)
 			break;
 		
-		if(user_state == WD_USER_TRANSFERRING) {
-			while(!wd_user_wait_until_state(user, WD_USER_LOGGED_IN)) {
-				user_state = wd_user_state(user);
-				
-				if(user_state == WD_USER_LOGGED_IN || user_state == WD_USER_DISCONNECTED)
-					break;
-			}
-			
-			continue;
-		}
-
 		if(state == WI_SOCKET_ERROR) {
 			wi_log_err(WI_STR("Could not wait for message from %@: %m"),
 				wd_user_identifier(user));
 
 			break;
 		}
+		
+		if(wi_time_interval() - timeout >= 120.0) {
+			wi_log_err(WI_STR("Timed out waiting for message from %@"),
+				wd_user_identifier(user));
 
+			break;
+		}
+
+		wd_user_lock_socket(user);
+		
 		message = wi_p7_socket_read_message(p7_socket, 120.0);
+		
+		wd_user_unlock_socket(user);
 		
 		if(!message) {
 			if(wi_error_domain() != WI_ERROR_DOMAIN_LIBWIRED && wi_error_code() != WI_ERROR_SOCKET_EOF) {
@@ -285,53 +289,9 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 			continue;
 		}
 		
-		name = wi_p7_message_name(message);
-		handler = wi_dictionary_data_for_key(wd_message_handlers, name);
+		wd_messages_handle_message(message, user);
 		
-		if(!handler) {
-			wi_log_warn(WI_STR("No handler for message %@"), name);
-			wd_user_reply_error(user, WI_STR("wired.error.unrecognized_message"), message);
-			
-			continue;
-		}
-		
-		user_state = wd_user_state(user);
-
-		if(user_state == WD_USER_CONNECTED) {
-			if(handler != wd_message_client_info) {
-				wi_log_warn(WI_STR("Could not process message %@: Out of sequence"), name);
-				wd_user_reply_error(user, WI_STR("wired.error.message_out_of_sequence"), message);
-				
-				continue;
-			}
-		}
-		else if(user_state == WD_USER_GAVE_CLIENT_INFO) {
-			if(handler != wd_message_send_ping &&
-			   handler != wd_message_send_login &&
-			   handler != wd_message_user_set_nick &&
-			   handler != wd_message_user_set_status &&
-			   handler != wd_message_user_set_icon) {
-				wi_log_warn(WI_STR("Could not process message %@: Out of sequence"), name);
-				wd_user_reply_error(user, WI_STR("wired.error.message_out_of_sequence"), message);
-				
-				continue;
-			}
-		}
-		
-		(*handler)(user, message);
-		
-		if(handler != wd_message_send_ping &&
-		   handler != wd_message_user_set_idle) {
-			wd_user_set_idle_time(user, wi_date());
-			
-			if(wd_user_is_idle(user)) {
-				wd_user_set_idle(user, false);
-				
-				wd_user_broadcast_status(user);
-			}
-		}
-		
-		wi_pool_set_context(pool, name);
+		wi_pool_set_context(pool, wi_p7_message_name(message));
 		wi_pool_drain(pool);
 	}
 	
@@ -355,6 +315,60 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 	wd_users_remove_user(user);
 	
 	wi_release(pool);
+}
+
+
+
+void wd_messages_handle_message(wi_p7_message_t *message, wd_user_t *user) {
+	wd_message_func_t		*handler;
+	wi_string_t				*name;
+	wd_user_state_t			user_state;
+	
+	name = wi_p7_message_name(message);
+	handler = wi_dictionary_data_for_key(wd_message_handlers, name);
+	
+	if(!handler) {
+		wi_log_warn(WI_STR("No handler for message %@"), name);
+		wd_user_reply_error(user, WI_STR("wired.error.unrecognized_message"), message);
+		
+		return;
+	}
+	
+	user_state = wd_user_state(user);
+
+	if(user_state == WD_USER_CONNECTED) {
+		if(handler != wd_message_client_info) {
+			wi_log_warn(WI_STR("Could not process message %@: Out of sequence"), name);
+			wd_user_reply_error(user, WI_STR("wired.error.message_out_of_sequence"), message);
+			
+			return;
+		}
+	}
+	else if(user_state == WD_USER_GAVE_CLIENT_INFO) {
+		if(handler != wd_message_send_ping &&
+		   handler != wd_message_send_login &&
+		   handler != wd_message_user_set_nick &&
+		   handler != wd_message_user_set_status &&
+		   handler != wd_message_user_set_icon) {
+			wi_log_warn(WI_STR("Could not process message %@: Out of sequence"), name);
+			wd_user_reply_error(user, WI_STR("wired.error.message_out_of_sequence"), message);
+			
+			return;
+		}
+	}
+	
+	(*handler)(user, message);
+	
+	if(handler != wd_message_send_ping &&
+	   handler != wd_message_user_set_idle) {
+		wd_user_set_idle_time(user, wi_date());
+		
+		if(wd_user_is_idle(user)) {
+			wd_user_set_idle(user, false);
+			
+			wd_user_broadcast_status(user);
+		}
+	}
 }
 
 
@@ -2516,6 +2530,7 @@ static void wd_message_transfer_download_file(wd_user_t *user, wi_p7_message_t *
 	wi_string_t				*path, *properpath;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
+	wd_transfer_t			*transfer;
 	wi_p7_uint64_t			dataoffset, rsrcoffset;
 	
 	account = wd_user_account(user);
@@ -2546,7 +2561,16 @@ static void wd_message_transfer_download_file(wd_user_t *user, wi_p7_message_t *
 	wi_p7_message_get_uint64_for_name(message, &dataoffset, WI_STR("wired.transfer.data_offset"));
 	wi_p7_message_get_uint64_for_name(message, &rsrcoffset, WI_STR("wired.transfer.rsrc_offset"));
 	
-	wd_transfers_queue_download(properpath, dataoffset, rsrcoffset, user, message);
+	transfer = wd_transfer_download_transfer(properpath, dataoffset, rsrcoffset, user, message);
+	
+	if(transfer) {
+		wd_user_set_transfer(user, transfer);
+		
+		if(!wd_transfers_run_transfer(transfer, user, message))
+			wd_user_set_state(user, WD_USER_DISCONNECTED);
+		
+		wd_user_set_transfer(user, NULL);
+	}
 }
 
 
@@ -2555,6 +2579,7 @@ static void wd_message_transfer_upload_file(wd_user_t *user, wi_p7_message_t *me
 	wi_string_t				*path, *realpath, *realparentpath, *properpath;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
+	wd_transfer_t			*transfer;
 	wi_file_offset_t		datasize, rsrcsize;
 	wi_boolean_t			executable;
 	
@@ -2606,27 +2631,15 @@ static void wd_message_transfer_upload_file(wd_user_t *user, wi_p7_message_t *me
 	if(!wi_p7_message_get_bool_for_name(message, &executable, WI_STR("wired.file.executable")))
 		executable = false;
 
-	wd_transfers_queue_upload(properpath, datasize, rsrcsize, executable, user, message);
-}
-
-
-
-static void wd_message_transfer_upload(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*path;
-	wd_transfer_t	*transfer;
-	
-	path = wi_p7_message_string_for_name(message, WI_STR("wired.file.path"));
-	transfer = wd_transfers_transfer_with_path(user, path);
+	transfer = wd_transfer_upload_transfer(properpath, datasize, rsrcsize, executable, user, message);
 	
 	if(transfer) {
-		wi_p7_message_get_uint64_for_name(message, &transfer->remainingdatasize, WI_STR("wired.transfer.data"));
+		wd_user_set_transfer(user, transfer);
 		
-		if(!wi_p7_message_get_uint64_for_name(message, &transfer->remainingrsrcsize, WI_STR("wired.transfer.rsrc")))
-			transfer->remainingrsrcsize = 0;
-		
-		transfer->finderinfo = wi_retain(wi_p7_message_data_for_name(message, WI_STR("wired.transfer.finderinfo")));
-		
-		wd_transfer_start(transfer);
+		if(!wd_transfers_run_transfer(transfer, user, message))
+			wd_user_set_state(user, WD_USER_DISCONNECTED);
+
+		wd_user_set_transfer(user, NULL);
 	}
 }
 
