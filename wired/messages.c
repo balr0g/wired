@@ -149,6 +149,7 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.user.get_info"), wd_message_user_get_info);
 	WD_MESSAGE_HANDLER(WI_STR("wired.user.disconnect_user"), wd_message_user_disconnect_user);
 	WD_MESSAGE_HANDLER(WI_STR("wired.user.ban_user"), wd_message_user_ban_user);
+	WD_MESSAGE_HANDLER(WI_STR("wired.user.get_users"), wd_message_user_get_users);
 	WD_MESSAGE_HANDLER(WI_STR("wired.chat.join_chat"), wd_message_chat_join_chat);
 	WD_MESSAGE_HANDLER(WI_STR("wired.chat.leave_chat"), wd_message_chat_leave_chat);
 	WD_MESSAGE_HANDLER(WI_STR("wired.chat.set_topic"), wd_message_chat_set_topic);
@@ -158,7 +159,6 @@ void wd_messages_init(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.chat.invite_user"), wd_message_chat_invite_user);
 	WD_MESSAGE_HANDLER(WI_STR("wired.chat.decline_invitation"), wd_message_chat_decline_invitation);
 	WD_MESSAGE_HANDLER(WI_STR("wired.chat.kick_user"), wd_message_chat_kick_user);
-	WD_MESSAGE_HANDLER(WI_STR("wired.user.get_users"), wd_message_user_get_users);
 	WD_MESSAGE_HANDLER(WI_STR("wired.message.send_message"), wd_message_message_send_message);
 	WD_MESSAGE_HANDLER(WI_STR("wired.message.send_broadcast"), wd_message_message_send_broadcast);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_boards"), wd_message_board_get_boards);
@@ -360,7 +360,8 @@ void wd_messages_handle_message(wi_p7_message_t *message, wd_user_t *user) {
 	(*handler)(user, message);
 	
 	if(handler != wd_message_send_ping &&
-	   handler != wd_message_user_set_idle) {
+	   handler != wd_message_user_set_idle &&
+	   handler != wd_message_user_get_users) {
 		wd_user_set_idle_time(user, wi_date());
 		
 		if(wd_user_is_idle(user)) {
