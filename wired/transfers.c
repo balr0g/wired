@@ -80,7 +80,7 @@ static wi_mutable_array_t					*wd_transfers;
 static wi_uinteger_t						wd_transfers_total_downloads, wd_transfers_total_uploads;
 static wi_uinteger_t						wd_transfers_total_download_speed, wd_transfers_total_upload_speed;
 
-static wi_recursive_lock_t					*wd_transfers_status_lock;
+static wi_lock_t							*wd_transfers_status_lock;
 static wi_mutable_dictionary_t				*wd_transfers_user_downloads, *wd_transfers_user_uploads;
 static wi_uinteger_t						wd_transfers_active_downloads, wd_transfers_active_uploads;
 
@@ -103,10 +103,13 @@ void wd_transfers_init(void) {
 
 	wd_transfers = wi_array_init(wi_mutable_array_alloc());
 
-	wd_transfers_status_lock = wi_recursive_lock_init(wi_recursive_lock_alloc());
+	wd_transfers_status_lock = wi_lock_init(wi_lock_alloc());
 	
-	wd_transfers_user_downloads = wi_dictionary_init(wi_mutable_dictionary_alloc());
-	wd_transfers_user_uploads = wi_dictionary_init(wi_mutable_dictionary_alloc());
+	wd_transfers_user_downloads = wi_dictionary_init_with_capacity_and_callbacks(wi_mutable_dictionary_alloc(),
+		0, wi_dictionary_default_key_callbacks, wi_dictionary_null_value_callbacks);
+
+	wd_transfers_user_uploads = wi_dictionary_init_with_capacity_and_callbacks(wi_mutable_dictionary_alloc(),
+		0, wi_dictionary_default_key_callbacks, wi_dictionary_null_value_callbacks);
 	
 	wd_transfers_queue_lock = wi_condition_lock_init_with_condition(wi_condition_lock_alloc(), 0);
 	
@@ -132,23 +135,24 @@ static void wd_transfers_queue_thread(wi_runtime_instance_t *argument) {
 	wi_enumerator_t				*enumerator;
 	wi_mutable_dictionary_t		*key_queues;
 	wi_mutable_array_t			*key_queue, *keys;
-	wi_array_t					*user_transfers;
 	wi_string_t					*key;
 	wd_transfer_t				*transfer;
 	wd_account_t				*account;
-	wi_uinteger_t				user_downloads, user_uploads, new_position, position, queue, i, count;
-	wi_boolean_t				processed;
+	wi_uinteger_t				user_downloads, user_uploads, user_transfers;
+	wi_uinteger_t				new_position, position, queue, i, count, longest_queue;
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
 	key_queues = wi_dictionary_init(wi_mutable_dictionary_alloc());
 	
 	while(true) {
+		wi_mutable_dictionary_remove_all_data(key_queues);
+
 		wi_condition_lock_lock_when_condition(wd_transfers_queue_lock, 1, 0.0);
-		wi_recursive_lock_lock(wd_transfers_status_lock);
 		wi_array_rdlock(wd_transfers);
 		
-		enumerator = wi_array_data_enumerator(wd_transfers);
+		longest_queue	= 0;
+		enumerator		= wi_array_data_enumerator(wd_transfers);
 		
 		while((transfer = wi_enumerator_next_data(enumerator))) {
 			if(transfer->state == WD_TRANSFER_QUEUED) {
@@ -161,62 +165,71 @@ static void wd_transfers_queue_thread(wi_runtime_instance_t *argument) {
 				}
 				
 				wi_mutable_array_add_data(key_queue, transfer);
+				
+				if(wi_array_count(key_queue) > longest_queue)
+					longest_queue = wi_array_count(key_queue);
 			}
 		}
 		
 		keys		= wi_autorelease(wi_mutable_copy(wi_dictionary_keys_sorted_by_value(key_queues, wd_transfers_queue_compare)));
 		position	= 1;
-		processed	= true;
+		count		= wi_array_count(keys);
 		
-		while((count = wi_array_count(keys)) > 0) {
+		while(longest_queue > 0) {
 			for(i = 0; i < count; i++) {
 				key			= WI_ARRAY(keys, i);
 				key_queue	= wi_dictionary_data_for_key(key_queues, key);
-				transfer	= WI_ARRAY(key_queue, 0);
+				
+				if(wi_array_count(key_queue) > 0) {
+					transfer	= WI_ARRAY(key_queue, 0);
+					account		= wi_retain(wd_user_account(transfer->user));
 
-				account = wd_user_account(transfer->user);
+					wi_lock_lock(wd_transfers_status_lock);
+					
+					if(transfer->type == WD_TRANSFER_DOWNLOAD) {
+						wi_dictionary_rdlock(wd_transfers_user_downloads);
+						
+						user_downloads	= wd_account_transfer_download_limit(account);
+						user_transfers	= (wi_integer_t) wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key);
+						queue			= ((wd_transfers_total_downloads > 0 && wd_transfers_active_downloads >= wd_transfers_total_downloads) ||
+										   (user_downloads > 0 && user_transfers >= user_downloads));
 
-				if(transfer->type == WD_TRANSFER_DOWNLOAD) {
-					user_downloads	= wd_account_transfer_download_limit(account);
-					user_transfers	= wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key);
-					queue			= ((wd_transfers_total_downloads > 0 && wd_transfers_active_downloads >= wd_transfers_total_downloads) ||
-									   (user_downloads > 0 && user_transfers && wi_array_count(user_transfers) >= user_downloads));
-				} else {
-					user_uploads	= wd_account_transfer_upload_limit(account);
-					user_transfers	= wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key);
-					queue			= ((wd_transfers_total_uploads > 0 && wd_transfers_active_uploads >= wd_transfers_total_uploads) ||
-									   (user_uploads > 0 && user_transfers && wi_array_count(user_transfers) >= user_uploads));
-				}
-				
-				if(queue)
-					new_position = position++;
-				else
-					new_position = 0;
-				
-				if(new_position != (wi_uinteger_t) transfer->queue) {
-					if(new_position == 0)
-						wd_transfers_add_or_remove_transfer(transfer, true);
+						wi_dictionary_unlock(wd_transfers_user_downloads);
+					} else {
+						wi_dictionary_rdlock(wd_transfers_user_uploads);
+						
+						user_uploads	= wd_account_transfer_upload_limit(account);
+						user_transfers	= (wi_integer_t) wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key);
+						queue			= ((wd_transfers_total_uploads > 0 && wd_transfers_active_uploads >= wd_transfers_total_uploads) ||
+										   (user_uploads > 0 && user_transfers >= user_uploads));
+
+						wi_dictionary_unlock(wd_transfers_user_uploads);
+					}
 					
-					wi_condition_lock_lock(transfer->queue_lock);
-					transfer->queue = new_position;
-					wi_condition_lock_unlock_with_condition(transfer->queue_lock, 1);
-				}
-				
-				wi_mutable_array_remove_data_at_index(key_queue, 0);
-				
-				if(wi_array_count(key_queue) == 0) {
-					wi_mutable_array_remove_data_at_index(keys, i);
+					wi_lock_unlock(wd_transfers_status_lock);
 					
-					i--;
-					count--;
+					if(queue)
+						new_position = position++;
+					else
+						new_position = 0;
+					
+					if(new_position != (wi_uinteger_t) transfer->queue) {
+						if(new_position == 0)
+							wd_transfers_add_or_remove_transfer(transfer, true);
+						
+						wi_condition_lock_lock(transfer->queue_lock);
+						transfer->queue = new_position;
+						wi_condition_lock_unlock_with_condition(transfer->queue_lock, 1);
+					}
+					
+					wi_mutable_array_remove_data_at_index(key_queue, 0);
 				}
 			}
+				
+			longest_queue--;
 		}
-	
-		wi_mutable_dictionary_remove_all_data(key_queues);
-
+		
 		wi_array_unlock(wd_transfers);
-		wi_recursive_lock_unlock(wd_transfers_status_lock);
 		wi_condition_lock_unlock_with_condition(wd_transfers_queue_lock, 0);
 		
 		wi_pool_drain(pool);
@@ -258,7 +271,7 @@ static wi_boolean_t wd_transfers_run_download(wd_transfer_t *transfer, wd_user_t
 	
 	data = wi_fs_finder_info_for_path(transfer->realdatapath);
 	
-	wi_p7_message_set_data_for_name(message, data ? data : wi_data(), WI_STR("wired.transfer.finderinfo"));
+	wi_p7_message_set_data_for_name(reply, data ? data : wi_data(), WI_STR("wired.transfer.finderinfo"));
 	wd_user_reply_message(user, reply, message);
 	
 	wi_log_info(WI_STR("Sending \"%@\" to %@"),
@@ -384,40 +397,37 @@ static wi_string_t * wd_transfers_transfer_key_for_user(wd_user_t *user) {
 
 static void wd_transfers_add_or_remove_transfer(wd_transfer_t *transfer, wi_boolean_t add) {
 	wi_mutable_dictionary_t		*dictionary;
-	wi_mutable_array_t			*array;
+	wi_integer_t				number;
 	
-	wi_recursive_lock_lock(wd_transfers_status_lock);
+	wi_lock_lock(wd_transfers_status_lock);
 	
-	if(transfer->type == WD_TRANSFER_DOWNLOAD) {
-		wd_transfers_active_downloads	+= add ? 1 : -1;
-		
-		dictionary						= wd_transfers_user_downloads;
+	if(transfer->type == WD_TRANSFER_DOWNLOAD)
+		wd_transfers_active_downloads += add ? 1 : -1;
+	else
+		wd_transfers_active_uploads += add ? 1 : -1;
+	
+	wi_lock_unlock(wd_transfers_status_lock);
+
+	if(transfer->type == WD_TRANSFER_DOWNLOAD)
+		dictionary = wd_transfers_user_downloads;
+	else
+		dictionary = wd_transfers_user_uploads;
+	
+	wi_dictionary_wrlock(dictionary);
+	
+	number = (wi_integer_t) wi_dictionary_data_for_key(dictionary, transfer->key);
+	
+	if(add) {
+		wi_mutable_dictionary_set_data_for_key(dictionary, (void *) (number + 1), transfer->key);
 	} else {
-		wd_transfers_active_uploads		+= add ? 1 : -1;
-		
-		dictionary						= wd_transfers_user_uploads;
-	}
-	
-	array = wi_dictionary_data_for_key(dictionary, transfer->key);
-	
-	if(!array && add) {
-		array = wi_mutable_array();
-		
-		wi_mutable_dictionary_set_data_for_key(dictionary, array, transfer->key);
-	}
-	
-	if(array) {
-		if(add) {
-			wi_mutable_array_add_data(array, transfer);
+		if(number > 0) {
+			wi_mutable_dictionary_set_data_for_key(dictionary, (void *) (number - 1), transfer->key);
 		} else {
-			wi_mutable_array_remove_data(array, transfer);
-		
-			if(wi_array_count(array) == 0)
-				wi_mutable_dictionary_remove_data_for_key(dictionary, transfer->key);
+			wi_mutable_dictionary_remove_data_for_key(dictionary, transfer->key);
 		}
 	}
-
-	wi_recursive_lock_unlock(wd_transfers_status_lock);
+	
+	wi_dictionary_unlock(dictionary);
 }
 
 
@@ -469,7 +479,7 @@ wi_boolean_t wd_transfers_run_transfer(wd_transfer_t *transfer, wd_user_t *user,
 	wi_mutable_array_add_data(wd_transfers, transfer);
 	wi_array_unlock(wd_transfers);
 	
-	wi_condition_lock_lock(wd_transfers_queue_lock);
+	wi_condition_lock_lock(wd_transfers_queue_lock);	
 	wi_condition_lock_unlock_with_condition(wd_transfers_queue_lock, 1);
 
 	socket			= wd_user_socket(user);
@@ -483,7 +493,7 @@ wi_boolean_t wd_transfers_run_transfer(wd_transfer_t *transfer, wd_user_t *user,
 		
 			if(queue > 0) {
 				reply = wi_p7_message_with_name(WI_STR("wired.transfer.queue"), wd_p7_spec);
-				wi_p7_message_set_string_for_name(reply, transfer->path, WI_STR("wired.transfer.path"));
+				wi_p7_message_set_string_for_name(reply, transfer->path, WI_STR("wired.file.path"));
 				wi_p7_message_set_uint32_for_name(reply, queue, WI_STR("wired.transfer.queue_position"));
 				wd_user_reply_message(user, reply, message);
 			}
@@ -940,9 +950,9 @@ static wi_boolean_t wd_transfer_download(wd_transfer_t *transfer) {
 	
 	wd_transfers_note_statistics(WD_TRANSFER_DOWNLOAD, WD_TRANSFER_STATISTICS_ADD, 0);
 	
-	wi_recursive_lock_lock(wd_transfers_status_lock);
-	transfers = wi_array_count(wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key));
-	wi_recursive_lock_unlock(wd_transfers_status_lock);
+	wi_dictionary_rdlock(wd_transfers_user_downloads);
+	transfers = (wi_integer_t) wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key);
+	wi_dictionary_unlock(wd_transfers_user_downloads);
 
 	pool = wi_pool_init(wi_pool_alloc());
 	
@@ -1053,9 +1063,9 @@ static wi_boolean_t wd_transfer_download(wd_transfer_t *transfer) {
 			account = wd_user_account(transfer->user);
 			accountinterval = interval;
 
-			wi_recursive_lock_lock(wd_transfers_status_lock);
-			transfers = wi_array_count(wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key));
-			wi_recursive_lock_unlock(wd_transfers_status_lock);
+			wi_dictionary_rdlock(wd_transfers_user_downloads);
+			transfers = (wi_integer_t) wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key);
+			wi_dictionary_unlock(wd_transfers_user_downloads);
 		}
 		
 		if(++i % 1000 == 0)
@@ -1102,9 +1112,9 @@ static wi_boolean_t wd_transfer_upload(wd_transfer_t *transfer) {
 	
 	wd_transfers_note_statistics(WD_TRANSFER_UPLOAD, WD_TRANSFER_STATISTICS_ADD, 0);
 
-	wi_recursive_lock_lock(wd_transfers_status_lock);
-	transfers = wi_array_count(wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key));
-	wi_recursive_lock_unlock(wd_transfers_status_lock);
+	wi_dictionary_rdlock(wd_transfers_user_uploads);
+	transfers = (wi_integer_t) wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key);
+	wi_dictionary_unlock(wd_transfers_user_uploads);
 
 	pool = wi_pool_init(wi_pool_alloc());
 	
@@ -1209,9 +1219,9 @@ static wi_boolean_t wd_transfer_upload(wd_transfer_t *transfer) {
 			account = wd_user_account(transfer->user);
 			accountinterval = interval;
 			
-			wi_recursive_lock_lock(wd_transfers_status_lock);
-			transfers = wi_array_count(wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key));
-			wi_recursive_lock_unlock(wd_transfers_status_lock);
+			wi_dictionary_rdlock(wd_transfers_user_uploads);
+			transfers = (wi_integer_t) wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key);
+			wi_dictionary_unlock(wd_transfers_user_uploads);
 		}
 		
 		if(++i % 1000 == 0)
