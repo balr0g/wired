@@ -1379,10 +1379,12 @@ static void wd_files_fsevents_callback(wi_string_t *path) {
 	wi_string_t			*virtualpath;
 	wd_user_t			*user;
 	wi_uinteger_t		pathlength;
+	wi_boolean_t		exists, directory;
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
-	pathlength = wi_string_length(wd_files);
+	exists			= (wi_fs_path_exists(path, &directory) && directory);
+	pathlength		= wi_string_length(wd_files);
 	
 	if(pathlength == wi_string_length(path))
 		virtualpath = WI_STR("/");
@@ -1398,12 +1400,16 @@ static void wd_files_fsevents_callback(wi_string_t *path) {
 	
 	while((user = wi_enumerator_next_data(enumerator))) {
 		if(wd_user_state(user) == WD_USER_LOGGED_IN && wi_set_contains_data(wd_user_subscribed_paths(user), path)) {
-			message = wi_p7_message_with_name(WI_STR("wired.file.directory_changed"), wd_p7_spec);
+			if(exists)
+				message = wi_p7_message_with_name(WI_STR("wired.file.directory_changed"), wd_p7_spec);
+			else
+				message = wi_p7_message_with_name(WI_STR("wired.file.directory_deleted"), wd_p7_spec);
+			
 			wi_p7_message_set_string_for_name(message, virtualpath, WI_STR("wired.file.path"));
 			wd_user_send_message(user, message);
 		}
 	}
-	
+
 	wi_dictionary_unlock(wd_users);
 	
 	wi_release(pool);

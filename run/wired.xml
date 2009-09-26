@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b32">
+			 version="2.0b33">
 	<p7:documentation>
 		TBD
 		
@@ -2255,6 +2255,14 @@
 			<p7:parameter field="wired.file.path" use="required" version="2.0" />
 		</p7:message>
 
+		<p7:message name="wired.file.directory_deleted" id="7022" version="2.0">
+			<p7:documentation>
+				Directory deleted message. [field:wired.file.path] may not be the empty string.
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.file.path" use="required" version="2.0" />
+		</p7:message>
+
 		<p7:message name="wired.account.privileges" id="8000" version="2.0">
 			<p7:documentation>
 				Account privileges message. [field:wired.account.name] may not be the empty string,
@@ -3623,7 +3631,7 @@
 
 				Otherwise, [message:wired.okay] should be replied.
 				
-				Should cause [message:wired.file.directory_changed] to be sent out to subscribed
+				Should cause [message:wired.file.directory_deleted] to be sent out to subscribed
 				users.
 			</p7:documentation>
 			<p7:or>
@@ -3864,7 +3872,8 @@
 				if an unknown error occurs.
 
 				Otherwise, [message:wired.okay] should be replied. After this, the user may receive
-				[message:wired.file.directory_changed] messages.
+				[message:wired.file.directory_changed] and [message:wired.file.directory_deleted]
+				messages.
 				
 				The subscription may be silently dropped if the user's account loses the
 				[field:wired.account.file.list_files] privilege while subscribed.
@@ -3897,7 +3906,8 @@
 				if an unknown error occurs.
 
 				Otherwise, [message:wired.okay] should be replied. After this, the user should no longer
-				receive [message:wired.file.directory_changed] messages.
+				receive [message:wired.file.directory_changed] and [message:wired.file.directory_deleted]
+				messages.
 			</p7:documentation>
 			<p7:or>
 				<p7:reply message="wired.okay" count="1" use="required" version="2.0" />
@@ -4639,6 +4649,12 @@
 		</p7:broadcast>
 		
 		<p7:broadcast message="wired.file.directory_changed" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:broadcast>
+		
+		<p7:broadcast message="wired.file.directory_deleted" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
