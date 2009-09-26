@@ -651,10 +651,6 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 		return;
 	}
 	
-	wi_log_info(WI_STR("%@ banned %@"),
-		wd_user_identifier(user),
-		wd_user_identifier(peer));
-	
 	disconnect_message	= wi_p7_message_string_for_name(message, WI_STR("wired.user.disconnect_message"));
 	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
 	enumerator			= wi_array_data_enumerator(wd_chats_chats_with_user(user));
@@ -667,10 +663,14 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 		wd_chat_broadcast_message(wd_public_chat, broadcast);
 	}
 	
-	wd_banlist_add_ban(user, message, wd_user_ip(peer), expiration_date);
-	
-	wd_user_set_state(peer, WD_USER_DISCONNECTED);
-	wd_user_reply_okay(user, message);
+	if(wd_banlist_add_ban(wd_user_ip(peer), expiration_date, user, message)) {
+		wi_log_info(WI_STR("%@ banned %@"),
+			wd_user_identifier(user),
+			wd_user_identifier(peer));
+		
+		wd_user_set_state(peer, WD_USER_DISCONNECTED);
+		wd_user_reply_okay(user, message);
+	}
 }
 
 
@@ -2803,7 +2803,7 @@ static void wd_message_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message
 	ip					= wi_p7_message_string_for_name(message, WI_STR("wired.banlist.ip"));
 	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
 	
-	if(wd_banlist_add_ban(user, message, ip, expiration_date)) {
+	if(wd_banlist_add_ban(ip, expiration_date, user, message)) {
 		wi_log_info(WI_STR("%@ added ban for %@"), wd_user_identifier(user), ip);
 
 		wd_user_reply_okay(user, message);
@@ -2825,7 +2825,7 @@ static void wd_message_banlist_delete_ban(wd_user_t *user, wi_p7_message_t *mess
 	ip					= wi_p7_message_string_for_name(message, WI_STR("wired.banlist.ip"));
 	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
 	
-	if(wd_banlist_delete_ban(user, message, ip, expiration_date)) {
+	if(wd_banlist_delete_ban(ip, expiration_date, user, message)) {
 		wi_log_info(WI_STR("%@ deleted ban for %@"), wd_user_identifier(user), ip);
 	
 		wd_user_reply_okay(user, message);

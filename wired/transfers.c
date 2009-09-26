@@ -182,7 +182,7 @@ static void wd_transfers_queue_thread(wi_runtime_instance_t *argument) {
 				
 				if(wi_array_count(key_queue) > 0) {
 					transfer	= WI_ARRAY(key_queue, 0);
-					account		= wi_retain(wd_user_account(transfer->user));
+					account		= wd_user_account(transfer->user);
 
 					wi_lock_lock(wd_transfers_status_lock);
 					

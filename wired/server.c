@@ -821,10 +821,13 @@ void wd_user_reply_file_errno(wd_user_t *user, wi_p7_message_t *message) {
 
 
 void wd_user_reply_internal_error(wd_user_t *user, wi_p7_message_t *message) {
+	wd_user_reply_internal_error_with_description(user, wi_error_string(), message);
+}
+
+
+
+void wd_user_reply_internal_error_with_description(wd_user_t *user, wi_string_t *string, wi_p7_message_t *message) {
 	wi_p7_message_t		*reply;
-	wi_string_t			*string;
-	
-	string = wi_error_string();
 	
 	reply = wi_p7_message_with_name(WI_STR("wired.error"), wd_p7_spec);
 	wi_p7_message_set_enum_name_for_name(reply, WI_STR("wired.error.internal_error"), WI_STR("wired.error"));

@@ -540,7 +540,7 @@ void wd_files_reply_preview(wi_string_t *path, wd_user_t *user, wi_p7_message_t 
 	
 	if(sb.size > (10 * 1024 * 1024) - (10 * 1024)) {
 		wi_log_warn(WI_STR("Could not preview %@: Too large"), realpath);
-		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+		wd_user_reply_internal_error_with_description(user, WI_STR("File too large to preview"), message);
 		
 		return;
 	}
@@ -1383,6 +1383,8 @@ static void wd_files_fsevents_callback(wi_string_t *path) {
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
+	wi_retain(path);
+	
 	exists			= (wi_fs_path_exists(path, &directory) && directory);
 	pathlength		= wi_string_length(wd_files);
 	
@@ -1407,11 +1409,15 @@ static void wd_files_fsevents_callback(wi_string_t *path) {
 			
 			wi_p7_message_set_string_for_name(message, virtualpath, WI_STR("wired.file.path"));
 			wd_user_send_message(user, message);
+			
+			if(!exists)
+				wd_user_unsubscribe_path(user, path);
 		}
 	}
 
 	wi_dictionary_unlock(wd_users);
 	
+	wi_release(path);
 	wi_release(pool);
 }
 

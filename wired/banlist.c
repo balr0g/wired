@@ -162,7 +162,7 @@ void wd_banlist_reply_bans(wd_user_t *user, wi_p7_message_t *message) {
 
 
 
-wi_boolean_t wd_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_t *ip, wi_date_t *expiration_date) {
+wi_boolean_t wd_banlist_add_ban(wi_string_t *ip, wi_date_t *expiration_date, wd_user_t *user, wi_p7_message_t *message) {
 	wi_file_t		*file;
 	wd_ban_t		*ban;
 	wi_boolean_t	result = false;
@@ -185,7 +185,7 @@ wi_boolean_t wd_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message, wi_st
 			wi_dictionary_unlock(wd_bans);
 		} else {
 			wi_log_err(WI_STR("Ban has negative expiration date"), wd_banlist_path);
-			wd_user_reply_internal_error(user, message);
+			wd_user_reply_internal_error_with_description(user, WI_STR("Ban has negative expiration date"), message);
 		}
 	} else {
 		wi_rwlock_wrlock(wd_banlist_lock);
@@ -213,7 +213,7 @@ wi_boolean_t wd_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message, wi_st
 
 
 
-wi_boolean_t wd_banlist_delete_ban(wd_user_t *user, wi_p7_message_t *message, wi_string_t *ip, wi_date_t *expiration_date) {
+wi_boolean_t wd_banlist_delete_ban(wi_string_t *ip, wi_date_t *expiration_date, wd_user_t *user, wi_p7_message_t *message) {
 	wi_file_t		*file;
 	wi_boolean_t	result = false;
 	
