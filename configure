@@ -5010,9 +5010,9 @@ fi
 
 
 	if test "$wi_include_resolv_library_done" != "yes"; then
-		{ echo "$as_me:$LINENO: checking for inet_aton" >&5
-echo $ECHO_N "checking for inet_aton... $ECHO_C" >&6; }
-if test "${ac_cv_func_inet_aton+set}" = set; then
+		{ echo "$as_me:$LINENO: checking for herror" >&5
+echo $ECHO_N "checking for herror... $ECHO_C" >&6; }
+if test "${ac_cv_func_herror+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   cat >conftest.$ac_ext <<_ACEOF
@@ -5021,12 +5021,12 @@ _ACEOF
 cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
-/* Define inet_aton to an innocuous variant, in case <limits.h> declares inet_aton.
+/* Define herror to an innocuous variant, in case <limits.h> declares herror.
    For example, HP-UX 11i <limits.h> declares gettimeofday.  */
-#define inet_aton innocuous_inet_aton
+#define herror innocuous_herror
 
 /* System header to define __stub macros and hopefully few prototypes,
-    which can conflict with char inet_aton (); below.
+    which can conflict with char herror (); below.
     Prefer <limits.h> to <assert.h> if __STDC__ is defined, since
     <limits.h> exists even on freestanding compilers.  */
 
@@ -5036,7 +5036,7 @@ cat >>conftest.$ac_ext <<_ACEOF
 # include <assert.h>
 #endif
 
-#undef inet_aton
+#undef herror
 
 /* Override any GCC internal prototype to avoid an error.
    Use char because int might match the return type of a GCC
@@ -5044,18 +5044,18 @@ cat >>conftest.$ac_ext <<_ACEOF
 #ifdef __cplusplus
 extern "C"
 #endif
-char inet_aton ();
+char herror ();
 /* The GNU C library defines this for functions which it implements
     to always fail with ENOSYS.  Some functions are actually named
     something starting with __ and the normal name is an alias.  */
-#if defined __stub_inet_aton || defined __stub___inet_aton
+#if defined __stub_herror || defined __stub___herror
 choke me
 #endif
 
 int
 main ()
 {
-return inet_aton ();
+return herror ();
   ;
   return 0;
 }
@@ -5078,26 +5078,26 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_func_inet_aton=yes
+  ac_cv_func_herror=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	ac_cv_func_inet_aton=no
+	ac_cv_func_herror=no
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
 fi
-{ echo "$as_me:$LINENO: result: $ac_cv_func_inet_aton" >&5
-echo "${ECHO_T}$ac_cv_func_inet_aton" >&6; }
-if test $ac_cv_func_inet_aton = yes; then
+{ echo "$as_me:$LINENO: result: $ac_cv_func_herror" >&5
+echo "${ECHO_T}$ac_cv_func_herror" >&6; }
+if test $ac_cv_func_herror = yes; then
   :
 else
 
-			{ echo "$as_me:$LINENO: checking for inet_aton in -lresolv" >&5
-echo $ECHO_N "checking for inet_aton in -lresolv... $ECHO_C" >&6; }
-if test "${ac_cv_lib_resolv_inet_aton+set}" = set; then
+			{ echo "$as_me:$LINENO: checking for herror in -lresolv" >&5
+echo $ECHO_N "checking for herror in -lresolv... $ECHO_C" >&6; }
+if test "${ac_cv_lib_resolv_herror+set}" = set; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   ac_check_lib_save_LIBS=$LIBS
@@ -5115,11 +5115,11 @@ cat >>conftest.$ac_ext <<_ACEOF
 #ifdef __cplusplus
 extern "C"
 #endif
-char inet_aton ();
+char herror ();
 int
 main ()
 {
-return inet_aton ();
+return herror ();
   ;
   return 0;
 }
@@ -5142,21 +5142,21 @@ eval "echo \"\$as_me:$LINENO: $ac_try_echo\"") >&5
 	 test ! -s conftest.err
        } && test -s conftest$ac_exeext &&
        $as_test_x conftest$ac_exeext; then
-  ac_cv_lib_resolv_inet_aton=yes
+  ac_cv_lib_resolv_herror=yes
 else
   echo "$as_me: failed program was:" >&5
 sed 's/^/| /' conftest.$ac_ext >&5
 
-	ac_cv_lib_resolv_inet_aton=no
+	ac_cv_lib_resolv_herror=no
 fi
 
 rm -f core conftest.err conftest.$ac_objext conftest_ipa8_conftest.oo \
       conftest$ac_exeext conftest.$ac_ext
 LIBS=$ac_check_lib_save_LIBS
 fi
-{ echo "$as_me:$LINENO: result: $ac_cv_lib_resolv_inet_aton" >&5
-echo "${ECHO_T}$ac_cv_lib_resolv_inet_aton" >&6; }
-if test $ac_cv_lib_resolv_inet_aton = yes; then
+{ echo "$as_me:$LINENO: result: $ac_cv_lib_resolv_herror" >&5
+echo "${ECHO_T}$ac_cv_lib_resolv_herror" >&6; }
+if test $ac_cv_lib_resolv_herror = yes; then
 
 
 	if test -z "$LIBS"; then
