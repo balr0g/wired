@@ -383,12 +383,36 @@ done:
 static wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
 	wi_mutable_string_t		*filepath;
 	DIR						*dir;
-	struct dirent			de, *dep;
+	struct dirent			*de, *dep;
 	wi_file_offset_t		count = 0;
 	
 	dir = opendir(wi_string_cstring(path));
 	
-	if(!dir) {
+	if(dir) {
+		filepath	= wi_mutable_copy(path);
+		de			= wi_malloc(sizeof(struct dirent) + WI_PATH_SIZE);
+		
+		wi_mutable_string_append_cstring(filepath, "/");
+		
+		while(readdir_r(dir, de, &dep) == 0 && dep) {
+			if(dep->d_name[0] != '.') {
+				wi_mutable_string_append_cstring(filepath, dep->d_name);
+				
+				if(!wi_fs_path_is_invisible(filepath))
+					count++;
+				
+				wi_mutable_string_delete_characters_from_index(filepath, wi_string_length(filepath) - strlen(dep->d_name));
+			}
+		}
+		
+		wi_release(filepath);
+
+		wi_free(de);
+
+		closedir(dir);
+		
+		return count;
+	} else {
 		wi_log_warn(WI_STR("Could not open %@: %s"),
 			path, strerror(errno));
 		
@@ -397,27 +421,6 @@ static wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, 
 		
 		return 0;
 	}
-	
-	filepath = wi_mutable_copy(path);
-	
-	wi_mutable_string_append_cstring(filepath, "/");
-	
-	while(readdir_r(dir, &de, &dep) == 0 && dep) {
-		if(dep->d_name[0] != '.') {
-			wi_mutable_string_append_cstring(filepath, dep->d_name);
-			
-			if(!wi_fs_path_is_invisible(filepath))
-				count++;
-			
-			wi_mutable_string_delete_characters_from_index(filepath, wi_string_length(filepath) - strlen(dep->d_name));
-		}
-	}
-	
-	wi_release(filepath);
-
-	closedir(dir);
-	
-	return count;
 }
 
 
