@@ -5,9 +5,10 @@
  * This software is subjet to the conditions detailed in the
  * provided LICENCE file. */
 #define __EXTENSIONS__ 1
+#ifdef __APPLE__
 #define _DARWIN_C_SOURCE 1
-#ifndef MACOSX
-#if !defined(_XOPEN_SOURCE) && !defined(__OpenBSD__) && !defined(__NetBSD__)
+#else
+#if !defined(_XOPEN_SOURCE) && !defined(__sun__) && !defined(__OpenBSD__) && !defined(__NetBSD__)
 #ifndef __cplusplus
 #define _XOPEN_SOURCE 600
 #endif
