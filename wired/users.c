@@ -901,7 +901,7 @@ wi_string_t * wd_user_identifier(wd_user_t *user) {
 	wi_string_t		*identifier;
 	
 	wi_recursive_lock_lock(user->user_lock);
-	identifier = wi_string_with_format(WI_STR("%@/%@/%@"), user->nick, user->login, user->ip);
+	identifier = wi_string_with_format(WI_STR("%#@/%#@/%#@"), user->nick, user->login, user->ip);
 	wi_recursive_lock_unlock(user->user_lock);
 	
 	return identifier;
