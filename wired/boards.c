@@ -508,14 +508,10 @@ static wi_boolean_t wd_boards_get_boards_and_privileges(wi_array_t **boards_out,
 	
 	wi_rwlock_unlock(wd_boards_lock);
 	
-	if(wi_array_count(boards) > 0) {
-		*boards_out			= boards;
-		*privileges_out		= privileges;
+	*boards_out			= boards;
+	*privileges_out		= privileges;
 		
-		return true;
-	}
-	
-	return false;
+	return true;
 }
 
 
