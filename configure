@@ -3825,6 +3825,20 @@ fi
 
 		fi
 
+		if test -d lib; then
+
+	if test -z "$LDFLAGS"; then
+		LDFLAGS="-L/lib"
+	else
+		MATCH=`expr -- "$LDFLAGS" : ".*-L/lib"`
+
+		if test "$MATCH" = "0"; then
+			LDFLAGS="$LDFLAGS -L/lib"
+		fi
+	fi
+
+		fi
+
 		wi_include_extra_library_paths_done="yes"
 	fi
 
