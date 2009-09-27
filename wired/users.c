@@ -804,19 +804,21 @@ wi_boolean_t wd_user_is_subscribed_log(wd_user_t *user) {
 void wd_user_subscribe_path(wd_user_t *user, wi_string_t *path) {
 	wi_string_t		*metapath;
 	
-	if(wd_files_fsevents) {
-		wi_recursive_lock_lock(user->user_lock);
+	wi_recursive_lock_lock(user->user_lock);
 
-		wi_mutable_set_add_data(user->subscribed_paths, path);
+	wi_mutable_set_add_data(user->subscribed_paths, path);
+
+	if(wd_files_fsevents)
 		wi_fsevents_add_path(wd_files_fsevents, path);
 		
-		metapath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PATH));
+	metapath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PATH));
 		
-		wi_mutable_set_add_data(user->subscribed_paths, metapath);
+	wi_mutable_set_add_data(user->subscribed_paths, metapath);
+
+	if(wd_files_fsevents)
 		wi_fsevents_add_path(wd_files_fsevents, metapath);
 
-		wi_recursive_lock_unlock(user->user_lock);
-	}
+	wi_recursive_lock_unlock(user->user_lock);
 }
 
 
@@ -824,19 +826,21 @@ void wd_user_subscribe_path(wd_user_t *user, wi_string_t *path) {
 void wd_user_unsubscribe_path(wd_user_t *user, wi_string_t *path) {
 	wi_string_t		*metapath;
 	
-	if(wd_files_fsevents) {
-		wi_recursive_lock_lock(user->user_lock);
+	wi_recursive_lock_lock(user->user_lock);
 		
-		wi_mutable_set_remove_data(user->subscribed_paths, path);
+	wi_mutable_set_remove_data(user->subscribed_paths, path);
+
+	if(wd_files_fsevents)
 		wi_fsevents_remove_path(wd_files_fsevents, path);
 		
-		metapath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PATH));
+	metapath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PATH));
 		
-		wi_mutable_set_add_data(user->subscribed_paths, metapath);
+	wi_mutable_set_add_data(user->subscribed_paths, metapath);
+
+	if(wd_files_fsevents)
 		wi_fsevents_add_path(wd_files_fsevents, metapath);
 
-		wi_recursive_lock_unlock(user->user_lock);
-	}
+	wi_recursive_lock_unlock(user->user_lock);
 }
 
 
@@ -845,24 +849,24 @@ void wd_user_unsubscribe_paths(wd_user_t *user) {
 	wi_enumerator_t		*enumerator;
 	wi_string_t			*path;
 	
-	if(wd_files_fsevents) {
-		wi_recursive_lock_lock(user->user_lock);
+	wi_recursive_lock_lock(user->user_lock);
 
-		enumerator = wi_array_data_enumerator(wi_set_all_data(user->subscribed_paths));
+	enumerator = wi_array_data_enumerator(wi_set_all_data(user->subscribed_paths));
 		
-		while((path = wi_enumerator_next_data(enumerator))) {
-			wi_retain(path);
+	while((path = wi_enumerator_next_data(enumerator))) {
+		wi_retain(path);
 
-			while(wi_set_contains_data(user->subscribed_paths, path)) {
+		while(wi_set_contains_data(user->subscribed_paths, path)) {
+			if(wd_files_fsevents)
 				wi_fsevents_remove_path(wd_files_fsevents, path);
-				wi_mutable_set_remove_data(user->subscribed_paths, path);
-			}
-			
-			wi_release(path);
+
+			wi_mutable_set_remove_data(user->subscribed_paths, path);
 		}
-		
-		wi_recursive_lock_unlock(user->user_lock);
+			
+		wi_release(path);
 	}
+		
+	wi_recursive_lock_unlock(user->user_lock);
 }
 
 
