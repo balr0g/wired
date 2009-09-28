@@ -780,7 +780,7 @@ void wd_accounts_update_login_time(wd_account_t *account) {
 	
 	new_account = wd_accounts_read_user(wd_account_name(account));
 	
-	if(new_account)
+	if(!new_account)
 		return;
 	
 	wi_mutable_dictionary_set_data_for_key(new_account->values, wi_date(), WI_STR("wired.account.login_time"));
