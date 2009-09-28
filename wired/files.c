@@ -745,7 +745,7 @@ static void wd_files_move_path_delete_callback(wi_string_t *path) {
 
 wi_boolean_t wd_files_link_path(wi_string_t *frompath, wi_string_t *topath, wd_user_t *user, wi_p7_message_t *message) {
 	wi_mutable_string_t		*realfrompath, *realtopath;
-	wi_string_t				*realfromname;
+	wi_string_t				*realfromname, *realpath;
 	wi_fs_stat_t			sb;
 	
 	realfrompath	= wi_autorelease(wi_mutable_copy(wd_files_real_path(frompath, user)));
@@ -770,7 +770,16 @@ wi_boolean_t wd_files_link_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 		return false;
 	}
 	
-	if(!wi_fs_symlink_path(realfrompath, realtopath)) {
+	realpath = wi_fs_real_path_for_path(realfrompath);
+	
+	if(!realpath) {
+		wi_log_warn(WI_STR("Could not get real path for %@: %m"), realfrompath);
+		wd_user_reply_file_errno(user, message);
+
+		return false;
+	}
+	
+	if(!wi_fs_symlink_path(realpath, realtopath)) {
 		wd_user_reply_file_errno(user, message);
 		
 		return false;
