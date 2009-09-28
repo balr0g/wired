@@ -73,7 +73,7 @@ void wd_settings_init(void) {
 		wi_number_with_bool(false),				WI_STR("enable tracker"),
 		WI_STR("files"),						WI_STR("files"),
 		WI_STR("daemon"),						WI_STR("group"),
-		WI_INT32(3600),							WI_STR("index time"),
+		WI_INT32(14400),						WI_STR("index time"),
 		wi_number_with_bool(false),				WI_STR("map port"),
 		WI_STR("Wired Server"),					WI_STR("name"),
 		WI_INT32(4871),							WI_STR("port"),

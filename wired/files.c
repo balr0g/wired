@@ -84,6 +84,8 @@ struct _wd_files_privileges {
 
 static wi_file_offset_t									wd_files_count_path(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 static void												wd_files_delete_path_callback(wi_string_t *);
+static void												wd_files_move_path_copy_callback(wi_string_t *, wi_string_t *);
+static void												wd_files_move_path_delete_callback(wi_string_t *);
 static void												wd_files_move_thread(wi_runtime_instance_t *);
 
 static wi_uinteger_t									wd_files_search_replace_privileges_for_account(char *, wi_uinteger_t, wi_string_t *, wd_account_t *);
@@ -581,6 +583,8 @@ wi_boolean_t wd_files_create_path(wi_string_t *path, wd_file_type_t type, wd_use
 	if(type != WD_FILE_TYPE_DIR)
 		wd_files_set_type(path, type, user, message);
 	
+	wd_files_index_add_file(realpath);
+	
 	return true;
 }
 
@@ -614,7 +618,7 @@ wi_boolean_t wd_files_delete_path(wi_string_t *path, wd_user_t *user, wi_p7_mess
 
 
 static void wd_files_delete_path_callback(wi_string_t *path) {
-	wd_files_index_delete_file(wi_string_substring_from_index(path, wi_string_length(wd_files)));
+	wd_files_index_delete_file(path);
 }
 
 
@@ -669,6 +673,9 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 	if(result) {
 		wd_files_move_comment(frompath, topath, user, message);
 		wd_files_move_label(frompath, topath, user, message);
+		
+		wd_files_index_delete_file(realfrompath);
+		wd_files_index_add_file(realtopath);
 	} else {
 		if(wi_error_code() == EXDEV) {
 			array = wi_array_init_with_data(wi_array_alloc(),
@@ -709,17 +716,29 @@ static void wd_files_move_thread(wi_runtime_instance_t *argument) {
 	realfrompath	= WI_ARRAY(array, 2);
 	realtopath		= WI_ARRAY(array, 3);
 	
-	if(wi_fs_copy_path(realfrompath, realtopath)) {
+	if(wi_fs_copy_path_with_callback(realfrompath, realtopath, wd_files_move_path_copy_callback)) {
 		wd_files_move_comment(frompath, topath, NULL, NULL);
 		wd_files_move_label(frompath, topath, NULL, NULL);
 		
-		if(!wi_fs_delete_path(realfrompath))
+		if(!wi_fs_delete_path_with_callback(realfrompath, wd_files_move_path_delete_callback))
 			wi_log_warn(WI_STR("Could not delete %@: %m"), realfrompath);
 	} else {
 		wi_log_warn(WI_STR("Could not copy %@ to %@: %m"), realfrompath, realtopath);
 	}
 	
 	wi_release(pool);
+}
+
+
+
+static void wd_files_move_path_copy_callback(wi_string_t *frompath, wi_string_t *topath) {
+	wd_files_index_add_file(topath);
+}
+
+
+
+static void wd_files_move_path_delete_callback(wi_string_t *path) {
+	wd_files_index_delete_file(path);
 }
 
 
@@ -756,6 +775,8 @@ wi_boolean_t wd_files_link_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 		
 		return false;
 	}
+	
+	wd_files_index_add_file(realtopath);
 	
 	return true;
 }
@@ -1034,6 +1055,7 @@ static void wd_files_index_thread(wi_runtime_instance_t *argument) {
 			
 			wi_file_seek(file, 0);
 			wi_file_write_buffer(file, &header, sizeof(header));
+			wi_file_close(file);
 			
 			wi_rwlock_wrlock(wd_files_index_lock);
 			
@@ -1344,13 +1366,93 @@ static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_fi
 
 
 void wd_files_index_add_file(wi_string_t *path) {
+	wi_file_t			*file;
+	wi_string_t			*virtualpath;
+	wi_fs_stat_t		sb, lsb;
+	wi_file_offset_t	datasize, rsrcsize;
+	wd_file_label_t		label;
+	wi_uinteger_t		directorycount;
+	wd_file_type_t		type;
+	wi_boolean_t		deleted;
+	
+	virtualpath	= wi_string_substring_from_index(path, wi_string_length(wd_files));
+
+	wi_set_wrlock(wd_files_index_deleted_files);
+
+	deleted = wi_set_contains_data(wd_files_index_deleted_files, virtualpath);
+	
+	if(deleted) {
+		wi_mutable_set_remove_data(wd_files_index_deleted_files, virtualpath);
+	} else {
+		if(wi_lock_trylock(wd_files_indexer_lock)) {
+			if(wi_fs_lstat_path(path, &lsb)) {
+				if(!wi_fs_stat_path(path, &sb))
+					sb = lsb;
+
+				type = wd_files_type_with_stat(path, &sb);
+				
+				switch(type) {
+					case WD_FILE_TYPE_DROPBOX:
+						datasize		= 0;
+						rsrcsize		= 0;
+						directorycount	= 0;
+						break;
+						
+					case WD_FILE_TYPE_DIR:
+					case WD_FILE_TYPE_UPLOADS:
+						datasize		= 0;
+						rsrcsize		= 0;
+						directorycount	= wd_files_count_path(path, NULL, NULL);
+						break;
+						
+					case WD_FILE_TYPE_FILE:
+					default:
+						datasize		= sb.size;
+						rsrcsize		= wi_fs_resource_fork_size_for_path(path);
+						directorycount	= 0;
+						break;
+				}
+				
+				label = wd_files_label(path);
+				
+				wi_rwlock_wrlock(wd_files_index_lock);
+			
+				file = wi_file_for_updating(wd_files_index_path);
+				
+				wd_files_index_write_entry(file,
+										   virtualpath,
+										   type,
+										   datasize,
+										   rsrcsize,
+										   directorycount,
+										   sb.birthtime,
+										   sb.mtime,
+										   S_ISLNK(lsb.mode),
+										   (type == WD_FILE_TYPE_FILE && sb.mode & 0111),
+										   label,
+										   sb.dev == wd_files_root_volume ? 0 : sb.dev);
+			
+				wi_file_close(file);
+				
+				wi_rwlock_unlock(wd_files_index_lock);
+			}
+
+			wi_lock_unlock(wd_files_indexer_lock);
+		}
+	}
+
+	wi_set_unlock(wd_files_index_deleted_files);
 }
 
 
 
 void wd_files_index_delete_file(wi_string_t *path) {
+	wi_string_t		*virtualpath;
+	
+	virtualpath	= wi_string_substring_from_index(path, wi_string_length(wd_files));
+	
 	wi_set_wrlock(wd_files_index_deleted_files);
-	wi_mutable_set_add_data(wd_files_index_deleted_files, path);
+	wi_mutable_set_add_data(wd_files_index_deleted_files, virtualpath);
 	wi_set_unlock(wd_files_index_deleted_files);
 }
 

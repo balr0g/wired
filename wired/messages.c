@@ -1635,9 +1635,6 @@ static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 	}
 	
 	if(wd_files_move_path(properfrompath, propertopath, user, message)) {
-		wd_files_index_delete_file(properfrompath);
-		wd_files_index_add_file(propertopath);
-
 		wi_log_info(WI_STR("%@ moved \"%@\" to \"%@\""),
 			wd_user_identifier(user),
 			wd_files_virtual_path(properfrompath, user),
@@ -1965,8 +1962,6 @@ static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
 	}
 	
 	if(wd_files_delete_path(properpath, user, message)) {
-		wd_files_index_delete_file(properpath);
-		
 		wi_log_info(WI_STR("%@ deleted \"%@\""),
 			wd_user_identifier(user),
 			wd_files_virtual_path(properpath, user));
