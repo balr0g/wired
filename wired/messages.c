@@ -2428,8 +2428,14 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 
 
 static void wd_message_account_delete_user(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*name;
-	wd_account_t	*account;
+	wi_enumerator_t		*enumerator;
+	wi_array_t			*users;
+	wi_string_t			*name;
+	wd_account_t		*account;
+	wd_user_t			*peer;
+	wi_p7_boolean_t		disconnect_users;
+	
+	wi_p7_message_get_bool_for_name(message, &disconnect_users, WI_STR("wired.account.disconnect_users"));
 	
 	if(!wd_account_account_delete_users(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -2445,13 +2451,26 @@ static void wd_message_account_delete_user(wd_user_t *user, wi_p7_message_t *mes
 		
 		return;
 	}
+	
+	users = wd_users_users_with_login(name);
+	
+	if(!disconnect_users && wi_array_count(users) > 0) {
+		wd_user_reply_error(user, WI_STR("wired.error.account_in_use"), message);
+		
+		return;
+	}
 
 	if(wd_accounts_delete_user(name, user, message)) {
 		wi_log_info(WI_STR("%@ deleted the user \"%@\""),
 			wd_user_identifier(user),
 			name);
-		
+	
 		wd_user_reply_okay(user, message);
+	
+		enumerator = wi_array_data_enumerator(users);
+	
+		while((peer = wi_enumerator_next_data(enumerator)))
+			wd_user_set_state(peer, WD_USER_DISCONNECTED);
 	}
 }
 

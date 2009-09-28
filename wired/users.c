@@ -290,6 +290,29 @@ wd_user_t * wd_users_user_with_id(wd_uid_t id) {
 
 
 
+wi_array_t * wd_users_users_with_login(wi_string_t *name) {
+	wi_enumerator_t			*enumerator;
+	wi_mutable_array_t		*users;
+	wd_user_t				*user;
+	
+	users = wi_mutable_array();
+
+	wi_dictionary_rdlock(wd_users);
+	
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((user = wi_enumerator_next_data(enumerator))) {
+		if(wi_is_equal(wd_user_login(user), name))
+			wi_mutable_array_add_data(users, user);
+	}
+
+	wi_dictionary_unlock(wd_users);
+	
+	return users;
+}
+
+
+
 void wd_users_reply_users(wd_user_t *user, wi_p7_message_t *message) {
 	wi_enumerator_t				*enumerator;
 	wi_p7_message_t				*reply;

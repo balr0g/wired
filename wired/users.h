@@ -70,6 +70,7 @@ void									wd_users_add_user(wd_user_t *);
 void									wd_users_remove_user(wd_user_t *);
 void									wd_users_remove_all_users(void);
 wd_user_t *								wd_users_user_with_id(wd_uid_t);
+wi_array_t *							wd_users_users_with_login(wi_string_t *);
 void									wd_users_reply_users(wd_user_t *, wi_p7_message_t *);
 
 wd_user_t *								wd_user_with_p7_socket(wi_p7_socket_t *);
