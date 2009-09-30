@@ -41,8 +41,8 @@ files = files
 
 # If set, indexes files after this many seconds. Without it, no
 # automatic indexing takes place.
-# (default 3600)
-index time = 3600
+# (default 14400)
+index time = 14400
 
 
 ### TRANSFERS #########################################################
@@ -74,8 +74,8 @@ register = no
 # startup, and then periodically informed with status updates. The
 # path of the URL is the category to register as. Can be specified more
 # than once, for each tracker that the server should register with.
-# (default "wiredtracker://wired.zankasoftware.com/")
-tracker = wiredtracker://wired.zankasoftware.com/
+# (default "wired://wired.zankasoftware.com/")
+tracker = wired://wired.zankasoftware.com/
 
 # IP address to send to the tracker. If this is not set, the tracker
 # will automatically register the server as the originating IP address.
