@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-  <array>
+  <dict>
+    <key>guest</key>
     <dict>
       <key>wired.account.board.add_posts</key>
       <true/>
@@ -15,6 +16,8 @@
       <true/>
       <key>wired.account.file.list_files</key>
       <true/>
+      <key>wired.account.file.search_files</key>
+      <true/>
       <key>wired.account.full_name</key>
       <string>Guest</string>
       <key>wired.account.group</key>
@@ -25,8 +28,6 @@
       <date>2009-03-20T14:18:09Z</date>
       <key>wired.account.message.send_messages</key>
       <true/>
-      <key>wired.account.name</key>
-      <string>guest</string>
       <key>wired.account.password</key>
       <string>da39a3ee5e6b4b0d3255bfef95601890afd80709</string>
       <key>wired.account.tracker.list_servers</key>
@@ -34,6 +35,7 @@
       <key>wired.account.user.get_info</key>
       <true/>
     </dict>
+    <key>admin</key>
     <dict>
       <key>wired.account.account.change_password</key>
       <true/>
@@ -69,9 +71,11 @@
       <true/>
       <key>wired.account.board.delete_boards</key>
       <true/>
-      <key>wired.account.board.delete_posts</key>
-      <true/>
       <key>wired.account.board.delete_threads</key>
+      <true/>
+      <key>wired.account.board.delete_all_posts</key>
+      <true/>
+      <key>wired.account.board.delete_own_posts</key>
       <true/>
       <key>wired.account.board.edit_all_posts</key>
       <true/>
@@ -89,6 +93,8 @@
       <true/>
       <key>wired.account.chat.create_chats</key>
       <true/>
+      <key>wired.account.chat.kick_users</key>
+      <true/>
       <key>wired.account.chat.set_topic</key>
       <true/>
       <key>wired.account.file.access_all_dropboxes</key>
@@ -103,6 +109,8 @@
       <true/>
       <key>wired.account.file.list_files</key>
       <true/>
+      <key>wired.account.file.search_files</key>
+      <true/>
       <key>wired.account.file.move_files</key>
       <true/>
       <key>wired.account.file.rename_files</key>
@@ -114,6 +122,8 @@
       <key>wired.account.file.set_permissions</key>
       <true/>
       <key>wired.account.file.set_type</key>
+      <true/>
+      <key>wired.account.file.set_label</key>
       <true/>
       <key>wired.account.files</key>
       <string></string>
@@ -131,8 +141,6 @@
       <true/>
       <key>wired.account.message.send_messages</key>
       <true/>
-      <key>wired.account.name</key>
-      <string>admin</string>
       <key>wired.account.password</key>
       <string>da39a3ee5e6b4b0d3255bfef95601890afd80709</string>
       <key>wired.account.settings.get_settings</key>
@@ -157,12 +165,12 @@
       <true/>
       <key>wired.account.user.cannot_set_nick</key>
       <false/>
+      <key>wired.account.user.disconnect_users</key>
+      <true/>
       <key>wired.account.user.get_info</key>
       <true/>
       <key>wired.account.user.get_users</key>
       <true/>
-      <key>wired.account.user.kick_users</key>
-      <true/>
     </dict>
-  </array>
+  </dict>
 </plist>
