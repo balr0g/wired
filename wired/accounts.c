@@ -418,7 +418,7 @@ wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *pas
 	
 	wi_mutable_dictionary_set_data_for_key(newaccount->values, password, WI_STR("wired.account.password"));
 	
-	return wd_accounts_write_account(account, WD_ACCOUNT_USER, NULL, user, message);
+	return wd_accounts_write_account(newaccount, WD_ACCOUNT_USER, NULL, user, message);
 }
 
 
@@ -530,7 +530,7 @@ void wd_accounts_update_login_time(wd_account_t *account) {
 	
 	wi_mutable_dictionary_set_data_for_key(newaccount->values, wi_date(), WI_STR("wired.account.login_time"));
 	
-	wd_accounts_write_account(account, WD_ACCOUNT_USER, NULL, NULL, NULL);
+	wd_accounts_write_account(newaccount, WD_ACCOUNT_USER, NULL, NULL, NULL);
 }
 
 
