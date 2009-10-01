@@ -64,6 +64,7 @@ static void						wd_block_signals(void);
 static int						wd_wait_signals(void);
 static void						wd_signal_thread(wi_runtime_instance_t *);
 static void						wd_signal_crash(int);
+static void						wd_signal_pipe(int);
 
 static void						wd_schedule(void);
 
@@ -293,7 +294,7 @@ int main(int argc, const char **argv) {
 	wi_pool_drain(pool);
 	
 	wd_signal_thread(NULL);
-
+	
 	wd_users_remove_all_users();
 	wd_cleanup();
 	wi_log_close();
@@ -430,6 +431,7 @@ static void wd_signals_init(void) {
 	signal(SIGFPE, wd_signal_crash);
 	signal(SIGBUS, wd_signal_crash);
 	signal(SIGSEGV, wd_signal_crash);
+	signal(SIGPIPE, wd_signal_pipe);
 }
 
 
@@ -512,11 +514,17 @@ static void wd_signal_crash(int sigraised) {
 
 
 
+static void wd_signal_pipe(int sigraised) {
+}
+
+
+
 #pragma mark -
 
 static void wd_schedule(void) {
 	wd_files_schedule();
 	wd_servers_schedule();
 	wd_trackers_schedule();
+	wd_transfers_schedule();
 	wd_users_schedule();
 }
