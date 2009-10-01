@@ -2315,7 +2315,7 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 
 
 static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*name, *new_name, *error;
+	wi_string_t		*name, *newname, *error;
 	wd_account_t	*account;
 
 	if(!wd_account_account_edit_users(wd_user_account(user))) {
@@ -2325,10 +2325,10 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	}
 	
 	name		= wi_p7_message_string_for_name(message, WI_STR("wired.account.name"));
-	new_name	= wi_p7_message_string_for_name(message, WI_STR("wired.account.new_name"));
+	newname		= wi_p7_message_string_for_name(message, WI_STR("wired.account.new_name"));
 	
-	if(new_name && !wi_is_equal(name, new_name)) {
-		account = wd_accounts_read_user(wi_p7_message_string_for_name(message, new_name));
+	if(newname && !wi_is_equal(name, newname)) {
+		account = wd_accounts_read_user(wi_p7_message_string_for_name(message, newname));
 		
 		if(account) {
 			wd_user_reply_error(user, WI_STR("wired.error.account_exists"), message);
@@ -2356,7 +2356,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	}
 
 	if(wd_accounts_edit_user(account, user, message)) {
-		wd_boards_rename_owner(name, new_name);
+		wd_boards_rename_owner(name, newname);
 		
 		wi_log_info(WI_STR("%@ modified the user \"%@\""),
 			wd_user_identifier(user),
@@ -2369,7 +2369,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 
 
 static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*name, *new_name, *error;
+	wi_string_t		*name, *newname, *error;
 	wd_account_t	*account;
 
 	if(!wd_account_account_edit_groups(wd_user_account(user))) {
@@ -2379,10 +2379,10 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 	}
 	
 	name		= wi_p7_message_string_for_name(message, WI_STR("wired.account.name"));
-	new_name	= wi_p7_message_string_for_name(message, WI_STR("wired.account.new_name"));
+	newname		= wi_p7_message_string_for_name(message, WI_STR("wired.account.new_name"));
 	
-	if(new_name && !wi_is_equal(name, new_name)) {
-		account = wd_accounts_read_group(wi_p7_message_string_for_name(message, new_name));
+	if(newname && !wi_is_equal(name, newname)) {
+		account = wd_accounts_read_group(wi_p7_message_string_for_name(message, newname));
 		
 		if(account) {
 			wd_user_reply_error(user, WI_STR("wired.error.account_exists"), message);
@@ -2410,7 +2410,7 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 	}
 
 	if(wd_accounts_edit_group(account, user, message)) {
-		wd_boards_rename_group(name, new_name);
+		wd_boards_rename_group(name, newname);
 		
 		wi_log_info(WI_STR("%@ modified the group \"%@\""),
 			wd_user_identifier(user),
@@ -2455,7 +2455,7 @@ static void wd_message_account_delete_user(wd_user_t *user, wi_p7_message_t *mes
 		return;
 	}
 
-	if(wd_accounts_delete_user(name, user, message)) {
+	if(wd_accounts_delete_user(account, user, message)) {
 		wi_log_info(WI_STR("%@ deleted the user \"%@\""),
 			wd_user_identifier(user),
 			name);
@@ -2490,7 +2490,7 @@ static void wd_message_account_delete_group(wd_user_t *user, wi_p7_message_t *me
 		return;
 	}
 
-	if(wd_accounts_delete_group(name, user, message)) {
+	if(wd_accounts_delete_group(account, user, message)) {
 		wi_log_info(WI_STR("%@ deleted the group \"%@\""),
 			wd_user_identifier(user),
 			name);

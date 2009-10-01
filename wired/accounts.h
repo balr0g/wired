@@ -46,9 +46,8 @@ wi_boolean_t						wd_accounts_create_user(wd_account_t *, wd_user_t *, wi_p7_mes
 wi_boolean_t						wd_accounts_create_group(wd_account_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t						wd_accounts_edit_user(wd_account_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t						wd_accounts_edit_group(wd_account_t *, wd_user_t *, wi_p7_message_t *);
-wi_boolean_t						wd_accounts_delete_user(wi_string_t *, wd_user_t *, wi_p7_message_t *);
-wi_boolean_t						wd_accounts_delete_group(wi_string_t *, wd_user_t *, wi_p7_message_t *);
-wi_boolean_t						wd_accounts_rename_group(wi_string_t *, wi_string_t *);
+wi_boolean_t						wd_accounts_delete_user(wd_account_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t						wd_accounts_delete_group(wd_account_t *, wd_user_t *, wi_p7_message_t *);
 void								wd_accounts_update_login_time(wd_account_t *);
 void								wd_accounts_add_download_statistics(wd_account_t *, wi_boolean_t, wi_file_offset_t);
 void								wd_accounts_add_upload_statistics(wd_account_t *, wi_boolean_t, wi_file_offset_t);
@@ -69,6 +68,7 @@ void								wd_account_reply_group_account(wd_account_t *, wd_user_t *, wi_p7_me
 wi_boolean_t						wd_account_verify_privileges_for_user(wd_account_t *, wd_user_t *, wi_string_t **);
 
 wi_string_t *						wd_account_name(wd_account_t *);
+wi_string_t *						wd_account_new_name(wd_account_t *);
 wi_string_t *						wd_account_full_name(wd_account_t *);
 wi_date_t *							wd_account_creation_time(wd_account_t *);
 wi_date_t *							wd_account_modification_time(wd_account_t *);
