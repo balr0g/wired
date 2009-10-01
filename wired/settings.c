@@ -201,7 +201,7 @@ wi_boolean_t wd_settings_set_settings(wd_user_t *user, wi_p7_message_t *message)
 	if(!wi_config_write_file(wd_config)) {
 		wi_log_err(WI_STR("Could not write config: %m"));
 
-		wd_user_reply_internal_error(user, message);
+		wd_user_reply_internal_error(user, wi_error_string(), message);
 		
 		return false;
 	}

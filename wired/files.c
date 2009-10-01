@@ -545,7 +545,7 @@ void wd_files_reply_preview(wi_string_t *path, wd_user_t *user, wi_p7_message_t 
 	
 	if(sb.size > (10 * 1024 * 1024) - (10 * 1024)) {
 		wi_log_warn(WI_STR("Could not preview %@: Too large"), realpath);
-		wd_user_reply_internal_error_with_description(user, WI_STR("File too large to preview"), message);
+		wd_user_reply_internal_error(user, WI_STR("File too large to preview"), message);
 		
 		return;
 	}
@@ -689,7 +689,7 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 			
 			if(!result) {
 				wi_log_err(WI_STR("Could not create a copy thread: %m"));
-				wd_user_reply_internal_error(user, message);
+				wd_user_reply_internal_error(user, wi_error_string(), message);
 			}
 			
 			wi_release(array);
@@ -1723,7 +1723,7 @@ wi_boolean_t wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_us
 	if(wi_fs_path_exists(realpath, NULL)) {
 		if(!wi_fs_set_finder_comment_for_path(comment, realpath)) {
 			wi_log_err(WI_STR("Could not set Finder comment: %m"));
-			wd_user_reply_internal_error(user, message);
+			wd_user_reply_internal_error(user, wi_error_string(), message);
 			
 			return false;
 		}
@@ -1860,7 +1860,7 @@ wi_boolean_t wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_use
 	if(wi_fs_path_exists(realpath, NULL)) {
 		if(!wi_fs_set_finder_label_for_path(label, realpath)) {
 			wi_log_err(WI_STR("Could not set Finder label: %m"));
-			wd_user_reply_internal_error(user, message);
+			wd_user_reply_internal_error(user, wi_error_string(), message);
 			
 			return false;
 		}
@@ -1918,8 +1918,8 @@ wi_boolean_t wd_files_remove_label(wi_string_t *path, wd_user_t *user, wi_p7_mes
 
 	if(wi_fs_path_exists(realpath, NULL)) {
 		if(!wi_fs_set_finder_label_for_path(WI_FS_FINDER_LABEL_NONE, realpath)) {
-			wi_log_err(WI_STR("Could not set Finder label: %m"));
-			wd_user_reply_internal_error(user, message);
+			wi_log_err(WI_STR("Could not remove Finder label: %m"));
+			wd_user_reply_internal_error(user, wi_error_string(), message);
 			
 			return false;
 		}

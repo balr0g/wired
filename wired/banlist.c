@@ -185,7 +185,7 @@ wi_boolean_t wd_banlist_add_ban(wi_string_t *ip, wi_date_t *expiration_date, wd_
 			wi_dictionary_unlock(wd_bans);
 		} else {
 			wi_log_err(WI_STR("Ban has negative expiration date"), wd_banlist_path);
-			wd_user_reply_internal_error_with_description(user, WI_STR("Ban has negative expiration date"), message);
+			wd_user_reply_internal_error(user, WI_STR("Ban has negative expiration date"), message);
 		}
 	} else {
 		wi_rwlock_wrlock(wd_banlist_lock);
@@ -202,7 +202,7 @@ wi_boolean_t wd_banlist_add_ban(wi_string_t *ip, wi_date_t *expiration_date, wd_
 			}
 		} else {
 			wi_log_err(WI_STR("Could not open %@: %m"), wd_banlist_path);
-			wd_user_reply_internal_error(user, message);
+			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 		
 		wi_rwlock_unlock(wd_banlist_lock);
@@ -241,7 +241,7 @@ wi_boolean_t wd_banlist_delete_ban(wi_string_t *ip, wi_date_t *expiration_date, 
 				wd_user_reply_error(user, WI_STR("wired.error.ban_not_found"), message);
 		} else {
 			wi_log_err(WI_STR("Could not open %@: %m"), wd_banlist_path);
-			wd_user_reply_internal_error(user, message);
+			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 		
 		wi_rwlock_unlock(wd_banlist_lock);

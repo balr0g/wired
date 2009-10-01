@@ -411,7 +411,7 @@ wi_boolean_t wd_accounts_change_password(wd_account_t *account, wi_string_t *pas
 	newaccount = wd_accounts_read_user(wd_account_name(account));
 	
 	if(!newaccount) {
-		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+		wd_user_reply_internal_error(user, NULL, message);
 		
 		return false;
 	}
@@ -938,11 +938,11 @@ static wi_boolean_t wd_accounts_write_account(wd_account_t *account, wd_account_
 			wi_log_err(WI_STR("Could not write accounts to %@: %m"), path);
 			
 			if(user)
-				wd_user_reply_internal_error(user, message);
+				wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 	} else {
 		if(user)
-			wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+			wd_user_reply_internal_error(user, NULL, message);
 	}
 	
 	if(type == WD_ACCOUNT_USER)
@@ -984,11 +984,11 @@ static wi_boolean_t wd_accounts_delete_account(wd_account_t *account, wd_account
 			wi_log_err(WI_STR("Could not write accounts to %@: %m"));
 			
 			if(user)
-				wd_user_reply_internal_error(user, message);
+				wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 	} else {
 		if(user)
-			wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+			wd_user_reply_internal_error(user, NULL, message);
 	}
 	
 	if(type == WD_ACCOUNT_USER)
@@ -1179,7 +1179,7 @@ void wd_accounts_reply_user_list(wd_user_t *user, wi_p7_message_t *message) {
 		reply = wi_p7_message_with_name(WI_STR("wired.account.user_list.done"), wd_p7_spec);
 		wd_user_reply_message(user, reply, message);
 	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+		wd_user_reply_internal_error(user, NULL, message);
 	}
 	
 	wi_recursive_lock_unlock(wd_users_lock);
@@ -1215,7 +1215,7 @@ void wd_accounts_reply_group_list(wd_user_t *user, wi_p7_message_t *message) {
 		reply = wi_p7_message_with_name(WI_STR("wired.account.group_list.done"), wd_p7_spec);
 		wd_user_reply_message(user, reply, message);
 	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.internal_error"), message);
+		wd_user_reply_internal_error(user, NULL, message);
 	}
 	
 	wi_recursive_lock_unlock(wd_groups_lock);

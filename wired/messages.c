@@ -417,7 +417,7 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 		wd_user_reply_message(user, reply, message);
 		
 		wi_log_info(WI_STR("Login from %@ failed: Banned"),
-					wd_user_identifier(user));
+			wd_user_identifier(user));
 		
 		return;
 	}
@@ -428,7 +428,7 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 		wd_user_reply_error(user, WI_STR("wired.error.login_failed"), message);
 		
 		wi_log_info(WI_STR("Login from %@ failed: No such account"),
-					wd_user_identifier(user));
+			wd_user_identifier(user));
 		
 		return;
 	}
@@ -439,13 +439,13 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 		wd_user_reply_error(user, WI_STR("wired.error.login_failed"), message);
 		
 		wi_log_info(WI_STR("Login from %@ failed: Wrong password"),
-					wd_user_identifier(user));
+			wd_user_identifier(user));
 		
 		return;
 	}
 	
 	wi_log_info(WI_STR("Login from %@ using %@ succeeded"),
-				wd_user_identifier(user), wd_client_info_string(wd_user_client_info(user)));
+		wd_user_identifier(user), wd_client_info_string(wd_user_client_info(user)));
 	
 	if(wd_account_user_cannot_set_nick(account) || !wd_user_nick(user))
 		wd_user_set_nick(user, login);
