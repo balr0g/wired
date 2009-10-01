@@ -616,6 +616,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 	wi_pool_t			*pool;
 	wi_p7_message_t		*message;
 	wi_address_t		*address;
+	wi_cipher_t			*cipher;
 	wi_string_t			*ip;
 	wi_data_t			*data;
 	char				buffer[WI_SOCKET_BUFFER_SIZE];
@@ -641,13 +642,18 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 
 			continue;
 		}
-	
-		data = wi_rsa_decrypt(wd_rsa, wi_data_with_bytes(buffer, bytes));
 		
-		if(!data) {
-			wi_log_err(WI_STR("Could not decrypt data from %@: %m"), ip);
+		data = wi_data_with_bytes(buffer, bytes);
+		cipher = wd_servers_cipher_for_ip(ip);
+		
+		if(cipher) {
+			data = wi_cipher_decrypt(cipher, data);
+			
+			if(!data) {
+				wi_log_err(WI_STR("Could not decrypt data from %@: %m"), ip);
 
-			continue;
+				continue;
+			}
 		}
 		
 		message = wi_p7_message_with_data(data, WI_P7_BINARY, wd_p7_spec);

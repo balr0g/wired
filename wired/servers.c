@@ -49,6 +49,8 @@ struct _wd_server {
 	wi_time_interval_t					register_time;
 	wi_time_interval_t					update_time;
 	
+	wi_cipher_t							*cipher;
+	
 	wi_boolean_t						tracker;
 	wi_string_t							*category;
 	wi_mutable_string_t					*url;
@@ -219,7 +221,7 @@ static wd_server_t * wd_servers_server_with_token(wi_uuid_t *token) {
 
 
 
-void wd_servers_add_stats_for_server(wd_server_t *server) {
+static void wd_servers_add_stats_for_server(wd_server_t *server) {
 	wi_lock_lock(wd_status_lock);
 	wd_tracker_current_servers++;
 	wd_tracker_current_users += server->users;
@@ -231,13 +233,39 @@ void wd_servers_add_stats_for_server(wd_server_t *server) {
 
 
 
-void wd_servers_remove_stats_for_server(wd_server_t *server) {
+static void wd_servers_remove_stats_for_server(wd_server_t *server) {
 	wi_lock_lock(wd_status_lock);
 	wd_tracker_current_servers--;
 	wd_tracker_current_users -= server->users;
 	wd_tracker_current_files -= server->files_count;
 	wd_tracker_current_size -= server->files_size;
 	wi_lock_unlock(wd_status_lock);
+}
+
+
+
+#pragma mark -
+
+wi_cipher_t * wd_servers_cipher_for_ip(wi_string_t *ip) {
+	wi_enumerator_t	*enumerator;
+	wi_cipher_t		*cipher = NULL;
+	wd_server_t		*server;
+
+	wi_dictionary_rdlock(wd_servers);
+	
+	enumerator = wi_dictionary_data_enumerator(wd_servers);
+	
+	while((server = wi_enumerator_next_data(enumerator))) {
+		if(wi_is_equal(server->ip, ip)) {
+			cipher = wi_autorelease(wi_retain(server->cipher));
+
+			break;
+		}
+	}
+
+	wi_dictionary_unlock(wd_servers);
+
+	return cipher;
 }
 
 
@@ -261,7 +289,7 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 	if(wi_address_family(address) == WI_ADDRESS_IPV6)
 		wi_mutable_string_append_format(server->url, WI_STR("[%@]"), server->ip);
 	else
-		wi_mutable_string_append_string(server->url,server->ip);
+		wi_mutable_string_append_string(server->url, server->ip);
 	
 	if(server->port != WD_SERVER_PORT)
 		wi_mutable_string_append_format(server->url, WI_STR(":%u/"), server->port);
@@ -274,6 +302,8 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 		wi_release(server->category);
 		server->category = wi_retain(WI_STR(""));
 	}
+	
+	server->cipher = wi_retain(wi_p7_socket_cipher(wd_user_p7_socket(user)));
 	
 	existing_server = wd_servers_server_equal_to_server(server);
 	
@@ -404,6 +434,9 @@ static void wd_server_dealloc(wi_runtime_instance_t *instance) {
 	wd_server_t		*server = instance;
 	
 	wi_release(server->token);
+	
+	wi_release(server->cipher);
+	
 	wi_release(server->category);
 	wi_release(server->ip);
 	wi_release(server->url);

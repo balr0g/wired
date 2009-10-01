@@ -38,6 +38,8 @@ void								wd_servers_init(void);
 void								wd_servers_apply_settings(void);
 void								wd_servers_schedule(void);
 
+wi_cipher_t *						wd_servers_cipher_for_ip(wi_string_t *);
+
 void								wd_servers_register_server(wd_user_t *, wi_p7_message_t *);
 wi_boolean_t						wd_servers_update_server(wd_user_t *, wi_p7_message_t *);
 void								wd_servers_reply_categories(wd_user_t *, wi_p7_message_t *);

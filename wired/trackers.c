@@ -39,7 +39,7 @@
 #include "version.h"
 
 #define WD_TRACKERS_REGISTER_INTERVAL	3600.0
-#define WD_TRACKERS_UPDATE_INTERVAL		60.0
+#define WD_TRACKERS_UPDATE_INTERVAL		6.0
 
 
 struct _wd_tracker {
@@ -49,7 +49,7 @@ struct _wd_tracker {
 
 	wi_boolean_t						active;
 
-	wi_rsa_t							*public_key;
+	wi_cipher_t							*cipher;
 	wi_address_t						*address;
 
 	wi_array_t							*addresses;
@@ -403,15 +403,7 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 			break;
 		}
 		
-		tracker->public_key = wi_retain(wi_p7_socket_public_key(p7_socket));
-
-		if(!tracker->public_key) {
-			wi_log_err(WI_STR("Could not get public key from the tracker %@: %m"),
-				tracker->host);
-			
-			break;
-		}
-		
+		tracker->cipher		= wi_retain(wi_p7_socket_cipher(p7_socket));
 		tracker->token		= wi_retain(wi_p7_message_uuid_for_name(message, WI_STR("wired.tracker.token")));
 		tracker->active		= true;
 		tracker->address	= address;
@@ -451,13 +443,16 @@ static void wd_tracker_update(wd_tracker_t *tracker) {
 	wi_p7_message_set_uint64_for_name(message, wd_files_size, WI_STR("wired.info.files.size"));
 
 	data = wi_p7_message_data_with_serialization(message, WI_P7_BINARY);
-	data = wi_rsa_encrypt(tracker->public_key, data);
 	
-	if(!data) {
-		wi_log_err(WI_STR("Could not encrypt message to tracker %@: %m"),
-			tracker->host);
-		
-		return;
+	if(tracker->cipher) {
+		data = wi_cipher_encrypt(tracker->cipher, data);
+	
+		if(!data) {
+			wi_log_err(WI_STR("Could not encrypt message to tracker %@: %m"),
+				tracker->host);
+			
+			return;
+		}
 	}
 	
 	bytes = wi_socket_sendto_data(socket, data);
@@ -568,14 +563,18 @@ static wd_tracker_t * wd_tracker_init_with_url(wd_tracker_t *tracker, wi_url_t *
 static void wd_tracker_dealloc(wi_runtime_instance_t *instance) {
 	wd_tracker_t		*tracker = instance;
 
+	wi_release(tracker->register_lock);
+
+	wi_release(tracker->cipher);
+	wi_release(tracker->address);
+
 	wi_release(tracker->addresses);
+	
 	wi_release(tracker->host);
 	wi_release(tracker->user);
 	wi_release(tracker->password);
 	wi_release(tracker->category);
 	wi_release(tracker->token);
-
-	wi_release(tracker->register_lock);
 }
 
 
