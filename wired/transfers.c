@@ -112,9 +112,6 @@ void wd_transfers_init(void) {
 		0, wi_dictionary_default_key_callbacks, wi_dictionary_null_value_callbacks);
 	
 	wd_transfers_queue_lock = wi_condition_lock_init_with_condition(wi_condition_lock_alloc(), 0);
-	
-	if(!wi_thread_create_thread(wd_transfers_queue_thread, NULL))
-		wi_log_fatal(WI_STR("Could not create a transfers queue thread: %m"));
 }
 
 
@@ -124,6 +121,13 @@ void wd_transfers_apply_settings(wi_set_t *changes) {
 	wd_transfers_total_uploads			= wi_config_integer_for_name(wd_config, WI_STR("total uploads"));
 	wd_transfers_total_download_speed	= wi_config_integer_for_name(wd_config, WI_STR("total download speed"));
 	wd_transfers_total_upload_speed		= wi_config_integer_for_name(wd_config, WI_STR("total upload speed"));
+}
+
+
+
+void wd_transfers_schedule(void) {
+	if(!wi_thread_create_thread(wd_transfers_queue_thread, NULL))
+		wi_log_fatal(WI_STR("Could not create a transfers queue thread: %m"));
 }
 
 
@@ -317,6 +321,9 @@ static wi_boolean_t wd_transfers_run_upload(wd_transfer_t *transfer, wd_user_t *
 		reply = wi_p7_socket_read_message(wd_user_p7_socket(user), 30.0);
 		
 		if(!reply)
+			return false;
+		
+		if(!wi_p7_spec_verify_message(wd_p7_spec, reply))
 			return false;
 		
 		if(wi_is_equal(wi_p7_message_name(reply), WI_STR("wired.transfer.upload")))
@@ -523,15 +530,34 @@ wi_boolean_t wd_transfers_run_transfer(wd_transfer_t *transfer, wd_user_t *user,
 	if(user_state == WD_USER_LOGGED_IN && state != WI_SOCKET_ERROR) {
 		transfer->state = WD_TRANSFER_RUNNING;
 		
-		if(transfer->type == WD_TRANSFER_DOWNLOAD)
+		if(transfer->type == WD_TRANSFER_DOWNLOAD) {
 			result = wd_transfers_run_download(transfer, user, message);
-		else
+			
+			if(!result) {
+				wi_log_warn(WI_STR("Could not process download for %@: %m"),
+					wd_user_identifier(user));
+			}
+		} else {
 			result = wd_transfers_run_upload(transfer, user, message);
+			
+			if(!result) {
+				wi_log_warn(WI_STR("Could not process upload for %@: %m"),
+					wd_user_identifier(user));
+			}
+		}
 		
 		wi_condition_lock_lock(transfer->finished_lock);
 		wi_condition_lock_unlock_with_condition(transfer->finished_lock, 1);
 	} else {
 		result = false;
+
+		if(transfer->type == WD_TRANSFER_DOWNLOAD) {
+			wi_log_warn(WI_STR("Could not process download for %@: %m"),
+				wd_user_identifier(user));
+		} else {
+			wi_log_warn(WI_STR("Could not process upload for %@: %m"),
+				wd_user_identifier(user));
+		}
 	}
 	
 	wd_transfers_add_or_remove_transfer(transfer, false);

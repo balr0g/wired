@@ -81,6 +81,7 @@ typedef struct _wd_transfer				wd_transfer_t;
 
 void									wd_transfers_init(void);
 void									wd_transfers_apply_settings(wi_set_t *);
+void									wd_transfers_schedule(void);
 
 wi_boolean_t							wd_transfers_run_transfer(wd_transfer_t *, wd_user_t *, wi_p7_message_t *);
 void									wd_transfers_remove_user(wd_user_t *, wi_boolean_t);
