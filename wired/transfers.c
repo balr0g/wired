@@ -121,6 +121,9 @@ void wd_transfers_apply_settings(wi_set_t *changes) {
 	wd_transfers_total_uploads			= wi_config_integer_for_name(wd_config, WI_STR("total uploads"));
 	wd_transfers_total_download_speed	= wi_config_integer_for_name(wd_config, WI_STR("total download speed"));
 	wd_transfers_total_upload_speed		= wi_config_integer_for_name(wd_config, WI_STR("total upload speed"));
+
+	wi_condition_lock_lock(wd_transfers_queue_lock);	
+	wi_condition_lock_unlock_with_condition(wd_transfers_queue_lock, 1);
 }
 
 
