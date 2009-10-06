@@ -563,7 +563,8 @@ wi_boolean_t wd_transfers_run_transfer(wd_transfer_t *transfer, wd_user_t *user,
 		}
 	}
 	
-	wd_transfers_add_or_remove_transfer(transfer, false);
+	if(queue == 0)
+		wd_transfers_add_or_remove_transfer(transfer, false);
 	
 	wi_array_wrlock(wd_transfers);
 	wi_mutable_array_remove_data(wd_transfers, transfer);
