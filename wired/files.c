@@ -1508,8 +1508,8 @@ static void wd_files_fsevents_callback(wi_string_t *path) {
 		if(wd_user_state(user) == WD_USER_LOGGED_IN && wi_set_contains_data(wd_user_subscribed_paths(user), path)) {
 			virtualpath = wd_user_subscribed_virtual_path_for_path(user, path);
 			
-			if(wi_is_equal(wi_string_last_path_component(virtualpath), WI_STR(WD_FILES_META_PATH)))
-				virtualpath = wi_string_by_deleting_last_path_component(virtualpath);
+			if(!virtualpath)
+				wi_log_info(WI_STR("no virtualpath map for %@, subscribed = %@"), path, wd_user_subscribed_paths(user));
 			
 			if(exists)
 				message = wi_p7_message_with_name(WI_STR("wired.file.directory_changed"), wd_p7_spec);

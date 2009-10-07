@@ -910,6 +910,9 @@ wi_set_t * wd_user_subscribed_paths(wd_user_t *user) {
 
 
 wi_string_t * wd_user_subscribed_virtual_path_for_path(wd_user_t *user, wi_string_t *path) {
+	if(wi_is_equal(wi_string_last_path_component(path), WI_STR(WD_FILES_META_PATH)))
+		path = wi_string_by_deleting_last_path_component(path);
+	
 	WD_USER_RETURN_INSTANCE(user, wi_dictionary_data_for_key(user->subscribed_virtualpaths, path));
 }
 
