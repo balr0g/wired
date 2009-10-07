@@ -32,8 +32,6 @@
 #import <CoreFoundation/CoreFoundation.h>
 #endif
 
-#include <sys/param.h>
-#include <sys/stat.h>
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
@@ -216,13 +214,14 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 	wd_account_t				*account;
 	wd_files_privileges_t		*privileges;
 	wi_fs_statfs_t				sfb;
-	wi_fs_stat_t				sb, lsb;
+	wi_fs_stat_t				dsb, sb, lsb;
 	wi_fsenumerator_status_t	status;
 	wi_file_offset_t			datasize, rsrcsize, available;
 	wd_file_label_t				label;
 	wi_uinteger_t				pathlength, depthlimit, directorycount;
 	wd_file_type_t				type, pathtype;
 	wi_boolean_t				root, upload, alias, readable, writable;
+	uint32_t					device;
 	
 	root		= wi_is_equal(path, WI_STR("/"));
 	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
@@ -234,6 +233,13 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		
 		if(!wd_files_privileges_is_readable_by_account(privileges, account))
 			goto done;
+	}
+	
+	if(!wi_fs_stat_path(realpath, &dsb)) {
+		wi_log_warn(WI_STR("Could not read info for %@: %m"), realpath);
+		wd_user_reply_file_errno(user, message);
+		
+		return;
 	}
 	
 	depthlimit		= wd_account_file_recursive_list_depth_limit(account);
@@ -328,6 +334,11 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		
 		label = wd_files_label(filepath);
 		
+		device = alias ? dsb.dev : sb.dev;
+		
+		if(device == wd_files_root_volume)
+			device = 0;
+		
 		reply = wi_p7_message_init_with_name(wi_p7_message_alloc(), WI_STR("wired.file.file_list"), wd_p7_spec);
 		wi_p7_message_set_string_for_name(reply, virtualpath, WI_STR("wired.file.path"));
 		
@@ -344,7 +355,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		wi_p7_message_set_bool_for_name(reply, alias || S_ISLNK(lsb.mode), WI_STR("wired.file.link"));
 		wi_p7_message_set_bool_for_name(reply, (type == WD_FILE_TYPE_FILE && sb.mode & 0111), WI_STR("wired.file.executable"));
 		wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
-		wi_p7_message_set_uint32_for_name(reply, sb.dev == wd_files_root_volume ? 0 : sb.dev, WI_STR("wired.file.volume"));
+		wi_p7_message_set_uint32_for_name(reply, device, WI_STR("wired.file.volume"));
 		
 		if(type == WD_FILE_TYPE_DROPBOX) {
 			wi_p7_message_set_bool_for_name(reply, readable, WI_STR("wired.file.readable"));
@@ -430,21 +441,30 @@ static wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, 
 
 void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t			*reply;
-	wi_string_t				*realpath, *comment;
+	wi_string_t				*realpath, *parentpath, *comment;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges = NULL;
 	wi_file_offset_t		datasize, rsrcsize;
 	wd_file_type_t			type;
-	wi_fs_stat_t			sb, lsb;
+	wi_fs_stat_t			dsb, sb, lsb;
 	wd_file_label_t			label;
 	wi_uinteger_t			directorycount;
 	wi_boolean_t			alias, readable, writable;
+	uint32_t				device;
 	
 	account			= wd_user_account(user);
 	realpath		= wd_files_real_path(path, user);
 	alias			= wi_fs_path_is_alias(realpath);
 	realpath		= wi_string_by_resolving_aliases_in_path(realpath);
+	parentpath		= wi_string_by_deleting_last_path_component(realpath);
 
+	if(!wi_fs_stat_path(parentpath, &dsb)) {
+		wi_log_warn(WI_STR("Could not read info for %@: %m"), parentpath);
+		wd_user_reply_file_errno(user, message);
+		
+		return;
+	}
+	
 	if(!wi_fs_lstat_path(realpath, &lsb)) {
 		wi_log_warn(WI_STR("Could not read info for %@: %m"), realpath);
 		wd_user_reply_file_errno(user, message);
@@ -491,6 +511,11 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 
 	label = wd_files_label(realpath);
 	
+	device = alias ? dsb.dev : sb.dev;
+	
+	if(device == wd_files_root_volume)
+		device = 0;
+	
 	reply = wi_p7_message_with_name(WI_STR("wired.file.info"), wd_p7_spec);
 	wi_p7_message_set_string_for_name(reply, path, WI_STR("wired.file.path"));
 	wi_p7_message_set_enum_for_name(reply, type, WI_STR("wired.file.type"));
@@ -508,7 +533,7 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	wi_p7_message_set_bool_for_name(reply, (alias || S_ISLNK(lsb.mode)), WI_STR("wired.file.link"));
 	wi_p7_message_set_bool_for_name(reply, (type == WD_FILE_TYPE_FILE && sb.mode & 0111), WI_STR("wired.file.executable"));
 	wi_p7_message_set_enum_for_name(reply, label, WI_STR("wired.file.label"));
-	wi_p7_message_set_uint32_for_name(reply, sb.dev == wd_files_root_volume ? 0 : sb.dev, WI_STR("wired.file.volume"));
+	wi_p7_message_set_uint32_for_name(reply, device, WI_STR("wired.file.volume"));
 	
 	if(type == WD_FILE_TYPE_DROPBOX) {
 		wi_p7_message_set_string_for_name(reply, privileges->owner, WI_STR("wired.file.owner"));
@@ -636,7 +661,10 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 	realfromname	= wi_string_last_path_component(realfrompath);
 	realtoname		= wi_string_last_path_component(realtopath);
 
+	wi_mutable_string_delete_last_path_component(realfrompath);
 	wi_mutable_string_resolve_aliases_in_path(realfrompath);
+	wi_mutable_string_append_path_component(realfrompath, realfromname);
+
 	wi_mutable_string_delete_last_path_component(realtopath);
 	wi_mutable_string_resolve_aliases_in_path(realtopath);
 	wi_mutable_string_append_path_component(realtopath, realtoname);
@@ -1113,12 +1141,13 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 	wi_mutable_set_t			*set;
 	wi_number_t					*number;
 	wi_file_offset_t			datasize, rsrcsize;
-	wi_fs_stat_t				sb, lsb;
+	wi_fs_stat_t				dsb, sb, lsb;
 	wi_fsenumerator_status_t	status;
 	wd_file_label_t				label;
 	wi_uinteger_t				i = 0, pathlength, directorycount;
 	wi_boolean_t				alias, recurse;
 	wd_file_type_t				type;
+	uint32_t					device;
 	
 	if(wd_files_index_level >= WD_FILES_MAX_LEVEL) {
 		wi_log_warn(WI_STR("Skipping index of %@: %s"),
@@ -1127,6 +1156,12 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 		return;
 	}
 
+	if(!wi_fs_stat_path(path, &dsb)) {
+		wi_log_warn(WI_STR("Could not read info for %@: %m"), path);
+		
+		return;
+	}
+	
 	fsenumerator = wi_fs_enumerator_at_path(path);
 
 	if(!fsenumerator) {
@@ -1210,6 +1245,11 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 						break;
 				}
 				
+				device = alias ? dsb.dev : sb.dev;
+				
+				if(device == wd_files_root_volume)
+					device = 0;
+				
 				label = wd_files_label(filepath);
 				
 				virtualpath	= wi_string_substring_from_index(filepath, pathlength);
@@ -1228,7 +1268,7 @@ static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_s
 										   (alias || S_ISLNK(lsb.mode)),
 										   (type == WD_FILE_TYPE_FILE && sb.mode & 0111),
 										   label,
-										   sb.dev == wd_files_root_volume ? 0 : sb.dev);
+										   device);
 
 				if(S_ISDIR(sb.mode)) {
 					wd_directories_count++;
