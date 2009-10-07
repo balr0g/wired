@@ -116,6 +116,7 @@ struct _wd_user {
 	wi_boolean_t						subscribed_accounts;
 	wi_boolean_t						subscribed_log;
 	wi_mutable_set_t					*subscribed_paths;
+	wi_mutable_dictionary_t				*subscribed_virtualpaths;
 	
 	wd_transfer_t						*transfer;
 };
@@ -396,20 +397,21 @@ static wd_user_t * wd_user_alloc(void) {
 static wd_user_t * wd_user_init_with_socket(wd_user_t *user, wi_socket_t *socket) {
 	wi_address_t	*address;
 
-	user->id				= wd_user_next_id();
-	user->socket			= wi_retain(socket);
-	user->state				= WD_USER_CONNECTED;
-	user->login_time		= wi_date_init(wi_date_alloc());
-	user->idle_time			= wi_date_init(wi_date_alloc());
+	user->id						= wd_user_next_id();
+	user->socket					= wi_retain(socket);
+	user->state						= WD_USER_CONNECTED;
+	user->login_time				= wi_date_init(wi_date_alloc());
+	user->idle_time					= wi_date_init(wi_date_alloc());
 	
-	address					= wi_socket_address(socket);
-	user->ip				= wi_retain(wi_address_string(address));
-	user->host				= wi_retain(wi_address_hostname(address));
+	address							= wi_socket_address(socket);
+	user->ip						= wi_retain(wi_address_string(address));
+	user->host						= wi_retain(wi_address_hostname(address));
 	
-	user->user_lock			= wi_recursive_lock_init(wi_recursive_lock_alloc());
-	user->socket_lock		= wi_recursive_lock_init(wi_recursive_lock_alloc());
+	user->user_lock					= wi_recursive_lock_init(wi_recursive_lock_alloc());
+	user->socket_lock				= wi_recursive_lock_init(wi_recursive_lock_alloc());
 	
-	user->subscribed_paths	= wi_set_init_with_capacity(wi_mutable_set_alloc(), 0, true);
+	user->subscribed_paths			= wi_set_init_with_capacity(wi_mutable_set_alloc(), 0, true);
+	user->subscribed_virtualpaths	= wi_dictionary_init(wi_mutable_dictionary_alloc());
 	
 	return user;
 }
@@ -441,6 +443,7 @@ static void wd_user_dealloc(wi_runtime_instance_t *instance) {
 	wi_release(user->transfer);
 	
 	wi_release(user->subscribed_paths);
+	wi_release(user->subscribed_virtualpaths);
 }
 
 
@@ -824,45 +827,49 @@ wi_boolean_t wd_user_is_subscribed_log(wd_user_t *user) {
 
 #pragma mark -
 
-void wd_user_subscribe_path(wd_user_t *user, wi_string_t *path) {
+void wd_user_subscribe_path(wd_user_t *user, wi_string_t *path, wi_string_t *realpath) {
 	wi_string_t		*metapath;
 	
 	wi_recursive_lock_lock(user->user_lock);
 
-	wi_mutable_set_add_data(user->subscribed_paths, path);
+	wi_mutable_set_add_data(user->subscribed_paths, realpath);
 
 	if(wd_files_fsevents)
-		wi_fsevents_add_path(wd_files_fsevents, path);
+		wi_fsevents_add_path(wd_files_fsevents, realpath);
 		
-	metapath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PATH));
+	metapath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PATH));
 		
 	wi_mutable_set_add_data(user->subscribed_paths, metapath);
 
 	if(wd_files_fsevents)
 		wi_fsevents_add_path(wd_files_fsevents, metapath);
+	
+	wi_mutable_dictionary_set_data_for_key(user->subscribed_virtualpaths, path, realpath);
 
 	wi_recursive_lock_unlock(user->user_lock);
 }
 
 
 
-void wd_user_unsubscribe_path(wd_user_t *user, wi_string_t *path) {
+void wd_user_unsubscribe_path(wd_user_t *user, wi_string_t *realpath) {
 	wi_string_t		*metapath;
 	
 	wi_recursive_lock_lock(user->user_lock);
 		
-	wi_mutable_set_remove_data(user->subscribed_paths, path);
+	wi_mutable_set_remove_data(user->subscribed_paths, realpath);
 
 	if(wd_files_fsevents)
-		wi_fsevents_remove_path(wd_files_fsevents, path);
+		wi_fsevents_remove_path(wd_files_fsevents, realpath);
 		
-	metapath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PATH));
+	metapath = wi_string_by_appending_path_component(realpath, WI_STR(WD_FILES_META_PATH));
 		
 	wi_mutable_set_add_data(user->subscribed_paths, metapath);
 
 	if(wd_files_fsevents)
 		wi_fsevents_add_path(wd_files_fsevents, metapath);
 
+	wi_mutable_dictionary_remove_data_for_key(user->subscribed_virtualpaths, realpath);
+	
 	wi_recursive_lock_unlock(user->user_lock);
 }
 
@@ -888,6 +895,8 @@ void wd_user_unsubscribe_paths(wd_user_t *user) {
 			
 		wi_release(path);
 	}
+	
+	wi_mutable_dictionary_remove_all_data(user->subscribed_virtualpaths);
 		
 	wi_recursive_lock_unlock(user->user_lock);
 }
@@ -896,6 +905,12 @@ void wd_user_unsubscribe_paths(wd_user_t *user) {
 
 wi_set_t * wd_user_subscribed_paths(wd_user_t *user) {
 	WD_USER_RETURN_INSTANCE(user, user->subscribed_paths);
+}
+
+
+
+wi_string_t * wd_user_subscribed_virtual_path_for_path(wd_user_t *user, wi_string_t *path) {
+	WD_USER_RETURN_INSTANCE(user, wi_dictionary_data_for_key(user->subscribed_virtualpaths, path));
 }
 
 

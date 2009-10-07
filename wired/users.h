@@ -120,10 +120,11 @@ void									wd_user_subscribe_log(wd_user_t *);
 void									wd_user_unsubscribe_log(wd_user_t *);
 wi_boolean_t							wd_user_is_subscribed_log(wd_user_t *);
 
-void									wd_user_subscribe_path(wd_user_t *, wi_string_t *);
+void									wd_user_subscribe_path(wd_user_t *, wi_string_t *, wi_string_t *);
 void									wd_user_unsubscribe_path(wd_user_t *, wi_string_t *);
 void									wd_user_unsubscribe_paths(wd_user_t *);
 wi_set_t *								wd_user_subscribed_paths(wd_user_t *);
+wi_string_t *							wd_user_subscribed_virtual_path_for_path(wd_user_t *, wi_string_t *);
 
 wi_socket_t *							wd_user_socket(wd_user_t *);
 wi_p7_socket_t *						wd_user_p7_socket(wd_user_t *);

@@ -2096,7 +2096,7 @@ static void wd_message_file_subscribe_directory(wd_user_t *user, wi_p7_message_t
 		return;
 	}
 	
-	wd_user_subscribe_path(user, realpath);
+	wd_user_subscribe_path(user, path, realpath);
 	wd_user_reply_okay(user, message);
 }
 
