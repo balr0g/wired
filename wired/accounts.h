@@ -65,6 +65,9 @@ wi_p7_message_t *					wd_account_privileges_message(wd_account_t *);
 void								wd_account_reply_user_account(wd_account_t *, wd_user_t *, wi_p7_message_t *);
 void								wd_account_reply_group_account(wd_account_t *, wd_user_t *, wi_p7_message_t *);
 
+wi_string_t *						wd_account_nick(wd_account_t *);
+wi_boolean_t						wd_account_is_admin(wd_account_t *);
+
 wi_boolean_t						wd_account_verify_privileges_for_user(wd_account_t *, wd_user_t *, wi_string_t **);
 
 wi_string_t *						wd_account_name(wd_account_t *);

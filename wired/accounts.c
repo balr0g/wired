@@ -1046,8 +1046,9 @@ static void wd_accounts_reload_group_account(wd_account_t *account) {
 
 
 static void wd_accounts_reload_account(wd_user_t *user, wd_account_t *account) {
+	wi_string_t		*newnick;
 	wd_account_t	*newaccount;
-	wi_boolean_t	admin, new_admin;
+	wi_boolean_t	newadmin, changed;
 	
 	newaccount = wd_accounts_read_user_and_group(wd_account_name(account));
 	
@@ -1056,11 +1057,25 @@ static void wd_accounts_reload_account(wd_user_t *user, wd_account_t *account) {
 	
 	wd_user_set_account(user, newaccount);
 	
-	admin = wd_user_is_admin(user);
-	new_admin = (wd_account_user_disconnect_users(newaccount) || wd_account_user_ban_users(newaccount));
-	wd_user_set_admin(user, new_admin);
+	newadmin = wd_account_is_admin(newaccount);
 	
-	if(admin != new_admin)
+	if(wd_user_is_admin(user) != newadmin) {
+		wd_user_set_admin(user, newadmin);
+		
+		changed = true;
+	}
+	
+	if(wd_account_user_cannot_set_nick(newaccount)) {
+		newnick = wd_account_nick(newaccount);
+		
+		if(!wi_is_equal(wd_user_nick(user), newnick)) {
+			wd_user_set_nick(user, newnick);
+			
+			changed = true;
+		}
+	}
+	
+	if(changed)
 		wd_user_broadcast_status(user);
 	
 	if(!wd_account_account_list_accounts(newaccount) && wd_user_is_subscribed_accounts(user))
@@ -1491,6 +1506,27 @@ wi_p7_message_t * wd_account_privileges_message(wd_account_t *account) {
 
 #pragma mark -
 
+wi_string_t * wd_account_nick(wd_account_t *account) {
+	wi_string_t		*fullname;
+	
+	fullname = wd_account_full_name(account);
+	
+	if(fullname && wi_string_length(fullname) > 0)
+		return fullname;
+	
+	return wd_account_name(account);
+}
+
+
+
+wi_boolean_t wd_account_is_admin(wd_account_t *account) {
+	return (wd_account_user_disconnect_users(account) || wd_account_user_ban_users(account));
+}
+
+
+
+#pragma mark -
+
 wi_boolean_t wd_account_verify_privileges_for_user(wd_account_t *account, wd_user_t *user, wi_string_t **error) {
 	wi_enumerator_t				*enumerator;
 	wi_dictionary_t				*field;
@@ -1632,7 +1668,7 @@ WD_ACCOUNT_STRING_ACCESSOR(wd_account_password, WI_STR("wired.account.password")
 WD_ACCOUNT_STRING_ACCESSOR(wd_account_group, WI_STR("wired.account.group"))
 WD_ACCOUNT_LIST_ACCESSOR(wd_account_groups, WI_STR("wired.account.groups"))
 WD_ACCOUNT_STRING_ACCESSOR(wd_account_files, WI_STR("wired.account.files"))
-WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_cannot_set_nick, WI_STR("wired.account.cannot_set_nick"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_cannot_set_nick, WI_STR("wired.account.user.cannot_set_nick"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_get_info, WI_STR("wired.account.user.get_info"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_disconnect_users, WI_STR("wired.account.user.disconnect_users"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_user_ban_users, WI_STR("wired.account.user.ban_users"))
