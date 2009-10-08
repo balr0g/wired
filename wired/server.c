@@ -54,7 +54,6 @@
 #include "transfers.h"
 
 #define WD_SERVER_PING_INTERVAL		60.0
-#define WD_SERVER_MAX_LOG_ENTRIES	500
 
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 static void							wd_server_cf_thread(wi_runtime_instance_t *);
@@ -97,6 +96,7 @@ static wi_p7_message_t				*wd_ping_message;
 static wi_mutable_array_t			*wd_tcp_sockets, *wd_udp_sockets;
 static wi_rsa_t						*wd_rsa;
 static wi_mutable_array_t			*wd_log_entries;
+static wi_uinteger_t				wd_max_log_entries;
 
 wi_uinteger_t						wd_port;
 wi_data_t							*wd_banner;
@@ -133,7 +133,9 @@ void wd_server_init(void) {
 	
 	wi_log_callback = wd_server_log_callback;
 	
-	wd_log_entries = wi_array_init_with_capacity(wi_mutable_array_alloc(), WD_SERVER_MAX_LOG_ENTRIES);
+	wd_max_log_entries = (wi_log_limit > 0) ? wi_log_limit : 500;
+	
+	wd_log_entries = wi_array_init_with_capacity(wi_mutable_array_alloc(), wd_max_log_entries);
 	
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	wd_cf_lock = wi_condition_lock_init_with_condition(wi_condition_lock_alloc(), 0);
@@ -735,7 +737,7 @@ static void wd_server_log_callback(wi_log_level_t level, wi_string_t *string) {
 	if(wi_array_trywrlock(wd_log_entries)) {
 		count = wi_array_count(wd_log_entries);
 		
-		if(count > WD_SERVER_MAX_LOG_ENTRIES + 100)
+		if(count > wd_max_log_entries + 100)
 			wi_mutable_array_remove_data_in_range(wd_log_entries, wi_make_range(0, 100));
 		
 		wi_mutable_array_add_data(wd_log_entries, entry);
