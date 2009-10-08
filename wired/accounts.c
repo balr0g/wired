@@ -147,6 +147,8 @@ void wd_accounts_init(void) {
 			WI_STR("wired.account.new_name"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER | WD_ACCOUNT_FIELD_USER_LIST, true),
 			WI_STR("wired.account.full_name"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER_AND_GROUP | WD_ACCOUNT_FIELD_USER_LIST_AND_GROUP_LIST, true),
+			WI_STR("wired.account.comment"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_DATE, WD_ACCOUNT_FIELD_USER_AND_GROUP | WD_ACCOUNT_FIELD_USER_LIST_AND_GROUP_LIST, true),
 			WI_STR("wired.account.creation_time"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_DATE, WD_ACCOUNT_FIELD_USER_AND_GROUP | WD_ACCOUNT_FIELD_USER_LIST_AND_GROUP_LIST, true),
@@ -588,7 +590,7 @@ void wd_accounts_add_upload_statistics(wd_account_t *account, wi_boolean_t finis
 	}
 	
 	if(finished || transferred > 0)
-		wd_accounts_write_account(newaccount, WD_ACCOUNT_GROUP, NULL, NULL, NULL);
+		wd_accounts_write_account(newaccount, WD_ACCOUNT_USER, NULL, NULL, NULL);
 }
 
 
