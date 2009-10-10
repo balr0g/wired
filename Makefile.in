@@ -137,6 +137,12 @@ install-wired:
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/AD70D7CB-F789-4030-A92F-40D546DBE1D9.WiredPost $(installdir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/; \
 	fi
 
+	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/etc/
+
+	if [ ! -f $(installdir)/etc/wired.conf ]; then \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/etc/wired.conf $(installdir)/etc/; \
+	fi
+
 	if [ ! -f $(installdir)/events ]; then \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/events $(installdir)/; \
 	fi
@@ -150,12 +156,6 @@ install-wired:
 		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/files/Drop\ Box/.wired/; \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/files/Drop\ Box/.wired/type $(installdir)/files/Drop\ Box/.wired/; \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/files/Drop\ Box/.wired/permissions $(installdir)/files/Drop\ Box/.wired/; \
-	fi
-
-	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/etc/
-
-	if [ ! -f $(installdir)/etc/wired.conf ]; then \
-		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/etc/wired.conf $(installdir)/etc/; \
 	fi
 
 	if [ ! -f $(installdir)/banlist ]; then \
