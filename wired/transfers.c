@@ -98,7 +98,7 @@ static wi_runtime_class_t					wd_transfer_runtime_class = {
 
 
 
-void wd_transfers_init(void) {
+void wd_transfers_initialize(void) {
 	wd_transfer_runtime_id = wi_runtime_register_class(&wd_transfer_runtime_class);
 
 	wd_transfers = wi_array_init(wi_mutable_array_alloc());
@@ -366,7 +366,7 @@ static wi_boolean_t wd_transfers_run_upload(wd_transfer_t *transfer, wd_user_t *
 		if(wi_fs_rename_path(transfer->realdatapath, path)) {
 			if(transfer->executable) {
 				if(!wi_fs_set_mode_for_path(path, 0755))
-					wi_log_warn(WI_STR("Could not set mode for %@: %m"), path);
+					wi_log_warn(WI_STR("Could not set mode for \"%@\": %m"), path);
 			}
 			
 			wd_files_move_comment(transfer->realdatapath, path, NULL, NULL);
@@ -377,7 +377,7 @@ static wi_boolean_t wd_transfers_run_upload(wd_transfer_t *transfer, wd_user_t *
 			
 			wd_files_index_add_file(path);
 		} else {
-			wi_log_warn(WI_STR("Could not move %@ to %@: %m"),
+			wi_log_warn(WI_STR("Could not move \"%@\" to \"%@\": %m"),
 				transfer->realdatapath, path);
 		}
 	
@@ -687,7 +687,7 @@ wd_transfer_t * wd_transfer_download_transfer(wi_string_t *path, wi_file_offset_
 	datafd = open(wi_string_cstring(realdatapath), O_RDONLY, 0);
 	
 	if(datafd < 0) {
-		wi_log_err(WI_STR("Could not open %@ for download: %s"),
+		wi_log_err(WI_STR("Could not open \"%@\" for download: %s"),
 			realdatapath, strerror(errno));
 		wd_user_reply_file_errno(user, message);
 
@@ -695,7 +695,7 @@ wd_transfer_t * wd_transfer_download_transfer(wi_string_t *path, wi_file_offset_
 	}
 
 	if(lseek(datafd, dataoffset, SEEK_SET) < 0) {
-		wi_log_err(WI_STR("Could not seek to %llu in %@ for download: %s"),
+		wi_log_err(WI_STR("Could not seek to %llu in \"%@\" for download: %s"),
 			dataoffset, realdatapath, strerror(errno));
 		wd_user_reply_file_errno(user, message);
 		
@@ -716,7 +716,7 @@ wd_transfer_t * wd_transfer_download_transfer(wi_string_t *path, wi_file_offset_
 		
 		if(rsrcfd >= 0) {
 			if(lseek(rsrcfd, rsrcoffset, SEEK_SET) < 0) {
-				wi_log_err(WI_STR("Could not seek to %llu in %@ for download: %s"),
+				wi_log_err(WI_STR("Could not seek to %llu in \"%@\" for download: %s"),
 					rsrcoffset, realrsrcpath, strerror(errno));
 				wd_user_reply_file_errno(user, message);
 				
@@ -779,7 +779,7 @@ wd_transfer_t * wd_transfer_upload_transfer(wi_string_t *path, wi_file_offset_t 
 	datafd = open(wi_string_cstring(realdatapath), O_WRONLY | O_APPEND | O_CREAT, 0666);
 	
 	if(datafd < 0) {
-		wi_log_err(WI_STR("Could not open %@ for upload: %s"),
+		wi_log_err(WI_STR("Could not open \"%@\" for upload: %s"),
 			realdatapath, strerror(errno));
 		wd_user_reply_file_errno(user, message);
 
@@ -787,7 +787,7 @@ wd_transfer_t * wd_transfer_upload_transfer(wi_string_t *path, wi_file_offset_t 
 	}
 
 	if(lseek(datafd, dataoffset, SEEK_SET) < 0) {
-		wi_log_err(WI_STR("Could not seek to %llu in %@ for upload: %s"),
+		wi_log_err(WI_STR("Could not seek to %llu in \"%@\" for upload: %s"),
 			dataoffset, realdatapath, strerror(errno));
 		wd_user_reply_file_errno(user, message);
 		
@@ -815,7 +815,7 @@ wd_transfer_t * wd_transfer_upload_transfer(wi_string_t *path, wi_file_offset_t 
 		rsrcfd = open(wi_string_cstring(realrsrcpath), O_WRONLY | O_APPEND | O_CREAT, 0666);
 		
 		if(rsrcfd < 0) {
-			wi_log_err(WI_STR("Could not open %@ for upload: %s"),
+			wi_log_err(WI_STR("Could not open \"%@\" for upload: %s"),
 				realrsrcpath, strerror(errno));
 			wd_user_reply_file_errno(user, message);
 			
@@ -825,7 +825,7 @@ wd_transfer_t * wd_transfer_upload_transfer(wi_string_t *path, wi_file_offset_t 
 		}
 		
 		if(lseek(rsrcfd, rsrcoffset, SEEK_SET) < 0) {
-			wi_log_err(WI_STR("Could not seek to %llu in %@ for upload: %s"),
+			wi_log_err(WI_STR("Could not seek to %llu in \"%@\" for upload: %s"),
 				rsrcoffset, realrsrcpath, strerror(errno));
 			wd_user_reply_file_errno(user, message);
 			
@@ -997,7 +997,7 @@ static wi_boolean_t wd_transfer_download(wd_transfer_t *transfer) {
 		
 		if(readbytes <= 0) {
 			if(readbytes < 0) {
-				wi_log_err(WI_STR("Could not read download from %@: %m"),
+				wi_log_err(WI_STR("Could not read download from \"%@\": %m"),
 					data ? transfer->realdatapath : transfer->realrsrcpath, strerror(errno));
 			}
 			
@@ -1204,7 +1204,7 @@ static wi_boolean_t wd_transfer_upload(wd_transfer_t *transfer) {
 		
 		if(writtenbytes <= 0) {
 			if(writtenbytes < 0) {
-				wi_log_err(WI_STR("Could not write upload to %@: %s"),
+				wi_log_err(WI_STR("Could not write upload to \"%@\": %s"),
 					data ? transfer->realdatapath : transfer->realrsrcpath, strerror(errno));
 			}
 			

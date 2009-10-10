@@ -99,7 +99,7 @@ static wi_runtime_class_t						wd_board_privileges_runtime_class = {
 
 
 
-void wd_boards_init(void) {
+void wd_boards_initialize(void) {
 	wd_boards_path = WI_STR("boards");
 	wd_boards_lock = wi_rwlock_init(wi_rwlock_alloc());
 
@@ -192,7 +192,7 @@ void wd_boards_reply_posts(wd_user_t *user, wi_p7_message_t *message) {
 	if(fsenumerator) {
 		while((status = wi_fsenumerator_get_next_path(fsenumerator, &path)) != WI_FSENUMERATOR_EOF) {
 			if(status == WI_FSENUMERATOR_ERROR) {
-				wi_log_err(WI_STR("Could not read board %@: %m"), path);
+				wi_log_err(WI_STR("Could not read board \"%@\": %m"), path);
 				
 				continue;
 			}
@@ -222,7 +222,7 @@ void wd_boards_reply_posts(wd_user_t *user, wi_p7_message_t *message) {
 		reply = wi_p7_message_with_name(WI_STR("wired.board.post_list.done"), wd_p7_spec);
 		wd_user_reply_message(user, reply, message);
 	} else {
-		wi_log_err(WI_STR("Could not open %@: %m"), wd_boards_path);
+		wi_log_err(WI_STR("Could not open \"%@\": %m"), wd_boards_path);
 		wd_user_reply_internal_error(user, wi_error_string(), message);
 	}
 	
@@ -262,12 +262,10 @@ wi_boolean_t wd_boards_add_board(wi_string_t *board, wd_board_privileges_t *priv
 				wd_user_reply_file_errno(user, message);
 			}
 		} else {
-			wi_log_err(WI_STR("Could not create %@: %m"), path);
+			wi_log_err(WI_STR("Could not create \"%@\": %m"), path);
 			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 	} else {
-		wi_log_warn(WI_STR("Board exists for %@ when creating board \"%@\""),
-			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
 	}
 	
@@ -364,12 +362,10 @@ wi_boolean_t wd_boards_delete_board(wi_string_t *board, wd_user_t *user, wi_p7_m
 			
 			deleted = true;
 		} else {
-			wi_log_err(WI_STR("Could not delete %@: %m"), path);
+			wi_log_err(WI_STR("Could not delete \"%@\": %m"), path);
 			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 	} else {
-		wi_log_warn(WI_STR("Board not found for %@ when deleting board \"%@\""),
-			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 	}
 	
@@ -433,14 +429,14 @@ static void wd_boards_send_thread_added(wi_string_t *board, wi_uuid_t *thread, w
 	fsenumerator = wi_fs_enumerator_at_path(path);
 	
 	if(!fsenumerator) {
-		wi_log_err(WI_STR("Could not open %@: %m"), path);
+		wi_log_err(WI_STR("Could not open \"%@\": %m"), path);
 		
 		return;
 	}
 	
 	while((status = wi_fsenumerator_get_next_path(fsenumerator, &path)) != WI_FSENUMERATOR_EOF) {
 		if(status == WI_FSENUMERATOR_ERROR) {
-			wi_log_err(WI_STR("Could not read board %@: %m"), path);
+			wi_log_err(WI_STR("Could not read board \"%@\": %m"), path);
 			
 			continue;
 		}
@@ -483,7 +479,7 @@ static wi_boolean_t wd_boards_get_boards_and_privileges(wi_array_t **boards_out,
 	if(fsenumerator) {
 		while((status = wi_fsenumerator_get_next_path(fsenumerator, &path)) != WI_FSENUMERATOR_EOF) {
 			if(status == WI_FSENUMERATOR_ERROR) {
-				wi_log_err(WI_STR("Could not read board %@: %m"), path);
+				wi_log_err(WI_STR("Could not read board \"%@\": %m"), path);
 				
 				continue;
 			}
@@ -505,7 +501,7 @@ static wi_boolean_t wd_boards_get_boards_and_privileges(wi_array_t **boards_out,
 			}
 		}
 	} else {
-		wi_log_err(WI_STR("Could not open %@: %m"), wd_boards_path);
+		wi_log_err(WI_STR("Could not open \"%@\": %m"), wd_boards_path);
 	}
 	
 	wi_rwlock_unlock(wd_boards_lock);
@@ -651,7 +647,7 @@ static wi_boolean_t wd_boards_set_privileges(wi_string_t *board, wd_board_privil
 	
 	if(!wi_fs_create_directory(metapath, 0777)) {
 		if(wi_error_code() != EEXIST) {
-			wi_log_warn(WI_STR("Could not create %@: %m"), metapath);
+			wi_log_warn(WI_STR("Could not create \"%@\": %m"), metapath);
 			
 			return false;
 		}
@@ -660,7 +656,7 @@ static wi_boolean_t wd_boards_set_privileges(wi_string_t *board, wd_board_privil
 	string = wi_string_by_appending_string(wd_board_privileges_string(privileges), WI_STR("\n"));
 	
 	if(!wi_string_write_to_file(string, permissionspath)) {
-		wi_log_warn(WI_STR("Could not write to %@: %m"), permissionspath);
+		wi_log_warn(WI_STR("Could not write to \"%@\": %m"), permissionspath);
 		
 		return false;
 	}
@@ -679,7 +675,7 @@ static wd_board_privileges_t * wd_boards_privileges(wi_string_t *board) {
 	permissionspath		= wi_string_by_appending_path_component(path, WI_STR(WD_BOARDS_META_PERMISSIONS_PATH));
 	
 	if(!wi_fs_stat_path(permissionspath, &sb)) {
-		wi_log_warn(WI_STR("Could not open %@: %m"), permissionspath);
+		wi_log_warn(WI_STR("Could not open \"%@\": %m"), permissionspath);
 		
 		return NULL;
 	}
@@ -693,7 +689,7 @@ static wd_board_privileges_t * wd_boards_privileges(wi_string_t *board) {
 	string = wi_autorelease(wi_string_init_with_contents_of_file(wi_string_alloc(), permissionspath));
 	
 	if(!string) {
-		wi_log_warn(WI_STR("Could not read %@: %m"), permissionspath);
+		wi_log_warn(WI_STR("Could not read \"%@\": %m"), permissionspath);
 		
 		return NULL;
 	}
@@ -701,7 +697,7 @@ static wd_board_privileges_t * wd_boards_privileges(wi_string_t *board) {
 	privileges = wd_board_privileges_with_string(string);
 	
 	if(!privileges) {
-		wi_log_warn(WI_STR("Could not read %@: Contents is malformed (%@)"), permissionspath, string);
+		wi_log_warn(WI_STR("Could not read \"%@\": Contents is malformed (\"%@\")"), permissionspath, string);
 		
 		return NULL;
 	}
@@ -728,7 +724,7 @@ static wi_boolean_t wd_boards_convert_news_to_boards(wi_string_t *news_path, wi_
 	}
 	
 	if(!wi_fs_create_directory(board_path, 0755)) {
-		wi_log_warn(WI_STR("Could not open %@: %m"), news_path);
+		wi_log_warn(WI_STR("Could not open \"%@\": %m"), news_path);
 		
 		return false;
 	}
@@ -742,7 +738,7 @@ static wi_boolean_t wd_boards_convert_news_to_boards(wi_string_t *news_path, wi_
 	file = wi_file_for_reading(news_path);
 	
 	if(!file) {
-		wi_log_warn(WI_STR("Could not open %@: %m"), news_path);
+		wi_log_warn(WI_STR("Could not open \"%@\": %m"), news_path);
 		
 		return false;
 	}
@@ -758,7 +754,7 @@ static wi_boolean_t wd_boards_convert_news_to_boards(wi_string_t *news_path, wi_
 			subject		= WI_ARRAY(array, 2);
 			
 			if(!wi_fs_create_directory(thread_path, 0755)) {
-				wi_log_warn(WI_STR("Could not create %@: %m"), post_path);
+				wi_log_warn(WI_STR("Could not create \"%@\": %m"), post_path);
 				
 				continue;
 			}
@@ -775,7 +771,7 @@ static wi_boolean_t wd_boards_convert_news_to_boards(wi_string_t *news_path, wi_
 				NULL);
 			
 			if(!wi_plist_write_instance_to_file(dictionary, post_path))
-				wi_log_warn(WI_STR("Could not create %@: %m"), post_path);
+				wi_log_warn(WI_STR("Could not create \"%@\": %m"), post_path);
 		}
 	}
 	
@@ -805,11 +801,11 @@ static wi_boolean_t wd_boards_rename_board_path(wi_string_t *oldboard, wi_string
 					if(wi_fs_rename_path(path, newpath)) {
 						renamed = true;
 					} else {
-						wi_log_err(WI_STR("Could not rename %@ to %@: %m"), path, newpath);
+						wi_log_err(WI_STR("Could not rename %@ to \"%@\": %m"), path, newpath);
 						wd_user_reply_internal_error(user, wi_error_string(), message);
 					}
 				} else {
-					wi_log_err(WI_STR("Could not rename %@ to %@: %m"), oldpath, path);
+					wi_log_err(WI_STR("Could not rename \"%@\" to \"%@\": %m"), oldpath, path);
 					wd_user_reply_internal_error(user, wi_error_string(), message);
 				}
 			}
@@ -818,18 +814,14 @@ static wi_boolean_t wd_boards_rename_board_path(wi_string_t *oldboard, wi_string
 				if(wi_fs_rename_path(oldpath, newpath)) {
 					renamed = true;
 				} else {
-					wi_log_err(WI_STR("Could not rename %@ to %@: %m"), oldpath, newpath);
+					wi_log_err(WI_STR("Could not rename \"%@\" to \"%@\": %m"), oldpath, newpath);
 					wd_user_reply_internal_error(user, wi_error_string(), message);
 				}
 			} else {
-				wi_log_warn(WI_STR("Board exists for %@ when renaming board \"%@\" to \"%@\""),
-					wd_user_identifier(user), oldboard, newboard);
 				wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
 			}
 		}
 	} else {
-		wi_log_warn(WI_STR("Board not found for %@ when renaming board \"%@\" to \"%@\""),
-			wd_user_identifier(user), oldboard, newboard);
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 	}
 	
@@ -886,16 +878,14 @@ wi_boolean_t wd_boards_add_thread(wi_string_t *board, wi_string_t *subject, wi_s
 				
 				result = true;
 			} else {
-				wi_log_err(WI_STR("Could not create %@: %m"), path);
+				wi_log_err(WI_STR("Could not create \"%@\": %m"), path);
 				wd_user_reply_internal_error(user, wi_error_string(), message);
 			}
 		} else {
-			wi_log_err(WI_STR("Could not create %@: %m"), path);
+			wi_log_err(WI_STR("Could not create \"%@\": %m"), path);
 			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 	} else {
-		wi_log_warn(WI_STR("Permission denied for %@ when creating a thread in \"%@\""),
-			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 	}
 	
@@ -959,12 +949,10 @@ wi_boolean_t wd_boards_move_thread(wi_string_t *oldboard, wi_uuid_t *thread, wi_
 			
 			result = true;
 		} else {
-			wi_log_err(WI_STR("Could not move %@ to %@: %m"), oldpath, newpath);
+			wi_log_err(WI_STR("Could not move \"%@\" to \"%@\": %m"), oldpath, newpath);
 			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 	} else {
-		wi_log_warn(WI_STR("Permission denied for %@ when moving a thread from board \"%@\" to \"%@\""),
-			wd_user_identifier(user), oldboard, newboard);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 	}
 	
@@ -996,12 +984,10 @@ wi_boolean_t wd_boards_delete_thread(wi_string_t *board, wi_uuid_t *thread, wd_u
 			
 			result = true;
 		} else {
-			wi_log_err(WI_STR("Could not delete %@: %m"), path);
+			wi_log_err(WI_STR("Could not delete \"%@\": %m"), path);
 			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 	} else {
-		wi_log_warn(WI_STR("Permission denied for %@ when deleting a thread from board \"%@\""),
-			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 	}
 	
@@ -1055,12 +1041,10 @@ wi_boolean_t wd_boards_add_post(wi_string_t *board, wi_uuid_t *thread, wi_string
 			
 			result = true;
 		} else {
-			wi_log_err(WI_STR("Could not create %@: %m"), path);
+			wi_log_err(WI_STR("Could not create \"%@\": %m"), path);
 			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 	} else {
-		wi_log_warn(WI_STR("Permission denied for %@ when creating a post in \"%@\""),
-			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 	}
 	
@@ -1096,8 +1080,6 @@ wi_boolean_t wd_boards_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_
 					login = wi_dictionary_data_for_key(instance, WI_STR("wired.user.login"));
 					
 					if(!wi_is_equal(login, wd_user_login(user))) {
-						wi_log_warn(WI_STR("Permission denied for %@ when editing a post in \"%@\""),
-							wd_user_identifier(user), board);
 						wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 						
 						edit = false;
@@ -1123,21 +1105,19 @@ wi_boolean_t wd_boards_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_
 						
 						result = true;
 					} else {
-						wi_log_err(WI_STR("Could not edit %@: %m"), path);
+						wi_log_err(WI_STR("Could not edit \"%@\": %m"), path);
 						wd_user_reply_internal_error(user, wi_error_string(), message);
 					}
 				}
 			} else {
-				wi_log_err(WI_STR("Could not edit %@: File is not a dictionary"), path);
+				wi_log_err(WI_STR("Could not edit \"%@\": File is not a dictionary"), path);
 				wd_user_reply_internal_error(user, wi_error_string(), message);
 			}
 		} else {
-			wi_log_err(WI_STR("Could not open %@: %m"), path);
+			wi_log_err(WI_STR("Could not open \"%@\": %m"), path);
 			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 	} else {
-		wi_log_warn(WI_STR("Permission denied for %@ when editing a post in \"%@\""),
-			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 	}
 	
@@ -1172,8 +1152,6 @@ wi_boolean_t wd_boards_delete_post(wi_string_t *board, wi_uuid_t *thread, wi_uui
 					login = wi_dictionary_data_for_key(instance, WI_STR("wired.user.login"));
 					
 					if(!wi_is_equal(login, wd_user_login(user))) {
-						wi_log_warn(WI_STR("Permission denied for %@ when deleting a post in \"%@\""),
-							wd_user_identifier(user), board);
 						wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 						
 						delete = false;
@@ -1192,21 +1170,19 @@ wi_boolean_t wd_boards_delete_post(wi_string_t *board, wi_uuid_t *thread, wi_uui
 						
 						result = true;
 					} else {
-						wi_log_err(WI_STR("Could not delete %@: %m"), path);
+						wi_log_err(WI_STR("Could not delete \"%@\": %m"), path);
 						wd_user_reply_internal_error(user, wi_error_string(), message);
 					}
 				}
 			} else {
-				wi_log_err(WI_STR("Could not delete %@: File is not a dictionary"), path);
+				wi_log_err(WI_STR("Could not delete \"%@\": File is not a dictionary"), path);
 				wd_user_reply_internal_error(user, wi_error_string(), message);
 			}
 		} else {
-			wi_log_err(WI_STR("Could not open %@: %m"), path);
+			wi_log_err(WI_STR("Could not open \"%@\": %m"), path);
 			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 	} else {
-		wi_log_warn(WI_STR("Permission denied for %@ when deleting a post in \"%@\""),
-			wd_user_identifier(user), board);
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 	}
 	

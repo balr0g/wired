@@ -33,7 +33,7 @@
 
 #include "main.h"
 
-void							wd_messages_init(void);
+void							wd_messages_initialize(void);
 
 void							wd_messages_loop_for_user(wd_user_t *);
 void							wd_messages_handle_message(wi_p7_message_t *, wd_user_t *);

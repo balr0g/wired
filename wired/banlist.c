@@ -72,7 +72,7 @@ static wi_runtime_class_t				wd_ban_runtime_class = {
 
 
 
-void wd_banlist_init(void) {
+void wd_banlist_initialize(void) {
 	wd_ban_runtime_id = wi_runtime_register_class(&wd_ban_runtime_class);
 
 	wd_banlist_path = WI_STR("banlist");
@@ -107,7 +107,7 @@ wi_boolean_t wd_banlist_ip_is_banned(wi_string_t *ip, wi_date_t **expiration_dat
 	if(file)
 		banned = wd_banlist_file_contains_ip(file, ip);
 	else
-		wi_log_err(WI_STR("Could not open %@: %m"), wd_banlist_path);
+		wi_log_err(WI_STR("Could not open \"%@\": %m"), wd_banlist_path);
 	
 	wi_rwlock_unlock(wd_banlist_lock);
 	
@@ -132,7 +132,7 @@ void wd_banlist_reply_bans(wd_user_t *user, wi_p7_message_t *message) {
 	file = wi_file_for_reading(wd_banlist_path);
 	
 	if(!file) {
-		wi_log_err(WI_STR("Could not open %@: %m"), wd_banlist_path);
+		wi_log_err(WI_STR("Could not open \"%@\": %m"), wd_banlist_path);
 	} else {
 		while((string = wi_file_read_config_line(file))) {
 			reply = wi_p7_message_with_name(WI_STR("wired.banlist.list"), wd_p7_spec);
@@ -201,7 +201,7 @@ wi_boolean_t wd_banlist_add_ban(wi_string_t *ip, wi_date_t *expiration_date, wd_
 				wd_user_reply_error(user, WI_STR("wired.error.ban_exists"), message);
 			}
 		} else {
-			wi_log_err(WI_STR("Could not open %@: %m"), wd_banlist_path);
+			wi_log_err(WI_STR("Could not open \"%@\": %m"), wd_banlist_path);
 			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 		
@@ -240,7 +240,7 @@ wi_boolean_t wd_banlist_delete_ban(wi_string_t *ip, wi_date_t *expiration_date, 
 			else
 				wd_user_reply_error(user, WI_STR("wired.error.ban_not_found"), message);
 		} else {
-			wi_log_err(WI_STR("Could not open %@: %m"), wd_banlist_path);
+			wi_log_err(WI_STR("Could not open \"%@\": %m"), wd_banlist_path);
 			wd_user_reply_internal_error(user, wi_error_string(), message);
 		}
 		

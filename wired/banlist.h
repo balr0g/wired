@@ -31,7 +31,7 @@
 
 #include "main.h"
 
-void							wd_banlist_init(void);
+void							wd_banlist_initialize(void);
 
 wi_boolean_t					wd_banlist_ip_is_banned(wi_string_t *, wi_date_t **expiration_date);
 

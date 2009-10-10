@@ -47,7 +47,7 @@ static struct UPNPUrls			wd_portmap_upnp_urls;
 static struct IGDdatas			wd_portmap_upnp_data;
 
 
-void wd_portmap_init(void) {
+void wd_portmap_initialize(void) {
 	wd_portmap_upnp_lock = wi_lock_init(wi_lock_alloc());
 }
 
@@ -108,10 +108,10 @@ void wd_portmap_map_natpmp(void) {
 					if(r != NATPMP_TRYAGAIN) {
 						if(r == 0) {
 							wi_log_info(WI_STR("Mapped internal %@ port %u to external port %u on %@ using NAT-PMP"),
-										(response.type == NATPMP_RESPTYPE_TCPPORTMAPPING) ? WI_STR("TCP") : WI_STR("UDP"),
-										response.pnu.newportmapping.privateport,
-										response.pnu.newportmapping.mappedpublicport,
-										address ? wi_address_string(address) : WI_STR("unknown address"));
+								(response.type == NATPMP_RESPTYPE_TCPPORTMAPPING) ? WI_STR("TCP") : WI_STR("UDP"),
+								response.pnu.newportmapping.privateport,
+								response.pnu.newportmapping.mappedpublicport,
+								address ? wi_address_string(address) : WI_STR("unknown address"));
 						}
 						
 						break;

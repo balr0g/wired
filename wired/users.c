@@ -115,6 +115,7 @@ struct _wd_user {
 	wi_boolean_t						subscribed_boards;
 	wi_boolean_t						subscribed_accounts;
 	wi_boolean_t						subscribed_log;
+	wi_boolean_t						subscribed_events;
 	wi_mutable_set_t					*subscribed_paths;
 	wi_mutable_dictionary_t				*subscribed_virtualpaths;
 	
@@ -181,7 +182,7 @@ static wi_runtime_class_t				wd_client_info_runtime_class = {
 
 
 
-void wd_users_init(void) {
+void wd_users_initialize(void) {
 	wd_user_runtime_id = wi_runtime_register_class(&wd_user_runtime_class);
 	wd_client_info_runtime_id = wi_runtime_register_class(&wd_client_info_runtime_class);
 
@@ -723,41 +724,27 @@ wd_transfer_t * wd_user_transfer(wd_user_t *user) {
 #pragma mark -
 
 wi_boolean_t wd_user_supports_rsrc(wd_user_t *user) {
-	wi_boolean_t		result;
-	
-	wi_recursive_lock_lock(user->user_lock);
-	result = user->client_info->supports_rsrc;
-	wi_recursive_lock_unlock(user->user_lock);
-	
-	return result;
+	WD_USER_RETURN_VALUE(user, user->client_info->supports_rsrc);
 }
 
 
 
+#pragma mark -
+
 void wd_user_subscribe_boards(wd_user_t *user) {
-	wi_recursive_lock_lock(user->user_lock);
-	user->subscribed_boards = true;
-	wi_recursive_lock_unlock(user->user_lock);
+	WD_USER_SET_VALUE(user, user->subscribed_boards, true);
 }
 
 
 
 void wd_user_unsubscribe_boards(wd_user_t *user) {
-	wi_recursive_lock_lock(user->user_lock);
-	user->subscribed_boards = false;
-	wi_recursive_lock_unlock(user->user_lock);
+	WD_USER_SET_VALUE(user, user->subscribed_boards, false);
 }
 
 
 
 wi_boolean_t wd_user_is_subscribed_boards(wd_user_t *user) {
-	wi_boolean_t		result;
-	
-	wi_recursive_lock_lock(user->user_lock);
-	result = user->subscribed_boards;
-	wi_recursive_lock_unlock(user->user_lock);
-	
-	return result;
+	WD_USER_RETURN_VALUE(user, user->subscribed_boards);
 }
 
 
@@ -766,29 +753,19 @@ wi_boolean_t wd_user_is_subscribed_boards(wd_user_t *user) {
 #pragma mark -
 
 void wd_user_subscribe_accounts(wd_user_t *user) {
-	wi_recursive_lock_lock(user->user_lock);
-	user->subscribed_accounts = true;
-	wi_recursive_lock_unlock(user->user_lock);
+	WD_USER_SET_VALUE(user, user->subscribed_accounts, true);
 }
 
 
 
 void wd_user_unsubscribe_accounts(wd_user_t *user) {
-	wi_recursive_lock_lock(user->user_lock);
-	user->subscribed_accounts = false;
-	wi_recursive_lock_unlock(user->user_lock);
+	WD_USER_SET_VALUE(user, user->subscribed_accounts, false);
 }
 
 
 
 wi_boolean_t wd_user_is_subscribed_accounts(wd_user_t *user) {
-	wi_boolean_t		result;
-	
-	wi_recursive_lock_lock(user->user_lock);
-	result = user->subscribed_accounts;
-	wi_recursive_lock_unlock(user->user_lock);
-	
-	return result;
+	WD_USER_RETURN_VALUE(user, user->subscribed_accounts);
 }
 
 
@@ -797,29 +774,40 @@ wi_boolean_t wd_user_is_subscribed_accounts(wd_user_t *user) {
 #pragma mark -
 
 void wd_user_subscribe_log(wd_user_t *user) {
-	wi_recursive_lock_lock(user->user_lock);
-	user->subscribed_log = true;
-	wi_recursive_lock_unlock(user->user_lock);
+	WD_USER_SET_VALUE(user, user->subscribed_log, true);
 }
 
 
 
 void wd_user_unsubscribe_log(wd_user_t *user) {
-	wi_recursive_lock_lock(user->user_lock);
-	user->subscribed_log = false;
-	wi_recursive_lock_unlock(user->user_lock);
+	WD_USER_SET_VALUE(user, user->subscribed_log, false);
 }
 
 
 
 wi_boolean_t wd_user_is_subscribed_log(wd_user_t *user) {
-	wi_boolean_t		result;
-	
-	wi_recursive_lock_lock(user->user_lock);
-	result = user->subscribed_log;
-	wi_recursive_lock_unlock(user->user_lock);
-	
-	return result;
+	WD_USER_RETURN_VALUE(user, user->subscribed_log);
+}
+
+
+
+
+#pragma mark -
+
+void wd_user_subscribe_events(wd_user_t *user) {
+	WD_USER_SET_VALUE(user, user->subscribed_events, true);
+}
+
+
+
+void wd_user_unsubscribe_events(wd_user_t *user) {
+	WD_USER_SET_VALUE(user, user->subscribed_events, false);
+}
+
+
+
+wi_boolean_t wd_user_is_subscribed_events(wd_user_t *user) {
+	WD_USER_RETURN_VALUE(user, user->subscribed_events);
 }
 
 

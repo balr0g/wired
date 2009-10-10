@@ -1,9 +1,9 @@
 /* $Id$ */
 
 /*
- *  Copyright (c) 2004-2009 Axel Andersson
+ *  Copyright (c) 2009 Axel Andersson
  *  All rights reserved.
- * 
+ *
  *  Redistribution and use in source and binary forms, with or without
  *  modification, are permitted provided that the following conditions
  *  are met:
@@ -12,7 +12,7 @@
  *  2. Redistributions in binary form must reproduce the above copyright
  *     notice, this list of conditions and the following disclaimer in the
  *     documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -26,16 +26,23 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef WD_VERSION_H
-#define WD_VERSION_H 1
+#ifndef WD_EVENTS_H
+#define WD_EVENTS_H 1
 
-#include <wired/wired.h>
+#include "main.h"
 
-extern wi_string_t						*wd_version_string;
-extern wi_string_t						*wd_protocol_version_string;
-extern wi_string_t						*wd_server_version_string;
+enum _wd_event {
+	WD_EVENT_STARTED_DOWNLOAD,
+	WD_EVENT_STOPPED_DOWNLOAD,
+	WD_EVENT_FINISHED_DOWNLOAD,
+};
+typedef enum _wd_event					wd_event_t;
 
 
-void									wd_version_init(void);
+void									wd_events_initialize(void);
 
-#endif /* WD_VERSION_H */
+void									wd_events_reply_events(wd_user_t *, wi_p7_message_t *);
+
+void									wd_events_add_event(wd_event_t, wd_user_t *, wi_string_t *);
+
+#endif // WD_EVENTS_H

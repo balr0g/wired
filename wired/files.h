@@ -69,7 +69,7 @@ typedef enum _wd_file_permissions		wd_file_permissions_t;
 typedef struct _wd_files_privileges		wd_files_privileges_t;
 
 
-void									wd_files_init(void);
+void									wd_files_initialize(void);
 void									wd_files_apply_settings(wi_set_t *);
 void									wd_files_schedule(void);
 

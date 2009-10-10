@@ -37,7 +37,7 @@
 #define WD_SERVER_PORT				4871
 
 
-void								wd_server_init(void);
+void								wd_server_initialize(void);
 void								wd_server_schedule(void);
 void								wd_server_listen(void);
 void								wd_server_apply_settings(wi_set_t *);

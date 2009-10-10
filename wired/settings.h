@@ -38,7 +38,7 @@
 #define WD_CONFIG_PATH				"etc/wired.conf"
 
 
-void								wd_settings_init(void);
+void								wd_settings_initialize(void);
 wi_boolean_t						wd_settings_read_config(void);
 void								wd_settings_apply_settings(wi_set_t *);
 void								wd_settings_schedule(void);

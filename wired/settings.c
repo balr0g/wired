@@ -41,7 +41,7 @@ wi_config_t						*wd_config;
 
 
 
-void wd_settings_init(void) {
+void wd_settings_initialize(void) {
 	wi_dictionary_t		*types, *defaults;
 	
 	types = wi_dictionary_with_data_and_keys(
@@ -172,7 +172,7 @@ wi_boolean_t wd_settings_set_settings(wd_user_t *user, wi_p7_message_t *message)
 	if(wi_data_write_to_file(banner, path))
 		wi_config_note_change(wd_config, WI_STR("banner"));
 	else
-		wi_log_err(WI_STR("Could not write banner to %@: %m"), path);
+		wi_log_err(WI_STR("Could not write banner to \"%@\": %m"), path);
 		
 	name					= wi_p7_message_string_for_name(message, WI_STR("wired.info.name"));
 	description				= wi_p7_message_string_for_name(message, WI_STR("wired.info.description"));

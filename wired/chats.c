@@ -106,7 +106,7 @@ static wi_runtime_class_t			wd_topic_runtime_class = {
 
 
 
-void wd_chats_init(void) {
+void wd_chats_initialize(void) {
 	wi_runtime_instance_t	*instance;
 	
 	wd_chat_runtime_id = wi_runtime_register_class(&wd_chat_runtime_class);
@@ -412,7 +412,7 @@ void wd_chat_set_topic(wd_chat_t *chat, wd_topic_t *topic) {
 	
 	if(chat->id == WD_PUBLIC_CHAT_ID) {
 		if(!wi_plist_write_instance_to_file(wd_topic_dictionary(topic), wd_topic_path))
-			wi_log_err(WI_STR("Could not write to %@: %m"), wd_topic_path);
+			wi_log_err(WI_STR("Could not write to \"%@\": %m"), wd_topic_path);
 	}
 }
 

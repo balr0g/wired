@@ -63,7 +63,7 @@ typedef uint32_t						wd_uid_t;
 typedef struct _wd_client_info			wd_client_info_t;
 
 
-void									wd_users_init(void);
+void									wd_users_initialize(void);
 void									wd_users_schedule(void);
 
 void									wd_users_add_user(wd_user_t *);
@@ -119,6 +119,10 @@ wi_boolean_t							wd_user_is_subscribed_accounts(wd_user_t *);
 void									wd_user_subscribe_log(wd_user_t *);
 void									wd_user_unsubscribe_log(wd_user_t *);
 wi_boolean_t							wd_user_is_subscribed_log(wd_user_t *);
+
+void									wd_user_subscribe_events(wd_user_t *);
+void									wd_user_unsubscribe_events(wd_user_t *);
+wi_boolean_t							wd_user_is_subscribed_events(wd_user_t *);
 
 void									wd_user_subscribe_path(wd_user_t *, wi_string_t *, wi_string_t *);
 void									wd_user_unsubscribe_path(wd_user_t *, wi_string_t *);

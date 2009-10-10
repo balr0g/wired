@@ -35,7 +35,7 @@
 typedef struct _wd_account			wd_account_t;
 
 
-void								wd_accounts_init(void);
+void								wd_accounts_initialize(void);
 
 wd_account_t *						wd_accounts_read_user_and_group(wi_string_t *);
 wd_account_t *						wd_accounts_read_user(wi_string_t *);
@@ -140,6 +140,7 @@ wi_boolean_t 						wd_account_account_edit_groups(wd_account_t *);
 wi_boolean_t 						wd_account_account_delete_groups(wd_account_t *);
 wi_boolean_t 						wd_account_account_raise_account_privileges(wd_account_t *);
 wi_boolean_t 						wd_account_log_view_log(wd_account_t *);
+wi_boolean_t 						wd_account_events_view_events(wd_account_t *);
 wi_boolean_t 						wd_account_settings_get_settings(wd_account_t *);
 wi_boolean_t 						wd_account_settings_set_settings(wd_account_t *);
 wi_boolean_t 						wd_account_banlist_get_bans(wd_account_t *);

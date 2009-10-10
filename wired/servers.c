@@ -95,7 +95,7 @@ static wi_runtime_class_t				wd_server_runtime_class = {
 
 
 
-void wd_servers_init(void) {
+void wd_servers_initialize(void) {
 	wd_server_runtime_id = wi_runtime_register_class(&wd_server_runtime_class);
 
 	wd_servers = wi_dictionary_init(wi_mutable_dictionary_alloc());

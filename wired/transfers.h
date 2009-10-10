@@ -79,7 +79,7 @@ struct _wd_transfer {
 typedef struct _wd_transfer				wd_transfer_t;
 
 
-void									wd_transfers_init(void);
+void									wd_transfers_initialize(void);
 void									wd_transfers_apply_settings(wi_set_t *);
 void									wd_transfers_schedule(void);
 

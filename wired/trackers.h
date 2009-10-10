@@ -31,7 +31,7 @@
 
 #include <wired/wired.h>
 
-void							wd_trackers_init(void);
+void							wd_trackers_initialize(void);
 void							wd_trackers_apply_settings(wi_set_t *);
 void							wd_trackers_schedule(void);
 

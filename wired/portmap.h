@@ -29,7 +29,7 @@
 #ifndef WD_PORTMAP_H
 #define WD_PORTMAP_H 1
 
-void							wd_portmap_init(void);
+void							wd_portmap_initialize(void);
 
 void							wd_portmap_map_natpmp(void);
 void							wd_portmap_unmap_natpmp(void);

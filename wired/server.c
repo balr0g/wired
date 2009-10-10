@@ -104,7 +104,7 @@ wi_p7_spec_t						*wd_p7_spec;
 
 
 
-void wd_server_init(void) {
+void wd_server_initialize(void) {
 	wi_string_t		*path;
 	
 	wd_ping_timer = wi_timer_init_with_function(wi_timer_alloc(),
@@ -123,7 +123,7 @@ void wd_server_init(void) {
 	wd_p7_spec = wi_p7_spec_init_with_file(wi_p7_spec_alloc(), path, WI_P7_SERVER);
 	
 	if(!wd_p7_spec)
-		wi_log_fatal(WI_STR("Could not load protocol %@: %m"), path);
+		wi_log_fatal(WI_STR("Could not load protocol \"%@\": %m"), path);
 	
 	wi_log_info(WI_STR("Loaded protocol %@ %@"),
 		wi_p7_spec_name(wd_p7_spec),
@@ -262,7 +262,7 @@ void wd_server_apply_settings(wi_set_t *changes) {
 			wd_banner = wi_data_init_with_contents_of_file(wi_data_alloc(), banner);
 			
 			if(!wd_banner)
-				wi_log_warn(WI_STR("Could not open %@: %m"), banner);
+				wi_log_warn(WI_STR("Could not open \"%@\": %m"), banner);
 		}
 	} else {
 		wi_release(wd_banner);

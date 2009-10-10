@@ -37,7 +37,7 @@ typedef uint32_t						wd_cid_t;
 typedef struct _wd_topic				wd_topic_t;
 
 
-void									wd_chats_init(void);
+void									wd_chats_initialize(void);
 
 void									wd_chats_add_chat(wd_chat_t *);
 wd_chat_t *								wd_chats_chat_with_id(wd_cid_t);

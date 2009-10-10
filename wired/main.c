@@ -41,6 +41,7 @@
 #include "accounts.h"
 #include "banlist.h"
 #include "boards.h"
+#include "events.h"
 #include "files.h"
 #include "main.h"
 #include "messages.h"
@@ -99,8 +100,6 @@ int main(int argc, const char **argv) {
 	wi_initialize();
 	wi_load(argc, argv);
 	
-	wi_pool_debug			= true;
-
 	pool = wi_pool_init(wi_pool_alloc());
 
 	//wi_p7_message_debug		= true;
@@ -229,25 +228,26 @@ int main(int argc, const char **argv) {
 	
 	if(change_directory) {
 		if(!wi_fs_change_directory(root_path))
-			wi_log_fatal(WI_STR("Could not change directory to %@: %m"), root_path);
+			wi_log_fatal(WI_STR("Could not change directory to \"%@\": %m"), root_path);
 	}
 	
 	wi_log_open();
 	
-	wd_server_init();
+	wd_server_initialize();
 
-	wd_accounts_init();
-	wd_boards_init();
-	wd_chats_init();
-	wd_users_init();
-	wd_files_init();
-	wd_messages_init();
-	wd_portmap_init();
-	wd_banlist_init();
-	wd_servers_init();
-	wd_settings_init();
-	wd_trackers_init();
-	wd_transfers_init();
+	wd_accounts_initialize();
+	wd_boards_initialize();
+	wd_chats_initialize();
+	wd_users_initialize();
+	wd_events_initialize();
+	wd_files_initialize();
+	wd_messages_initialize();
+	wd_portmap_initialize();
+	wd_banlist_initialize();
+	wd_servers_initialize();
+	wd_settings_initialize();
+	wd_trackers_initialize();
+	wd_transfers_initialize();
 
 	if(!wd_settings_read_config())
 		exit(1);
@@ -356,7 +356,7 @@ static void wd_write_pid(void) {
 	string = wi_string_with_format(WI_STR("%d\n"), getpid());
 	
 	if(!wi_string_write_to_file(string, path))
-		wi_log_warn(WI_STR("Could not write to %@: %m"), path);
+		wi_log_warn(WI_STR("Could not write to \"%@\": %m"), path);
 }
 
 
@@ -367,7 +367,7 @@ static void wd_delete_pid(void) {
 	path = WI_STR("wired.pid");
 
 	if(!wi_fs_delete_path(path))
-		wi_log_warn(WI_STR("Could not delete %@: %m"), path);
+		wi_log_warn(WI_STR("Could not delete \"%@\": %m"), path);
 }
 
 
@@ -407,7 +407,7 @@ void wd_write_status(wi_boolean_t force) {
 								   wd_tracker_current_size);
 	
 	if(!wi_string_write_to_file(string, path))
-		wi_log_warn(WI_STR("Could not write to %@: %m"), path);
+		wi_log_warn(WI_STR("Could not write to \"%@\": %m"), path);
 }
 
 
@@ -418,7 +418,7 @@ static void wd_delete_status(void) {
 	path = WI_STR("wired.status");
 
 	if(!wi_fs_delete_path(path))
-		wi_log_warn(WI_STR("Could not delete %@: %m"), path);
+		wi_log_warn(WI_STR("Could not delete \"%@\": %m"), path);
 }
 
 

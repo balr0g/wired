@@ -21,9 +21,10 @@ DISTFILES			= INSTALL LICENSE NEWS README Makefile Makefile.in \
 					  configure.in install-sh libwired man run thirdparty wired
 SUBDIRS				= libwired
 
-WIREDOBJECTS		= $(addprefix $(objdir)/wired/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/wired -name "[a-z]*.c"))))
-NATPMPOBJECTS		= $(addprefix $(objdir)/natpmp/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/thirdparty/natpmp -name "[a-z]*.c"))))
-MINIUPNPCOBJECTS	= $(addprefix $(objdir)/miniupnpc/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/thirdparty/miniupnpc -name "[a-z]*.c"))))
+WIREDOBJS			= $(addprefix $(objdir)/wired/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/wired -name "[a-z]*.c"))))
+NATPMPOBJS			= $(addprefix $(objdir)/natpmp/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/thirdparty/natpmp -name "[a-z]*.c"))))
+MINIUPNPCOBJS		= $(addprefix $(objdir)/miniupnpc/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/thirdparty/miniupnpc -name "[a-z]*.c"))))
+TRANSFERTESTOBJS	= $(addprefix $(objdir)/transfertest/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/test/transfertest -name "[a-z]*.c"))))
 
 DEFS				= @DEFS@ -DWD_ROOT="\"$(fake_prefix)/$(wireddir)\"" -DENABLE_STRNATPMPERR -DMINIUPNPC_SET_SOCKET_TIMEOUT
 CC					= @CC@
@@ -46,7 +47,7 @@ ARCHIVE				= ar rcs $@
 all: all-recursive $(rundir)/wired $(rundir)/wiredctl $(rundir)/etc/wired.conf
 
 ifeq ($(WD_MAINTAINER), 1)
-all: Makefile configure config.h.in
+all: Makefile configure config.h.in $(rundir)/transfertest
 
 Makefile: Makefile.in config.status
 	./config.status
@@ -67,9 +68,9 @@ all-recursive clean-recursive distclean-recursive:
 		(cd $$subdir && $(MAKE) -e $$target) || exit 1; \
 	done
 
-$(rundir)/wired: $(WIREDOBJECTS) $(NATPMPOBJECTS) $(MINIUPNPCOBJECTS) $(rundir)/libwired/lib/libwired.a
+$(rundir)/wired: $(WIREDOBJS) $(NATPMPOBJS) $(MINIUPNPCOBJS) $(rundir)/libwired/lib/libwired.a
 	@test -d $(@D) || mkdir -p $(@D)
-	$(LINK) $(WIREDOBJECTS) $(NATPMPOBJECTS) $(MINIUPNPCOBJECTS) $(LIBS)
+	$(LINK) $(WIREDOBJS) $(NATPMPOBJS) $(MINIUPNPCOBJS) $(LIBS)
 
 $(rundir)/wiredctl: $(abs_top_srcdir)/wired/wiredctl.in
 	@test -d $(@D) || mkdir -p $(@D)
@@ -79,6 +80,10 @@ $(rundir)/wiredctl: $(abs_top_srcdir)/wired/wiredctl.in
 $(rundir)/etc/wired.conf: $(abs_top_srcdir)/wired/wired.conf.in
 	@test -d $(@D) || mkdir -p $(@D)
 	sed -e 's,@WD_USER\@,$(WD_USER),g' -e 's,@WD_GROUP\@,$(WD_GROUP),g' $< > $@
+
+$(rundir)/transfertest: $(TRANSFERTESTOBJS) $(rundir)/libwired/lib/libwired.a
+	@test -d $(@D) || mkdir -p $(@D)
+	$(LINK) $(TRANSFERTESTOBJS) $(LIBS)
 
 $(objdir)/wired/%.o: $(abs_top_srcdir)/wired/%.c
 	@test -d $(@D) || mkdir -p $(@D)
@@ -104,6 +109,14 @@ $(objdir)/miniupnpc/%.d: $(abs_top_srcdir)/thirdparty/miniupnpc/%.c
 	@test -d $(@D) || mkdir -p $(@D)
 	($(DEPEND) $< | sed 's,$*.o,$(@D)/&,g'; echo "$@: $<") > $@
 
+$(objdir)/transfertest/%.o: $(abs_top_srcdir)/test/transfertest/%.c
+	@test -d $(@D) || mkdir -p $(@D)
+	$(COMPILE) -I$(<D) -c $< -o $@
+
+$(objdir)/transfertest/%.d: $(abs_top_srcdir)/test/transfertest/%.c
+	@test -d $(@D) || mkdir -p $(@D)
+	($(DEPEND) $< | sed 's,$*.o,$(@D)/&,g'; echo "$@: $<") > $@
+
 install: all install-man install-wired
 
 install-only: install-man install-wired
@@ -122,6 +135,10 @@ install-wired:
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/board/General/.wired/permissions $(installdir)/board/General/.wired/; \
 		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/; \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/AD70D7CB-F789-4030-A92F-40D546DBE1D9.WiredPost $(installdir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/; \
+	fi
+
+	if [ ! -f $(installdir)/events ]; then \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/events $(installdir)/; \
 	fi
 
 	if [ ! -d $(installdir)/files ]; then \
@@ -230,5 +247,8 @@ scmclean:
 	find . -name .svn -print0 | xargs -0 rm -rf
 
 ifeq ($(WD_MAINTAINER), 1)
--include $(WIREDOBJECTS:.o=.d)
+-include $(WIREDOBJS:.o=.d)
+-include $(NATPMPOBJS:.o=.d)
+-include $(MINIUPNPSOBJS:.o=.d)
+-include $(TRANSFERTESTOBJS:.o=.d)
 endif

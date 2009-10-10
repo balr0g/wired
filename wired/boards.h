@@ -44,7 +44,7 @@ typedef enum _wd_board_permissions		wd_board_permissions_t;
 typedef struct _wd_board_privileges		wd_board_privileges_t;
 
 
-void									wd_boards_init(void);
+void									wd_boards_initialize(void);
 
 void									wd_boards_rename_owner(wi_string_t *, wi_string_t *);
 void									wd_boards_rename_group(wi_string_t *, wi_string_t *);
