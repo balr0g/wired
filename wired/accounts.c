@@ -1048,7 +1048,7 @@ static void wd_accounts_reload_group_account(wd_account_t *account) {
 static void wd_accounts_reload_account(wd_user_t *user, wd_account_t *account) {
 	wi_string_t		*newnick;
 	wd_account_t	*newaccount;
-	wi_boolean_t	newadmin, changed;
+	wi_boolean_t	newadmin, changed = false;
 	
 	newaccount = wd_accounts_read_user_and_group(wd_account_name(account));
 	
