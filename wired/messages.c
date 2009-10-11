@@ -260,20 +260,14 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 		if(user_state == WD_USER_DISCONNECTED)
 			break;
 		
-		if(state == WI_SOCKET_ERROR) {
-			wi_log_warn(WI_STR("Could not wait for message from %@: %m"),
-				wd_user_identifier(user));
+		if(state == WI_SOCKET_ERROR || wi_time_interval() - timeout >= 120.0) {
+			wi_log_warn(WI_STR("Could not wait for message from %@: %@"),
+				wd_user_identifier(user),
+				(state == WI_SOCKET_ERROR) ? wi_error_string() : WI_STR("Timed out"));
 
 			break;
 		}
 		
-		if(wi_time_interval() - timeout >= 120.0) {
-			wi_log_warn(WI_STR("Could not wait for message from %@: Timed out"),
-				wd_user_identifier(user));
-
-			break;
-		}
-
 		wd_user_lock_socket(user);
 		
 		message = wi_p7_socket_read_message(p7_socket, 120.0);

@@ -336,9 +336,7 @@ static wi_boolean_t wd_transfers_run_upload(wd_transfer_t *transfer, wd_user_t *
 	}
 	
 	wi_p7_message_get_uint64_for_name(reply, &transfer->remainingdatasize, WI_STR("wired.transfer.data"));
-	
-	if(!wi_p7_message_get_uint64_for_name(reply, &transfer->remainingrsrcsize, WI_STR("wired.transfer.rsrc")))
-		transfer->remainingrsrcsize = 0;
+	wi_p7_message_get_uint64_for_name(reply, &transfer->remainingrsrcsize, WI_STR("wired.transfer.rsrc"));
 	
 	transfer->finderinfo = wi_retain(wi_p7_message_data_for_name(reply, WI_STR("wired.transfer.finderinfo")));
 	
@@ -1017,17 +1015,10 @@ static wi_boolean_t wd_transfer_download(wd_transfer_t *transfer) {
 			}
 		} while(state == WI_SOCKET_TIMEOUT && user_state == WD_USER_LOGGED_IN);
 
-		if(state == WI_SOCKET_ERROR) {
-			wi_log_error(WI_STR("Could not wait for download to %@: %m"),
-				wd_user_identifier(transfer->user));
-			
-			result = false;
-			break;
-		}
-		
-		if(wi_time_interval() - timeout >= 30.0) {
-			wi_log_error(WI_STR("Timed out waiting to write download to %@"),
-				wd_user_identifier(transfer->user));
+		if(state == WI_SOCKET_ERROR || wi_time_interval() - timeout >= 30.0) {
+			wi_log_error(WI_STR("Could not wait for download to %@: %@"),
+				wd_user_identifier(transfer->user),
+				(state == WI_SOCKET_ERROR) ? wi_error_string() : WI_STR("Timed out"));
 			
 			result = false;
 			break;
@@ -1167,18 +1158,11 @@ static wi_boolean_t wd_transfer_upload(wd_transfer_t *transfer) {
 			}
 		} while(state == WI_SOCKET_TIMEOUT && user_state == WD_USER_LOGGED_IN);
 		
-		if(state == WI_SOCKET_ERROR) {
-			wi_log_error(WI_STR("Could not wait for upload from %@: %m"),
-				wd_user_identifier(transfer->user));
+		if(state == WI_SOCKET_ERROR || wi_time_interval() - timeout >= 30.0) {
+			wi_log_error(WI_STR("Could not wait for upload from %@: %@"),
+				wd_user_identifier(transfer->user),
+				(state == WI_SOCKET_ERROR) ? wi_error_string() : WI_STR("Timed out"));
 			
-			result = false;
-			break;
-		}
-		
-		if(wi_time_interval() - timeout >= 30.0) {
-			wi_log_error(WI_STR("Timed out waiting to read upload from %@"),
-				wd_user_identifier(transfer->user));
-
 			result = false;
 			break;
 		}
