@@ -355,7 +355,7 @@ wd_account_t * wd_accounts_read_user(wi_string_t *name) {
 			if(wi_runtime_id(values) == wi_dictionary_runtime_id())
 				account = wi_autorelease(wd_account_init_with_name_and_values(wd_account_alloc(), name, values));
 			else
-				wi_log_err(WI_STR("Could not read accounts from \"%@\": Invalid format"), wd_users_path);
+				wi_log_error(WI_STR("Could not read accounts from \"%@\": Invalid format"), wd_users_path);
 		}
 	}
 	
@@ -382,7 +382,7 @@ wd_account_t * wd_accounts_read_group(wi_string_t *name) {
 			if(wi_runtime_id(values) == wi_dictionary_runtime_id())
 				account = wi_autorelease(wd_account_init_with_name_and_values(wd_account_alloc(), name, values));
 			else
-				wi_log_err(WI_STR("Could not read accounts from \"%@\": Invalid format"), wd_users_path);
+				wi_log_error(WI_STR("Could not read accounts from \"%@\": Invalid format"), wd_users_path);
 		}
 	}
 	
@@ -778,7 +778,7 @@ static wi_boolean_t wd_accounts_convert_accounts_from_1_3(wi_string_t *path, wi_
 	file			= wi_file_for_reading(path);
 	
 	if(!file) {
-		wi_log_err(WI_STR("Could not read accounts from \"%@\": %m"), path);
+		wi_log_error(WI_STR("Could not read accounts from \"%@\": %m"), path);
 		
 		return false;
 	}
@@ -847,7 +847,7 @@ static wi_boolean_t wd_accounts_convert_accounts_from_1_3(wi_string_t *path, wi_
 	}
 	
 	if(!wi_plist_write_instance_to_file(dictionary, path)) {
-		wi_log_err(WI_STR("Could not write accounts to \"%@\": %m"), path);
+		wi_log_error(WI_STR("Could not write accounts to \"%@\": %m"), path);
 	
 		return false;
 	}
@@ -874,7 +874,7 @@ static wi_boolean_t wd_accounts_convert_accounts_from_2_0b(wi_string_t *path, wi
 	}
 	
 	if(!wi_plist_write_instance_to_file(dictionary, path)) {
-		wi_log_err(WI_STR("Could not write accounts to \"%@\": %m"), path);
+		wi_log_error(WI_STR("Could not write accounts to \"%@\": %m"), path);
 		
 		return false;
 	}
@@ -893,12 +893,12 @@ static wi_mutable_dictionary_t * wd_accounts_dictionary_at_path(wi_string_t *pat
 	
 	if(instance) {
 		if(wi_runtime_id(instance) != wi_dictionary_runtime_id()) {
-			wi_log_err(WI_STR("Could not read accounts from \"%@\": Invalid format"), path);
+			wi_log_error(WI_STR("Could not read accounts from \"%@\": Invalid format"), path);
 			
 			instance = NULL;
 		}
 	} else {
-		wi_log_err(WI_STR("Could not read accounts from \"%@\": %m"), path);
+		wi_log_error(WI_STR("Could not read accounts from \"%@\": %m"), path);
 	}
 	
 	return instance;
@@ -940,7 +940,7 @@ static wi_boolean_t wd_accounts_write_account(wd_account_t *account, wd_account_
 		if(wi_plist_write_instance_to_file(dictionary, path)) {
 			result = true;
 		} else {
-			wi_log_err(WI_STR("Could not write accounts to \"%@\": %m"), path);
+			wi_log_error(WI_STR("Could not write accounts to \"%@\": %m"), path);
 			
 			if(user)
 				wd_user_reply_internal_error(user, wi_error_string(), message);
@@ -986,7 +986,7 @@ static wi_boolean_t wd_accounts_delete_account(wd_account_t *account, wd_account
 		if(wi_plist_write_instance_to_file(dictionary, path)) {
 			result = true;
 		} else {
-			wi_log_err(WI_STR("Could not write accounts to \"%@\": %m"), path);
+			wi_log_error(WI_STR("Could not write accounts to \"%@\": %m"), path);
 			
 			if(user)
 				wd_user_reply_internal_error(user, wi_error_string(), message);
@@ -1140,7 +1140,7 @@ static void wd_accounts_update_users_for_group_account(wd_account_t *account) {
 		}
 		
 		if(!wi_plist_write_instance_to_file(dictionary, wd_users_path))
-			wi_log_err(WI_STR("Could not write accounts to \"%@\": %m"), wd_users_path);
+			wi_log_error(WI_STR("Could not write accounts to \"%@\": %m"), wd_users_path);
 	}
 	
 	wi_recursive_lock_unlock(wd_users_lock);

@@ -261,14 +261,14 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 			break;
 		
 		if(state == WI_SOCKET_ERROR) {
-			wi_log_err(WI_STR("Could not wait for message from %@: %m"),
+			wi_log_warn(WI_STR("Could not wait for message from %@: %m"),
 				wd_user_identifier(user));
 
 			break;
 		}
 		
 		if(wi_time_interval() - timeout >= 120.0) {
-			wi_log_err(WI_STR("Timed out waiting for message from %@"),
+			wi_log_warn(WI_STR("Could not wait for message from %@: Timed out"),
 				wd_user_identifier(user));
 
 			break;
@@ -282,7 +282,7 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 		
 		if(!message) {
 			if(wi_error_domain() != WI_ERROR_DOMAIN_LIBWIRED && wi_error_code() != WI_ERROR_SOCKET_EOF) {
-				wi_log_info(WI_STR("Could not read message from %@: %m"),
+				wi_log_warn(WI_STR("Could not read message from %@: %m"),
 					wd_user_identifier(user));
 			}
 			
@@ -290,7 +290,7 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 		}
 
 		if(!wi_p7_socket_verify_message(p7_socket, message)) {
-			wi_log_debug(WI_STR("Could not verify message: %m"));
+			wi_log_error(WI_STR("Could not verify message: %m"));
 			wd_user_reply_error(user, WI_STR("wired.error.invalid_message"), message);
 			
 			continue;
@@ -335,7 +335,7 @@ void wd_messages_handle_message(wi_p7_message_t *message, wd_user_t *user) {
 	handler = wi_dictionary_data_for_key(wd_message_handlers, name);
 	
 	if(!handler) {
-		wi_log_warn(WI_STR("No handler for message \"%@\""), name);
+		wi_log_error(WI_STR("No handler for message \"%@\""), name);
 		wd_user_reply_error(user, WI_STR("wired.error.unrecognized_message"), message);
 		
 		return;
@@ -357,7 +357,7 @@ void wd_messages_handle_message(wi_p7_message_t *message, wd_user_t *user) {
 		   handler != wd_message_user_set_nick &&
 		   handler != wd_message_user_set_status &&
 		   handler != wd_message_user_set_icon) {
-			wi_log_warn(WI_STR("Could not process message \"%@\": Out of sequence"), name);
+			wi_log_error(WI_STR("Could not process message \"%@\": Out of sequence"), name);
 			wd_user_reply_error(user, WI_STR("wired.error.message_out_of_sequence"), message);
 			
 			return;
@@ -426,6 +426,8 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 		wi_log_info(WI_STR("Login from %@ failed: Banned"),
 			wd_user_identifier(user));
 		
+		wd_events_add_event(WI_STR("wired.events.login_failed"), user, NULL);
+		
 		return;
 	}
 	
@@ -437,6 +439,8 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 		wi_log_info(WI_STR("Login from %@ failed: No such account"),
 			wd_user_identifier(user));
 		
+		wd_events_add_event(WI_STR("wired.events.login_failed"), user, NULL);
+		
 		return;
 	}
 	
@@ -447,6 +451,8 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 		
 		wi_log_info(WI_STR("Login from %@ failed: Wrong password"),
 			wd_user_identifier(user));
+		
+		wd_events_add_event(WI_STR("wired.events.login_failed"), user, NULL);
 		
 		return;
 	}
@@ -475,12 +481,14 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 	wd_user_reply_message(user, reply, message);
 	
 	wd_accounts_update_login_time(account);
+	
+	wd_events_add_event(WI_STR("wired.events.logged_in"), user, wd_client_info_string(wd_user_client_info(user)));
 }
 
 
 
 static void wd_message_user_set_nick(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*nick;
+	wi_string_t		*oldnick, *newnick;
 	wd_account_t	*account;
 	
 	account = wd_user_account(user);
@@ -491,13 +499,17 @@ static void wd_message_user_set_nick(wd_user_t *user, wi_p7_message_t *message) 
 		return;
 	}
 	
-	nick = wi_p7_message_string_for_name(message, WI_STR("wired.user.nick"));
+	newnick = wi_p7_message_string_for_name(message, WI_STR("wired.user.nick"));
+	oldnick = wi_autorelease(wi_retain(wd_user_nick(user)));
 	
-	if(!wi_is_equal(nick, wd_user_nick(user))) {
-		wd_user_set_nick(user, nick);
+	if(!wi_is_equal(oldnick, newnick)) {
+		wd_user_set_nick(user, newnick);
 		
-		if(wd_user_state(user) == WD_USER_LOGGED_IN)
+		if(wd_user_state(user) == WD_USER_LOGGED_IN) {
 			wd_user_broadcast_status(user);
+			
+			wd_events_add_event(WI_STR("wired.events.changed_nick"), user, oldnick);
+		}
 	}
 	
 	wd_user_reply_okay(user, message);

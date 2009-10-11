@@ -175,7 +175,7 @@ void wd_server_listen(void) {
 			if(array)
 				wi_mutable_array_add_data_from_array(addresses, array);
 			else
-				wi_log_err(WI_STR("Could not resolve \"%@\": %m"), string);
+				wi_log_error(WI_STR("Could not resolve \"%@\": %m"), string);
 		}
 		
 		wi_array_unlock(config_addresses);
@@ -207,13 +207,13 @@ void wd_server_listen(void) {
 		udp_socket = wi_autorelease(wi_socket_init_with_address(wi_socket_alloc(), address, WI_SOCKET_UDP));
 
 		if(!tcp_socket || !udp_socket) {
-			wi_log_warn(WI_STR("Could not create socket for %@: %m"), ip);
+			wi_log_error(WI_STR("Could not create socket for %@: %m"), ip);
 			
 			continue;
 		}
 
 		if(!wi_socket_listen(tcp_socket) || !wi_socket_listen(udp_socket)) {
-			wi_log_warn(WI_STR("Could not listen on %@ port %u: %m"),
+			wi_log_error(WI_STR("Could not listen on %@ port %u: %m"),
 				ip, wi_socket_port(tcp_socket));
 			
 			continue;
@@ -229,7 +229,7 @@ void wd_server_listen(void) {
 	}
 
 	if(wi_array_count(wd_tcp_sockets) == 0 || wi_array_count(wd_udp_sockets) == 0)
-		wi_log_fatal(WI_STR("No addresses available for listening"));
+		wi_log_fatal(WI_STR("Could not listen: No addresses available"));
 	
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
 	if(!wi_thread_create_thread(wd_server_cf_thread, NULL))
@@ -262,7 +262,7 @@ void wd_server_apply_settings(wi_set_t *changes) {
 			wd_banner = wi_data_init_with_contents_of_file(wi_data_alloc(), banner);
 			
 			if(!wd_banner)
-				wi_log_warn(WI_STR("Could not open \"%@\": %m"), banner);
+				wi_log_error(WI_STR("Could not open \"%@\": %m"), banner);
 		}
 	} else {
 		wi_release(wd_banner);
@@ -462,7 +462,7 @@ static void wd_server_dnssd_register(void) {
 							   NULL);
 	
 	if(error != kDNSServiceErr_NoError) {
-		wi_log_warn(WI_STR("Could not register for DNS service discovery: %@"),
+		wi_log_error(WI_STR("Could not register for DNS service discovery: %@"),
 			wd_server_dnssd_error_string(error));
 		
 		return;
@@ -476,7 +476,7 @@ static void wd_server_dnssd_register(void) {
 														NULL);
 	
 	if(!wd_dnssd_register_socket) {
-		wi_log_warn(WI_STR("Could not create socket for DNS service discovery"));
+		wi_log_error(WI_STR("Could not create socket for DNS service discovery"));
 
 		return;
 	}
@@ -487,7 +487,7 @@ static void wd_server_dnssd_register(void) {
 	wd_dnssd_register_source = CFSocketCreateRunLoopSource(NULL, wd_dnssd_register_socket, 0);
 
 	if(!wd_dnssd_register_source) {
-		wi_log_warn(WI_STR("Could not create runloop source for DNS service discovery"));
+		wi_log_error(WI_STR("Could not create runloop source for DNS service discovery"));
 		
 		return;
 	}
@@ -505,7 +505,7 @@ static void wd_server_dnssd_register_service_callback(DNSServiceRef client, DNSS
 		wi_log_info(WI_STR("Registered using DNS service discovery as %s.%s%s"),
 			name, regtype, domain);
 	} else {
-		wi_log_warn(WI_STR("Could not register using DNS service discovery: %@"),
+		wi_log_error(WI_STR("Could not register using DNS service discovery: %@"),
 			wd_server_dnssd_error_string(error));
 	}
 }
@@ -520,7 +520,7 @@ static void wd_server_dnssd_register_socket_callback(CFSocketRef socket, CFSocke
 	error = DNSServiceProcessResult(wd_dnssd_register_service);
 	
 	if(error != kDNSServiceErr_NoError) {
-		wi_log_warn(WI_STR("Could not process result for DNS service discovery: %@"),
+		wi_log_error(WI_STR("Could not process result for DNS service discovery: %@"),
 			wd_server_dnssd_error_string(error));
 	}
 }
@@ -560,7 +560,7 @@ static void wd_server_listen_thread(wi_runtime_instance_t *argument) {
 		socket = wi_socket_accept_multiple(wd_tcp_sockets, 30.0, &address);
 
 		if(!address) {
-			wi_log_err(WI_STR("Could not accept a connection: %m"));
+			wi_log_error(WI_STR("Could not accept a connection: %m"));
 			
 			continue;
 		}
@@ -568,13 +568,13 @@ static void wd_server_listen_thread(wi_runtime_instance_t *argument) {
 		ip = wi_address_string(address);
 		
 		if(!socket) {
-			wi_log_err(WI_STR("Could not accept a connection for %@: %m"), ip);
+			wi_log_error(WI_STR("Could not accept a connection for %@: %m"), ip);
 			
 			continue;
 		}
 		
 		if(!wi_thread_create_thread(wd_server_accept_thread, socket))
-			wi_log_err(WI_STR("Could not create a client thread for %@: %m"), ip);
+			wi_log_error(WI_STR("Could not create a client thread for %@: %m"), ip);
 	}
 	
 	wi_release(pool);
@@ -596,7 +596,7 @@ static void wd_server_accept_thread(wi_runtime_instance_t *argument) {
 	wi_log_info(WI_STR("Connect from %@"), ip);
 
 	if(!wi_socket_set_timeout(socket, 30.0)) 
-		wi_log_warn(WI_STR("Could not set timeout for %@: %m"), ip); 
+		wi_log_error(WI_STR("Could not set timeout for %@: %m"), ip); 
 
 	p7_socket = wi_autorelease(wi_p7_socket_init_with_socket(wi_p7_socket_alloc(), socket, wd_p7_spec));
 	wi_p7_socket_set_private_key(p7_socket, wd_rsa);
@@ -606,7 +606,7 @@ static void wd_server_accept_thread(wi_runtime_instance_t *argument) {
 		wd_users_add_user(user);
 		wd_messages_loop_for_user(user);
 	} else {
-		wi_log_err(WI_STR("Could not accept a P7 connection for %@: %m"), ip);
+		wi_log_error(WI_STR("Could not accept a P7 connection for %@: %m"), ip);
 	}
 	
 	wi_release(pool);
@@ -632,7 +632,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 		bytes = wi_socket_recvfrom_multiple(wd_udp_sockets, buffer, sizeof(buffer), &address);
 		
 		if(!address) {
-			wi_log_err(WI_STR("Could not receive data: %m"));
+			wi_log_error(WI_STR("Could not receive data: %m"));
 
 			continue;
 		}
@@ -640,7 +640,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 		ip = wi_address_string(address);
 
 		if(bytes < 0) {
-			wi_log_err(WI_STR("Could not receive data from %@: %m"), ip);
+			wi_log_error(WI_STR("Could not receive data from %@: %m"), ip);
 
 			continue;
 		}
@@ -652,7 +652,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 			data = wi_cipher_decrypt(cipher, data);
 			
 			if(!data) {
-				wi_log_err(WI_STR("Could not decrypt data from %@: %m"), ip);
+				wi_log_error(WI_STR("Could not decrypt data from %@: %m"), ip);
 
 				continue;
 			}
@@ -661,13 +661,13 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 		message = wi_p7_message_with_data(data, WI_P7_BINARY, wd_p7_spec);
 		
 		if(!message) {
-			wi_log_err(WI_STR("Could not receive message from %@: %m"), ip);
+			wi_log_error(WI_STR("Could not create message from received data from %@: %m"), ip);
 
 			continue;
 		}
 		
 		if(!wi_p7_spec_verify_message(wd_p7_spec, message)) {
-			wi_log_debug(WI_STR("Could not verify message: %m"));
+			wi_log_error(WI_STR("Could not verify message: %m"));
 			
 			continue;
 		}
@@ -771,7 +771,7 @@ void wd_user_send_message(wd_user_t *user, wi_p7_message_t *message) {
 	if(!wi_p7_socket_write_message(wd_user_p7_socket(user), 0.0, message)) {
 		wd_user_set_state(user, WD_USER_DISCONNECTED);
 	
-		wi_log_warn(WI_STR("Could not write to %@: %m"), wd_user_ip(user));
+		wi_log_error(WI_STR("Could not write to %@: %m"), wd_user_ip(user));
 	}
 	
 	wd_user_unlock_socket(user);

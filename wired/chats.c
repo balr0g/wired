@@ -412,7 +412,7 @@ void wd_chat_set_topic(wd_chat_t *chat, wd_topic_t *topic) {
 	
 	if(chat->id == WD_PUBLIC_CHAT_ID) {
 		if(!wi_plist_write_instance_to_file(wd_topic_dictionary(topic), wd_topic_path))
-			wi_log_err(WI_STR("Could not write to \"%@\": %m"), wd_topic_path);
+			wi_log_error(WI_STR("Could not write to \"%@\": %m"), wd_topic_path);
 	}
 }
 

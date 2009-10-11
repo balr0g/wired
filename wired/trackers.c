@@ -136,7 +136,7 @@ void wd_trackers_apply_settings(wi_set_t *changes) {
 				url = wi_autorelease(wi_url_init_with_string(wi_url_alloc(), string));
 
 				if(!wi_url_is_valid(url)) {
-					wi_log_warn(WI_STR("Could not parse tracker URL \"%@\""),
+					wi_log_error(WI_STR("Could not parse tracker URL \"%@\""),
 						string);
 					
 					continue;
@@ -182,7 +182,7 @@ void wd_trackers_register(void) {
 		wi_log_info(WI_STR("Registering with trackers..."));
 
 		if(!wi_thread_create_thread(wd_trackers_register_thread, NULL))
-			wi_log_err(WI_STR("Could not create a register thread: %m"));
+			wi_log_error(WI_STR("Could not create a register thread: %m"));
 	}
 }
 
@@ -258,20 +258,17 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 		tracker->address	= NULL;
 		ip					= wi_address_string(address);
 		
-		wi_log_info(WI_STR("Trying %@ for tracker \"%@\"..."),
-			ip, tracker->host);
-		
 		socket = wi_autorelease(wi_socket_init_with_address(wi_socket_alloc(), address, WI_SOCKET_TCP));
 
 		if(!socket) {
-			wi_log_err(WI_STR("Could not create socket for tracker \"%@\": %m"),
+			wi_log_error(WI_STR("Could not create socket for tracker \"%@\": %m"),
 				tracker->host);
 			
 			continue;
 		}
 
 		if(!wi_socket_connect(socket, 30.0)) {
-			wi_log_err(WI_STR("Could not connect to tracker \"%@\": %m"),
+			wi_log_error(WI_STR("Could not connect to tracker \"%@\": %m"),
 				tracker->host);
 			
 			continue;
@@ -285,7 +282,7 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 								 WI_P7_BINARY,
 								 tracker->user,
 								 tracker->password)) {
-			wi_log_err(WI_STR("Could not connect to tracker \"%@\": %m"),
+			wi_log_error(WI_STR("Could not connect to tracker \"%@\": %m"),
 				tracker->host);
 			
 			continue;
@@ -300,8 +297,8 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 			continue;
 		
 		if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.server_info"))) {
-			wi_log_err(WI_STR("Unexpected message \"%@\" from tracker \"%@\" (expected wired.server_info)"),
-				wi_p7_message_name(message), tracker->host);
+			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received unexpected message \"%@\" (expected wired.server_info)"),
+				tracker->host, wi_p7_message_name(message));
 			
 			break;
 		}
@@ -332,14 +329,14 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 		if(wi_is_equal(wi_p7_message_name(message), WI_STR("wired.error"))) {
 			error = wi_p7_message_enum_name_for_name(message, WI_STR("wired.error"));
 			
-			wi_log_err(WI_STR("Received error \"%@\" from tracker \"%@\""),
-				error, tracker->host);
+			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received error \"%@\""),
+				tracker->host, error);
 			
 			break;
 		}
 		else if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.login"))) {
-			wi_log_err(WI_STR("Unexpected message \"%@\" from tracker \"%@\" (expected wired.login)"),
-				wi_p7_message_name(message), tracker->host);
+			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received unexpected message \"%@\" (expected wired.login)"),
+				tracker->host, wi_p7_message_name(message));
 			
 			break;
 		}
@@ -352,14 +349,14 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 		if(wi_is_equal(wi_p7_message_name(message), WI_STR("wired.error"))) {
 			error = wi_p7_message_enum_name_for_name(message, WI_STR("wired.error"));
 			
-			wi_log_err(WI_STR("Received error \"%@\" from tracker \"%@\""),
-				error, tracker->host);
+			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received error \"%@\""),
+				tracker->host, error);
 			
 			break;
 		}
 		else if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.account.privileges"))) {
-			wi_log_err(WI_STR("Unexpected message \"%@\" from tracker \"%@\" (expected wired.account.privileges)"),
-				wi_p7_message_name(message), tracker->host);
+			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received unexpected message \"%@\" (wired.account.privileges)"),
+				tracker->host, wi_p7_message_name(message));
 			
 			break;
 		}
@@ -390,14 +387,14 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 		if(wi_is_equal(wi_p7_message_name(message), WI_STR("wired.error"))) {
 			error = wi_p7_message_enum_name_for_name(message, WI_STR("wired.error"));
 			
-			wi_log_err(WI_STR("Received error \"%@\" from tracker \"%@\""),
-				error, tracker->host);
+			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received error \"%@\""),
+				tracker->host, error);
 			
 			break;
 		}
 		else if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.tracker.register"))) {
-			wi_log_err(WI_STR("Unexpected message \"%@\" from tracker \"%@\" (expected wired.tracker.register)"),
-				wi_p7_message_name(message), tracker->host);
+			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received unexpected message \"%@\" (wired.tracker.register)"),
+				tracker->host, wi_p7_message_name(message));
 			
 			break;
 		}
@@ -429,7 +426,7 @@ static void wd_tracker_update(wd_tracker_t *tracker) {
 	socket = wi_autorelease(wi_socket_init_with_address(wi_socket_alloc(), tracker->address, WI_SOCKET_UDP));
 	
 	if(!socket) {
-		wi_log_err(WI_STR("Could not create a socket for tracker \"%@\": %m"),
+		wi_log_error(WI_STR("Could not create a socket for tracker \"%@\": %m"),
 			tracker->host);
 		
 		return;
@@ -447,7 +444,7 @@ static void wd_tracker_update(wd_tracker_t *tracker) {
 		data = wi_cipher_encrypt(tracker->cipher, data);
 	
 		if(!data) {
-			wi_log_err(WI_STR("Could not encrypt message to tracker \"%@\": %m"),
+			wi_log_error(WI_STR("Could not encrypt message to tracker \"%@\": %m"),
 				tracker->host);
 			
 			return;
@@ -457,7 +454,7 @@ static void wd_tracker_update(wd_tracker_t *tracker) {
 	bytes = wi_socket_sendto_data(socket, data);
 	
 	if(bytes < 0) {
-		wi_log_err(WI_STR("Could not send message to tracker \"%@\": %m"),
+		wi_log_error(WI_STR("Could not send message to tracker \"%@\": %m"),
 			tracker->host);
 		
 		return;
@@ -474,7 +471,7 @@ static wi_p7_message_t * wd_tracker_read_message(wd_tracker_t *tracker, wi_p7_so
 	message = wi_p7_socket_read_message(p7_socket, 30.0);
 	
 	if(!message) {
-		wi_log_err(WI_STR("Could not write message to tracker \"%@\": %m"),
+		wi_log_error(WI_STR("Could not write message to tracker \"%@\": %m"),
 			tracker->host);
 	}
 	
@@ -485,7 +482,7 @@ static wi_p7_message_t * wd_tracker_read_message(wd_tracker_t *tracker, wi_p7_so
 
 static wi_boolean_t wd_tracker_write_message(wd_tracker_t *tracker, wi_p7_socket_t *p7_socket, wi_p7_message_t *message) {
 	if(!wi_p7_socket_write_message(p7_socket, 30.0, message)) {
-		wi_log_err(WI_STR("Could not write message to tracker \"%@\": %m"),
+		wi_log_error(WI_STR("Could not write message to tracker \"%@\": %m"),
 			tracker->host);
 		
 		return false;
@@ -535,7 +532,7 @@ static wd_tracker_t * wd_tracker_init_with_url(wd_tracker_t *tracker, wi_url_t *
 	tracker->addresses	= wi_retain(wi_host_addresses(wi_host_with_string(tracker->host)));
 	
 	if(!tracker->addresses) {
-		wi_log_warn(WI_STR("Could not resolve \"%@\": %m"), tracker->host);
+		wi_log_error(WI_STR("Could not resolve \"%@\": %m"), tracker->host);
 		
 		wi_release(tracker);
 		

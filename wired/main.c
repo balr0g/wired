@@ -356,7 +356,7 @@ static void wd_write_pid(void) {
 	string = wi_string_with_format(WI_STR("%d\n"), getpid());
 	
 	if(!wi_string_write_to_file(string, path))
-		wi_log_warn(WI_STR("Could not write to \"%@\": %m"), path);
+		wi_log_error(WI_STR("Could not write to \"%@\": %m"), path);
 }
 
 
@@ -367,7 +367,7 @@ static void wd_delete_pid(void) {
 	path = WI_STR("wired.pid");
 
 	if(!wi_fs_delete_path(path))
-		wi_log_warn(WI_STR("Could not delete \"%@\": %m"), path);
+		wi_log_error(WI_STR("Could not delete \"%@\": %m"), path);
 }
 
 
@@ -407,7 +407,7 @@ void wd_write_status(wi_boolean_t force) {
 								   wd_tracker_current_size);
 	
 	if(!wi_string_write_to_file(string, path))
-		wi_log_warn(WI_STR("Could not write to \"%@\": %m"), path);
+		wi_log_error(WI_STR("Could not write to \"%@\": %m"), path);
 }
 
 
@@ -418,7 +418,7 @@ static void wd_delete_status(void) {
 	path = WI_STR("wired.status");
 
 	if(!wi_fs_delete_path(path))
-		wi_log_warn(WI_STR("Could not delete \"%@\": %m"), path);
+		wi_log_error(WI_STR("Could not delete \"%@\": %m"), path);
 }
 
 

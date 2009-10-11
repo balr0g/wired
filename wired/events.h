@@ -31,18 +31,10 @@
 
 #include "main.h"
 
-enum _wd_event {
-	WD_EVENT_STARTED_DOWNLOAD,
-	WD_EVENT_STOPPED_DOWNLOAD,
-	WD_EVENT_FINISHED_DOWNLOAD,
-};
-typedef enum _wd_event					wd_event_t;
-
-
 void									wd_events_initialize(void);
 
 void									wd_events_reply_events(wd_user_t *, wi_p7_message_t *);
 
-void									wd_events_add_event(wd_event_t, wd_user_t *, wi_string_t *);
+void									wd_events_add_event(wi_string_t *, wd_user_t *, wi_string_t *);
 
 #endif // WD_EVENTS_H

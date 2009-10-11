@@ -176,7 +176,7 @@ static void wc_test(wi_url_t *url, wi_uinteger_t count, wi_string_t *path) {
 		wi_mutable_url_set_path(testurl, wi_string_with_format(WI_STR("/transfertest/%u"), i));
 
 		if(!wi_thread_create_thread(wc_test_thread, testurl))
-			wi_log_err(WI_STR("Could not create a thread: %m"));
+			wi_log_error(WI_STR("Could not create a thread: %m"));
 	}
 	
 	wi_thread_sleep(86400.0);
@@ -392,7 +392,7 @@ static wi_p7_socket_t * wc_connect(wi_url_t *url) {
 								 WI_P7_BINARY,
 								 wi_url_user(url),
 								 wi_string_sha1(wi_url_password(url)))) {
-			wi_log_err(WI_STR("Could not connect to %@: %m"), wi_address_string(address));
+			wi_log_error(WI_STR("Could not connect to %@: %m"), wi_address_string(address));
 			
 			wi_socket_close(socket);
 			
