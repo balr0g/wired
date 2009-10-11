@@ -1730,7 +1730,7 @@ WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_edit_groups, WI_STR("wired.accoun
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_delete_groups, WI_STR("wired.account.account.delete_groups"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_account_raise_account_privileges, WI_STR("wired.account.account.raise_account_privileges"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_log_view_log, WI_STR("wired.account.log.view_log"))
-WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_events_view_events, WI_STR("wired.account.log.view_log"))
+WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_events_view_events, WI_STR("wired.account.events.view_events"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_settings_get_settings, WI_STR("wired.account.settings.get_settings"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_settings_set_settings, WI_STR("wired.account.settings.set_settings"))
 WD_ACCOUNT_BOOLEAN_ACCESSOR(wd_account_banlist_get_bans, WI_STR("wired.account.banlist.get_bans"))

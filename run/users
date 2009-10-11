@@ -2,39 +2,6 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
   <dict>
-    <key>guest</key>
-    <dict>
-      <key>wired.account.board.add_posts</key>
-      <true/>
-      <key>wired.account.board.add_threads</key>
-      <true/>
-      <key>wired.account.board.read_boards</key>
-      <true/>
-      <key>wired.account.chat.create_chats</key>
-      <true/>
-      <key>wired.account.file.get_info</key>
-      <true/>
-      <key>wired.account.file.list_files</key>
-      <true/>
-      <key>wired.account.file.search_files</key>
-      <true/>
-      <key>wired.account.full_name</key>
-      <string>Guest</string>
-      <key>wired.account.group</key>
-      <string></string>
-      <key>wired.account.groups</key>
-      <array/>
-      <key>wired.account.login_time</key>
-      <date>2009-03-20T14:18:09Z</date>
-      <key>wired.account.message.send_messages</key>
-      <true/>
-      <key>wired.account.password</key>
-      <string>da39a3ee5e6b4b0d3255bfef95601890afd80709</string>
-      <key>wired.account.tracker.list_servers</key>
-      <true/>
-      <key>wired.account.user.get_info</key>
-      <true/>
-    </dict>
     <key>admin</key>
     <dict>
       <key>wired.account.account.change_password</key>
@@ -96,6 +63,8 @@
       <key>wired.account.chat.kick_users</key>
       <true/>
       <key>wired.account.chat.set_topic</key>
+      <true/>
+      <key>wired.account.events.view_events</key>
       <true/>
       <key>wired.account.file.access_all_dropboxes</key>
       <true/>
@@ -170,6 +139,39 @@
       <key>wired.account.user.get_info</key>
       <true/>
       <key>wired.account.user.get_users</key>
+      <true/>
+    </dict>
+    <key>guest</key>
+    <dict>
+      <key>wired.account.board.add_posts</key>
+      <true/>
+      <key>wired.account.board.add_threads</key>
+      <true/>
+      <key>wired.account.board.read_boards</key>
+      <true/>
+      <key>wired.account.chat.create_chats</key>
+      <true/>
+      <key>wired.account.file.get_info</key>
+      <true/>
+      <key>wired.account.file.list_files</key>
+      <true/>
+      <key>wired.account.file.search_files</key>
+      <true/>
+      <key>wired.account.full_name</key>
+      <string>Guest</string>
+      <key>wired.account.group</key>
+      <string></string>
+      <key>wired.account.groups</key>
+      <array/>
+      <key>wired.account.login_time</key>
+      <date>2009-03-20T14:18:09Z</date>
+      <key>wired.account.message.send_messages</key>
+      <true/>
+      <key>wired.account.password</key>
+      <string>da39a3ee5e6b4b0d3255bfef95601890afd80709</string>
+      <key>wired.account.tracker.list_servers</key>
+      <true/>
+      <key>wired.account.user.get_info</key>
       <true/>
     </dict>
   </dict>
