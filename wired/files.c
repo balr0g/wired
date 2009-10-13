@@ -38,6 +38,7 @@
 #include <wired/wired.h>
 
 #include "accounts.h"
+#include "events.h"
 #include "files.h"
 #include "main.h"
 #include "server.h"
@@ -389,6 +390,8 @@ done:
 	wi_p7_message_set_string_for_name(reply, path, WI_STR("wired.file.path"));
 	wi_p7_message_set_uint64_for_name(reply, available, WI_STR("wired.file.available"));
 	wd_user_reply_message(user, reply, message);
+	
+	wd_events_add_event(WI_STR("wired.events.listed_directory"), user, wi_array_with_data(path, NULL));
 }
 
 
