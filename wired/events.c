@@ -94,16 +94,19 @@ void wd_events_reply_events(wd_user_t *user, wi_p7_message_t *message) {
 void wd_events_add_event(wi_string_t *event, wd_user_t *user, wi_string_t *string) {
 	wi_enumerator_t				*enumerator;
 	wi_mutable_dictionary_t		*dictionary;
-	wi_string_t					*path;
+	wi_string_t					*nick, *login, *ip, *path;
 	wi_p7_message_t				*message;
 	wd_user_t					*peer;
 	
-	dictionary = wi_mutable_dictionary_with_data_and_keys(
+	nick			= wd_user_nick(user);
+	login			= wd_user_login(user);
+	ip				= wd_user_ip(user);
+	dictionary		= wi_mutable_dictionary_with_data_and_keys(
 		event,							WI_STR("wired.events.event"),
 		wi_date(),						WI_STR("wired.events.time"),
-		wd_user_nick(user),				WI_STR("wired.user.nick"),
-		wd_user_login(user),			WI_STR("wired.user.login"),
-		wd_user_ip(user),				WI_STR("wired.user.ip"),
+		nick ? nick : WI_STR(""),		WI_STR("wired.user.nick"),
+		login ? login : WI_STR(""),		WI_STR("wired.user.login"),
+		ip ? ip : WI_STR(""),			WI_STR("wired.user.ip"),
 		NULL);
 	
 	if(string)
@@ -140,7 +143,7 @@ void wd_events_add_event(wi_string_t *event, wd_user_t *user, wi_string_t *strin
 	
 	while((peer = wi_enumerator_next_data(enumerator))) {
 		if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_events(peer))
-			wd_user_send_message(user, message);
+			wd_user_send_message(peer, message);
 	}
 	
 	wi_dictionary_unlock(wd_users);

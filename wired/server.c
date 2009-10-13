@@ -43,6 +43,7 @@
 
 #include "accounts.h"
 #include "banlist.h"
+#include "events.h"
 #include "files.h"
 #include "main.h"
 #include "messages.h"
@@ -601,12 +602,18 @@ static void wd_server_accept_thread(wi_runtime_instance_t *argument) {
 	p7_socket = wi_autorelease(wi_p7_socket_init_with_socket(wi_p7_socket_alloc(), socket, wd_p7_spec));
 	wi_p7_socket_set_private_key(p7_socket, wd_rsa);
 	
+	user = wd_user_with_p7_socket(p7_socket);
+	
 	if(wi_p7_socket_accept(p7_socket, 30.0, WI_P7_ALL)) {
-		user = wd_user_with_p7_socket(p7_socket);
 		wd_users_add_user(user);
 		wd_messages_loop_for_user(user);
 	} else {
+		wd_user_set_login(user, wi_p7_socket_user_name(p7_socket));
+		
 		wi_log_error(WI_STR("Could not accept a P7 connection for %@: %m"), ip);
+
+		if(wi_error_domain() == WI_ERROR_DOMAIN_LIBWIRED && wi_error_code() == WI_ERROR_P7_AUTHENTICATIONFAILED)
+			wd_events_add_event(WI_STR("wired.events.login_failed"), user, NULL);
 	}
 	
 	wi_release(pool);
