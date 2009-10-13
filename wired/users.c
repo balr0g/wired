@@ -1002,14 +1002,10 @@ static void wd_client_info_dealloc(wi_runtime_instance_t *instance) {
 static wi_string_t * wd_client_info_description(wi_runtime_instance_t *instance) {
 	wd_client_info_t		*client_info = instance;
 	
-	return wi_string_with_format(WI_STR("<%@ %p>{%@ %@ on %@ %@ (%@)}"),
+	return wi_string_with_format(WI_STR("<%@ %p>{%@}"),
 		wi_runtime_class_name(client_info),
 		client_info,
-		client_info->application_name,
-		client_info->application_version,
-		client_info->os_name,
-		client_info->os_version,
-		client_info->arch);
+		wd_client_info_string(client_info));
 }
 
 
