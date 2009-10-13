@@ -145,5 +145,7 @@ extern wi_dictionary_t					*wd_users;
 wd_client_info_t *						wd_client_info_with_message(wi_p7_message_t *);
 
 wi_string_t *							wd_client_info_string(wd_client_info_t *);
+wi_string_t *							wd_client_info_application_string(wd_client_info_t *);
+wi_string_t *							wd_client_info_os_string(wd_client_info_t *);
 
 #endif /* WD_USERS_H */

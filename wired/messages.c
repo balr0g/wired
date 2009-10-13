@@ -476,7 +476,8 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 	
 	wd_accounts_update_login_time(account);
 	
-	wd_events_add_event(WI_STR("wired.events.logged_in"), user, wd_client_info_string(wd_user_client_info(user)));
+	wd_events_add_event(WI_STR("wired.events.logged_in"), user, wi_array_with_data(
+		wd_client_info_application_string(wd_user_client_info(user)), wd_client_info_os_string(wd_user_client_info(user)), NULL));
 }
 
 
@@ -502,7 +503,7 @@ static void wd_message_user_set_nick(wd_user_t *user, wi_p7_message_t *message) 
 		if(wd_user_state(user) == WD_USER_LOGGED_IN) {
 			wd_user_broadcast_status(user);
 			
-			wd_events_add_event(WI_STR("wired.events.changed_nick"), user, oldnick);
+			wd_events_add_event(WI_STR("wired.events.changed_nick"), user, wi_array_with_data(oldnick, newnick, NULL));
 		}
 	}
 	

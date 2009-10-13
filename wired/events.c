@@ -91,7 +91,7 @@ void wd_events_reply_events(wd_user_t *user, wi_p7_message_t *message) {
 
 #pragma mark -
 
-void wd_events_add_event(wi_string_t *event, wd_user_t *user, wi_string_t *string) {
+void wd_events_add_event(wi_string_t *event, wd_user_t *user, wi_array_t *parameters) {
 	wi_enumerator_t				*enumerator;
 	wi_mutable_dictionary_t		*dictionary;
 	wi_string_t					*nick, *login, *ip, *path;
@@ -109,8 +109,8 @@ void wd_events_add_event(wi_string_t *event, wd_user_t *user, wi_string_t *strin
 		ip ? ip : WI_STR(""),			WI_STR("wired.user.ip"),
 		NULL);
 	
-	if(string)
-		wi_mutable_dictionary_set_data_for_key(dictionary, string, WI_STR("wired.events.string"));
+	if(parameters)
+		wi_mutable_dictionary_set_data_for_key(dictionary, parameters, WI_STR("wired.events.parameters"));
 	
 	wi_rwlock_wrlock(wd_events_lock);
 	wi_array_wrlock(wd_events);
@@ -174,7 +174,7 @@ static wi_mutable_array_t * wd_events_array(void) {
 
 
 static wi_p7_message_t * wd_events_message_with_dictionary(wi_string_t *name, wi_dictionary_t *dictionary) {
-	wi_string_t			*string;
+	wi_array_t			*parameters;
 	wi_p7_message_t		*message;
 	
 	message = wi_p7_message_with_name(name, wd_p7_spec);
@@ -186,10 +186,10 @@ static wi_p7_message_t * wd_events_message_with_dictionary(wi_string_t *name, wi
 									wi_dictionary_data_for_key(dictionary, WI_STR("wired.events.time")),
 									WI_STR("wired.events.time"));
 	
-	string = wi_dictionary_data_for_key(dictionary, WI_STR("wired.events.string"));
+	parameters = wi_dictionary_data_for_key(dictionary, WI_STR("wired.events.parameters"));
 	
-	if(string)
-		wi_p7_message_set_string_for_name(message, string, WI_STR("wired.events.string"));
+	if(parameters)
+		wi_p7_message_set_list_for_name(message, parameters, WI_STR("wired.events.parameters"));
 	
 	wi_p7_message_set_string_for_name(message,
 									  wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.nick")),

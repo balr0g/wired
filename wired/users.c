@@ -1018,10 +1018,24 @@ static wi_string_t * wd_client_info_description(wi_runtime_instance_t *instance)
 #pragma mark -
 
 wi_string_t * wd_client_info_string(wd_client_info_t *client_info) {
-	return wi_string_with_format(WI_STR("%@ %@ (%u) on %@ %@ (%@)"),
+	return wi_string_with_format(WI_STR("%@ on %@"),
+		wd_client_info_application_string(client_info),
+		wd_client_info_os_string(client_info));
+}
+
+
+
+wi_string_t * wd_client_info_application_string(wd_client_info_t *client_info) {
+	return wi_string_with_format(WI_STR("%@ %@ (%u)"),
 		client_info->application_name,
 		client_info->application_version,
-		client_info->application_build,
+		client_info->application_build);
+}
+
+
+
+wi_string_t * wd_client_info_os_string(wd_client_info_t *client_info) {
+	return wi_string_with_format(WI_STR("%@ %@ (%@)"),
 		client_info->os_name,
 		client_info->os_version,
 		client_info->arch);
