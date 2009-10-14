@@ -1171,13 +1171,14 @@ static void wd_accounts_notify_subscribers(void) {
 
 #pragma mark -
 
-void wd_accounts_reply_user_list(wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_accounts_reply_user_list(wd_user_t *user, wi_p7_message_t *message) {
 	wi_enumerator_t				*enumerator;
 	wi_mutable_dictionary_t		*dictionary;
 	wi_dictionary_t				*values;
 	wi_p7_message_t				*reply;
 	wi_string_t					*name;
 	wd_account_t				*account;
+	wi_boolean_t				result = false;
 
 	wi_recursive_lock_lock(wd_users_lock);
 	
@@ -1198,22 +1199,27 @@ void wd_accounts_reply_user_list(wd_user_t *user, wi_p7_message_t *message) {
 		
 		reply = wi_p7_message_with_name(WI_STR("wired.account.user_list.done"), wd_p7_spec);
 		wd_user_reply_message(user, reply, message);
+		
+		result = true;
 	} else {
 		wd_user_reply_internal_error(user, NULL, message);
 	}
 	
 	wi_recursive_lock_unlock(wd_users_lock);
+	
+	return result;
 }
 
 
 
-void wd_accounts_reply_group_list(wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_accounts_reply_group_list(wd_user_t *user, wi_p7_message_t *message) {
 	wi_enumerator_t				*enumerator;
 	wi_mutable_dictionary_t		*dictionary;
 	wi_dictionary_t				*values;
 	wi_p7_message_t				*reply;
 	wi_string_t					*name;
 	wd_account_t				*account;
+	wi_boolean_t				result = false;
 
 	wi_recursive_lock_lock(wd_groups_lock);
 	
@@ -1234,11 +1240,15 @@ void wd_accounts_reply_group_list(wd_user_t *user, wi_p7_message_t *message) {
 		
 		reply = wi_p7_message_with_name(WI_STR("wired.account.group_list.done"), wd_p7_spec);
 		wd_user_reply_message(user, reply, message);
+		
+		result = true;
 	} else {
 		wd_user_reply_internal_error(user, NULL, message);
 	}
 	
 	wi_recursive_lock_unlock(wd_groups_lock);
+	
+	return result;
 }
 
 

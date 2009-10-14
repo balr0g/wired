@@ -77,13 +77,13 @@ void wd_events_reply_events(wd_user_t *user, wi_p7_message_t *message) {
 	enumerator = wi_array_data_enumerator(wd_events);
 	
 	while((dictionary = wi_enumerator_next_data(enumerator))) {
-		reply = wd_events_message_with_dictionary(WI_STR("wired.events.list"), dictionary);
+		reply = wd_events_message_with_dictionary(WI_STR("wired.event.list"), dictionary);
 		wd_user_reply_message(user, reply, message);
 	}
 	
 	wi_array_unlock(wd_events);
 	
-	reply = wi_p7_message_with_name(WI_STR("wired.events.list.done"), wd_p7_spec);
+	reply = wi_p7_message_with_name(WI_STR("wired.event.list.done"), wd_p7_spec);
 	wd_user_reply_message(user, reply, message);
 }
 
@@ -110,15 +110,15 @@ void wd_events_add_event(wi_string_t *event, wd_user_t *user, ...) {
 	login			= wd_user_login(user);
 	ip				= wd_user_ip(user);
 	dictionary		= wi_mutable_dictionary_with_data_and_keys(
-		event,							WI_STR("wired.events.event"),
-		wi_date(),						WI_STR("wired.events.time"),
+		event,							WI_STR("wired.event.event"),
+		wi_date(),						WI_STR("wired.event.time"),
 		nick ? nick : WI_STR(""),		WI_STR("wired.user.nick"),
 		login ? login : WI_STR(""),		WI_STR("wired.user.login"),
 		ip ? ip : WI_STR(""),			WI_STR("wired.user.ip"),
 		NULL);
 	
 	if(wi_array_count(parameters) > 0)
-		wi_mutable_dictionary_set_data_for_key(dictionary, parameters, WI_STR("wired.events.parameters"));
+		wi_mutable_dictionary_set_data_for_key(dictionary, parameters, WI_STR("wired.event.parameters"));
 	
 	wi_rwlock_wrlock(wd_events_lock);
 	wi_array_wrlock(wd_events);
@@ -146,7 +146,7 @@ void wd_events_add_event(wi_string_t *event, wd_user_t *user, ...) {
 	
 	wi_dictionary_rdlock(wd_users);
 	
-	message			= wd_events_message_with_dictionary(WI_STR("wired.events.event"), dictionary);
+	message			= wd_events_message_with_dictionary(WI_STR("wired.event.event"), dictionary);
 	enumerator		= wi_dictionary_data_enumerator(wd_users);
 	
 	while((peer = wi_enumerator_next_data(enumerator))) {
@@ -188,16 +188,16 @@ static wi_p7_message_t * wd_events_message_with_dictionary(wi_string_t *name, wi
 	message = wi_p7_message_with_name(name, wd_p7_spec);
 	
 	wi_p7_message_set_enum_name_for_name(message,
-										 wi_dictionary_data_for_key(dictionary, WI_STR("wired.events.event")),
-										 WI_STR("wired.events.event"));
+										 wi_dictionary_data_for_key(dictionary, WI_STR("wired.event.event")),
+										 WI_STR("wired.event.event"));
 	wi_p7_message_set_date_for_name(message,
-									wi_dictionary_data_for_key(dictionary, WI_STR("wired.events.time")),
-									WI_STR("wired.events.time"));
+									wi_dictionary_data_for_key(dictionary, WI_STR("wired.event.time")),
+									WI_STR("wired.event.time"));
 	
-	parameters = wi_dictionary_data_for_key(dictionary, WI_STR("wired.events.parameters"));
+	parameters = wi_dictionary_data_for_key(dictionary, WI_STR("wired.event.parameters"));
 	
 	if(parameters)
-		wi_p7_message_set_list_for_name(message, parameters, WI_STR("wired.events.parameters"));
+		wi_p7_message_set_list_for_name(message, parameters, WI_STR("wired.event.parameters"));
 	
 	wi_p7_message_set_string_for_name(message,
 									  wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.nick")),

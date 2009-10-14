@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b41">
+			 version="2.0b42">
 	<p7:documentation>
 		TBD
 		
@@ -1072,34 +1072,44 @@
 				Message of a log entry.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.events.event" type="enum" id="10003" version="2.0">
+		<p7:field name="wired.event.event" type="enum" id="10003" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
-			<p7:enum name="wired.events.logged_in" value="0" version="2.0" />
-			<p7:enum name="wired.events.login_failed" value="1" version="2.0" />
-			<p7:enum name="wired.events.changed_nick" value="2" version="2.0" />
-			<p7:enum name="wired.events.got_user_info" value="3" version="2.0" />
-			<p7:enum name="wired.events.listed_directory" value="4" version="2.0" />
-			<p7:enum name="wired.events.got_file_info" value="5" version="2.0" />
-			<p7:enum name="wired.events.moved_file" value="6" version="2.0" />
-			<p7:enum name="wired.events.linked_file" value="7" version="2.0" />
-			<p7:enum name="wired.events.set_file_type" value="8" version="2.0" />
-			<p7:enum name="wired.events.set_file_comment" value="9" version="2.0" />
-			<p7:enum name="wired.events.set_file_executable" value="10" version="2.0" />
-			<p7:enum name="wired.events.set_file_permissions" value="11" version="2.0" />
-			<p7:enum name="wired.events.set_file_label" value="12" version="2.0" />
-			<p7:enum name="wired.events.deleted_file" value="13" version="2.0" />
-			<p7:enum name="wired.events.created_directory" value="14" version="2.0" />
-			<p7:enum name="wired.events.searched_files" value="15" version="2.0" />
-			<p7:enum name="wired.events.previewed_file" value="16" version="2.0" />
+			<p7:enum name="wired.event.user.logged_in" value="0" version="2.0" />
+			<p7:enum name="wired.event.user.login_failed" value="1" version="2.0" />
+			<p7:enum name="wired.event.user.changed_nick" value="2" version="2.0" />
+			<p7:enum name="wired.event.user.got_info" value="3" version="2.0" />
+			<p7:enum name="wired.event.file.listed_directory" value="4" version="2.0" />
+			<p7:enum name="wired.event.file.got_info" value="5" version="2.0" />
+			<p7:enum name="wired.event.file.moved" value="6" version="2.0" />
+			<p7:enum name="wired.event.file.linked" value="7" version="2.0" />
+			<p7:enum name="wired.event.file.set_type" value="8" version="2.0" />
+			<p7:enum name="wired.event.file.set_comment" value="9" version="2.0" />
+			<p7:enum name="wired.event.file.set_executable" value="10" version="2.0" />
+			<p7:enum name="wired.event.file.set_permissions" value="11" version="2.0" />
+			<p7:enum name="wired.event.file.set_label" value="12" version="2.0" />
+			<p7:enum name="wired.event.file.deleted" value="13" version="2.0" />
+			<p7:enum name="wired.event.file.created_directory" value="14" version="2.0" />
+			<p7:enum name="wired.event.file.searched" value="15" version="2.0" />
+			<p7:enum name="wired.event.file.previewed_file" value="16" version="2.0" />
+			<p7:enum name="wired.event.account.listed_users" value="17" version="2.0" />
+			<p7:enum name="wired.event.account.listed_groups" value="18" version="2.0" />
+			<p7:enum name="wired.event.account.read_user" value="19" version="2.0" />
+			<p7:enum name="wired.event.account.read_group" value="20" version="2.0" />
+			<p7:enum name="wired.event.account.created_user" value="21" version="2.0" />
+			<p7:enum name="wired.event.account.created_group" value="22" version="2.0" />
+			<p7:enum name="wired.event.account.edited_user" value="23" version="2.0" />
+			<p7:enum name="wired.event.account.edited_group" value="24" version="2.0" />
+			<p7:enum name="wired.event.account.deleted_user" value="25" version="2.0" />
+			<p7:enum name="wired.event.account.deleted_group" value="26" version="2.0" />
 		</p7:field>
-		<p7:field name="wired.events.time" type="date" id="10004" version="2.0">
+		<p7:field name="wired.event.time" type="date" id="10004" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.events.parameters" type="list" listtype="string" id="10005" version="2.0">
+		<p7:field name="wired.event.parameters" type="list" listtype="string" id="10005" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -2704,54 +2714,54 @@
 			<p7:parameter field="wired.log.message" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.events.get_events" id="10006" version="2.0">
+		<p7:message name="wired.event.get_events" id="10006" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.events.list" id="10007" version="2.0">
+		<p7:message name="wired.event.list" id="10007" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.events.event" use="required" version="2.0" />
-			<p7:parameter field="wired.events.time" use="required" version="2.0" />
-			<p7:parameter field="wired.events.parameters" version="2.0" />
+			<p7:parameter field="wired.event.event" use="required" version="2.0" />
+			<p7:parameter field="wired.event.time" use="required" version="2.0" />
+			<p7:parameter field="wired.event.parameters" version="2.0" />
 			<p7:parameter field="wired.user.nick" use="required" version="2.0" />
 			<p7:parameter field="wired.user.login" use="required" version="2.0" />
 			<p7:parameter field="wired.user.ip" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.events.list.done" id="10008" version="2.0">
+		<p7:message name="wired.event.list.done" id="10008" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.events.subscribe" id="10009" version="2.0">
+		<p7:message name="wired.event.subscribe" id="10009" version="2.0">
 			<p7:documentation>
 				Subscribe to events message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.events.unsubscribe" id="10010" version="2.0">
+		<p7:message name="wired.event.unsubscribe" id="10010" version="2.0">
 			<p7:documentation>
 				Unsubscribe from events message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.events.event" id="10011" version="2.0">
+		<p7:message name="wired.event.event" id="10011" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
-			<p7:parameter field="wired.events.event" use="required" version="2.0" />
-			<p7:parameter field="wired.events.time" use="required" version="2.0" />
-			<p7:parameter field="wired.events.parameters" version="2.0" />
+			<p7:parameter field="wired.event.event" use="required" version="2.0" />
+			<p7:parameter field="wired.event.time" use="required" version="2.0" />
+			<p7:parameter field="wired.event.parameters" version="2.0" />
 			<p7:parameter field="wired.user.nick" use="required" version="2.0" />
 			<p7:parameter field="wired.user.login" use="required" version="2.0" />
 			<p7:parameter field="wired.user.ip" use="required" version="2.0" />
@@ -4424,7 +4434,7 @@
 			</p7:or>
 		</p7:transaction>
 
-		<p7:transaction message="wired.events.get_events" originator="client" version="2.0">
+		<p7:transaction message="wired.event.get_events" originator="client" version="2.0">
 			<p7:documentation>
 				[message:wired.error] should be replied with [enum:wired.error.permission_denied]
 				if [field:wired.account.events.view_events] is not set for the user's account.
@@ -4432,19 +4442,19 @@
 				[message:wired.error] should be replied with [enum:wired.error.message_out_of_sequence]
 				if sent before [message:wired.client_info].
 				
-				Otherwise, zero or more [message:wired.events.list] terminated by a single
-				[message:wired.events.list.done] should be replied.
+				Otherwise, zero or more [message:wired.event.list] terminated by a single
+				[message:wired.event.list.done] should be replied.
 			</p7:documentation>
 			<p7:or>
 				<p7:and>
-					<p7:reply message="wired.events.list" count="*" use="required" version="2.0" />
-					<p7:reply message="wired.events.list.done" count="1" use="required" version="2.0" />
+					<p7:reply message="wired.event.list" count="*" use="required" version="2.0" />
+					<p7:reply message="wired.event.list.done" count="1" use="required" version="2.0" />
 				</p7:and>
 				<p7:reply message="wired.error" count="1" use="required" version="2.0" />
 			</p7:or>
 		</p7:transaction>
 		
-		<p7:transaction message="wired.events.subscribe" originator="client" version="2.0">
+		<p7:transaction message="wired.event.subscribe" originator="client" version="2.0">
 			<p7:documentation>
 				[message:wired.error] should be replied with [enum:wired.error.permission_denied]
 				if [field:wired.account.events.view_events] is not set for the user's account.
@@ -4453,7 +4463,7 @@
 				if sent before [message:wired.client_info].
 				
 				Otherwise, [message:wired.okay] should be replied. After this, the user may receive
-				[message:wired.events.event] messages.
+				[message:wired.event.event] messages.
 				
 				The subscription may be silently dropped if the user's account loses the
 				[field:wired.account.events.view_events] privilege while subscribed.
@@ -4464,7 +4474,7 @@
 			</p7:or>
 		</p7:transaction>
 		
-		<p7:transaction message="wired.events.unsubscribe" originator="client" version="2.0">
+		<p7:transaction message="wired.event.unsubscribe" originator="client" version="2.0">
 			<p7:documentation>
 				[message:wired.error] should be replied with [enum:wired.error.permission_denied]
 				if [field:wired.account.events.view_events] is not set for the user's account.
@@ -4476,7 +4486,7 @@
 				if sent before [message:wired.client_info].
 				
 				Otherwise, [message:wired.okay] should be replied. After this, the user should no longer
-				receive [message:wired.events.event] messages.
+				receive [message:wired.event.event] messages.
 			</p7:documentation>
 			<p7:or>
 				<p7:reply message="wired.okay" count="*" use="required" version="2.0" />
@@ -4845,7 +4855,7 @@
 			</p7:documentation>
 		</p7:broadcast>
 		
-		<p7:broadcast message="wired.events.event" version="2.0">
+		<p7:broadcast message="wired.event.event" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>

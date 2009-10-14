@@ -613,7 +613,7 @@ static void wd_server_accept_thread(wi_runtime_instance_t *argument) {
 		wi_log_error(WI_STR("Could not accept a P7 connection for %@: %m"), ip);
 
 		if(wi_error_domain() == WI_ERROR_DOMAIN_LIBWIRED && wi_error_code() == WI_ERROR_P7_AUTHENTICATIONFAILED)
-			wd_events_add_event(WI_STR("wired.events.login_failed"), user, NULL);
+			wd_events_add_event(WI_STR("wired.event.user.login_failed"), user, NULL);
 	}
 	
 	wi_release(pool);

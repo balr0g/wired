@@ -53,8 +53,8 @@ void								wd_accounts_add_download_statistics(wd_account_t *, wi_boolean_t, wi
 void								wd_accounts_add_upload_statistics(wd_account_t *, wi_boolean_t, wi_file_offset_t);
 void								wd_accounts_reload_all_accounts(void);
 
-void								wd_accounts_reply_user_list(wd_user_t *, wi_p7_message_t *);
-void								wd_accounts_reply_group_list(wd_user_t *, wi_p7_message_t *);
+wi_boolean_t						wd_accounts_reply_user_list(wd_user_t *, wi_p7_message_t *);
+wi_boolean_t						wd_accounts_reply_group_list(wd_user_t *, wi_p7_message_t *);
 
 wd_account_t *						wd_account_alloc(void);
 wd_account_t *						wd_account_init_with_message(wd_account_t *, wi_p7_message_t *);
