@@ -208,7 +208,7 @@ void wd_files_schedule(void) {
 
 #pragma mark -
 
-void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t				*reply;
 	wi_string_t					*realpath, *filepath, *resolvedpath, *virtualpath;
 	wi_fsenumerator_t			*fsenumerator;
@@ -240,7 +240,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		wi_log_error(WI_STR("Could not read info for \"%@\": %m"), realpath);
 		wd_user_reply_file_errno(user, message);
 		
-		return;
+		return false;
 	}
 	
 	depthlimit		= wd_account_file_recursive_list_depth_limit(account);
@@ -250,7 +250,7 @@ void wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_user_t *u
 		wi_log_error(WI_STR("Could not open \"%@\": %m"), realpath);
 		wd_user_reply_file_errno(user, message);
 		
-		return;
+		return false;
 	}
 
 	pathlength = wi_string_length(realpath);
@@ -391,7 +391,7 @@ done:
 	wi_p7_message_set_uint64_for_name(reply, available, WI_STR("wired.file.available"));
 	wd_user_reply_message(user, reply, message);
 	
-	wd_events_add_event(WI_STR("wired.events.listed_directory"), user, wi_array_with_data(path, NULL));
+	return true;
 }
 
 
@@ -442,7 +442,7 @@ static wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, 
 
 
 
-void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t			*reply;
 	wi_string_t				*realpath, *parentpath, *comment;
 	wd_account_t			*account;
@@ -465,14 +465,14 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 		wi_log_error(WI_STR("Could not read info for \"%@\": %m"), parentpath);
 		wd_user_reply_file_errno(user, message);
 		
-		return;
+		return false;
 	}
 	
 	if(!wi_fs_lstat_path(realpath, &lsb)) {
 		wi_log_error(WI_STR("Could not read info for \"%@\": %m"), realpath);
 		wd_user_reply_file_errno(user, message);
 		
-		return;
+		return false;
 	}
 	
 	if(!wi_fs_stat_path(realpath, &sb))
@@ -552,11 +552,13 @@ void wd_files_reply_info(wi_string_t *path, wd_user_t *user, wi_p7_message_t *me
 	}
 	
 	wd_user_reply_message(user, reply, message);
+	
+	return true;
 }
 
 
 
-void wd_files_reply_preview(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_files_reply_preview(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t			*reply;
 	wi_string_t				*realpath;
 	wi_data_t				*data;
@@ -568,14 +570,14 @@ void wd_files_reply_preview(wi_string_t *path, wd_user_t *user, wi_p7_message_t 
 		wi_log_error(WI_STR("Could not preview \"%@\": %m"), realpath);
 		wd_user_reply_file_errno(user, message);
 		
-		return;
+		return false;
 	}
 	
 	if(sb.size > (10 * 1024 * 1024) - (10 * 1024)) {
 		wi_log_error(WI_STR("Could not preview \"%@\": Too large"), realpath);
 		wd_user_reply_internal_error(user, WI_STR("File too large to preview"), message);
 		
-		return;
+		return false;
 	}
 	
 	data = wi_data_with_contents_of_file(realpath);
@@ -584,7 +586,7 @@ void wd_files_reply_preview(wi_string_t *path, wd_user_t *user, wi_p7_message_t 
 		wi_log_error(WI_STR("Could not preview \"%@\": %m"), realpath);
 		wd_user_reply_file_errno(user, message);
 		
-		return;
+		return false;
 	}
 	
 	reply = wi_p7_message_with_name(WI_STR("wired.file.preview"), wd_p7_spec);
@@ -592,6 +594,8 @@ void wd_files_reply_preview(wi_string_t *path, wd_user_t *user, wi_p7_message_t 
 	wi_p7_message_set_data_for_name(reply, data, WI_STR("wired.file.preview"));
 	
 	wd_user_reply_message(user, reply, message);
+	
+	return true;
 }
 
 
@@ -826,7 +830,7 @@ wi_boolean_t wd_files_link_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 
 #pragma mark -
 
-void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *message) {
+wi_boolean_t wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *message) {
 	wi_pool_t			*pool;
 	wi_p7_message_t		*reply;
 	wi_file_t			*file;
@@ -845,7 +849,9 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 		wi_log_error(WI_STR("Could not open \"%@\": %m"), wd_files_index_path);
 		wd_user_reply_file_errno(user, message);
 
-		goto end;
+		wi_rwlock_unlock(wd_files_index_lock);
+
+		return false;
 	}
 	
 	account				= wd_user_account(user);
@@ -918,16 +924,17 @@ void wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *messa
 			wi_pool_drain(pool);
 	}
 
+	wi_rwlock_unlock(wd_files_index_lock);
+	
 	if(buffer)
 		wi_free(buffer);
 
 	wi_release(pool);
 
-end:
 	reply = wi_p7_message_with_name(WI_STR("wired.file.search_list.done"), wd_p7_spec);
 	wd_user_reply_message(user, reply, message);
 	
-	wi_rwlock_unlock(wd_files_index_lock);
+	return true;
 }
 
 

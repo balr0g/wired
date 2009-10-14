@@ -578,6 +578,8 @@ static void wd_message_user_get_info(wd_user_t *user, wi_p7_message_t *message) 
 	}
 	
 	wd_user_reply_user_info(peer, user, message);
+	
+	wd_events_add_event(WI_STR("wired.events.got_user_info"), user, wi_array_with_data(wd_user_nick(peer), NULL));
 }
 
 
@@ -1511,7 +1513,8 @@ static void wd_message_file_list_directory(wd_user_t *user, wi_p7_message_t *mes
 	if(!wi_p7_message_get_bool_for_name(message, &recursive, WI_STR("wired.file.recursive")))
 		recursive = false;
 	
-	wd_files_reply_list(path, recursive, user, message);
+	if(wd_files_reply_list(path, recursive, user, message))
+		wd_events_add_event(WI_STR("wired.events.listed_directory"), user, wi_array_with_data(path, NULL));
 }
 
 
@@ -1544,8 +1547,11 @@ static void wd_message_file_get_info(wd_user_t *user, wi_p7_message_t *message) 
 
 		return;
 	}
+	
+	path = wi_string_by_normalizing_path(path);
 
-	wd_files_reply_info(wi_string_by_normalizing_path(path), user, message);
+	if(wd_files_reply_info(path, user, message))
+		wd_events_add_event(WI_STR("wired.events.got_file_info"), user, wi_array_with_data(path, NULL));
 }
 
 
@@ -2002,7 +2008,8 @@ static void wd_message_file_search(wd_user_t *user, wi_p7_message_t *message) {
 
 	query = wi_p7_message_string_for_name(message, WI_STR("wired.file.query"));
 	
-	wd_files_search(query, user, message);
+	if(wd_files_search(query, user, message))
+		wd_events_add_event(WI_STR("wired.events.searched_files"), user, wi_array_with_data(query, NULL));
 }
 
 
@@ -2035,8 +2042,11 @@ static void wd_message_file_preview_file(wd_user_t *user, wi_p7_message_t *messa
 
 		return;
 	}
+	
+	path = wi_string_by_normalizing_path(path);
 
-	wd_files_reply_preview(wi_string_by_normalizing_path(path), user, message);
+	if(wd_files_reply_preview(path, user, message))
+		wd_events_add_event(WI_STR("wired.events.previewed_file"), user, wi_array_with_data(path, NULL));
 }
 
 

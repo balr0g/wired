@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b40">
+			 version="2.0b41">
 	<p7:documentation>
 		TBD
 		
@@ -1079,7 +1079,11 @@
 			<p7:enum name="wired.events.logged_in" value="0" version="2.0" />
 			<p7:enum name="wired.events.login_failed" value="1" version="2.0" />
 			<p7:enum name="wired.events.changed_nick" value="2" version="2.0" />
-			<p7:enum name="wired.events.listed_directory" value="3" version="2.0" />
+			<p7:enum name="wired.events.got_user_info" value="3" version="2.0" />
+			<p7:enum name="wired.events.listed_directory" value="4" version="2.0" />
+			<p7:enum name="wired.events.got_file_info" value="5" version="2.0" />
+			<p7:enum name="wired.events.previewed_file" value="6" version="2.0" />
+			<p7:enum name="wired.events.searched_files" value="7" version="2.0" />
 		</p7:field>
 		<p7:field name="wired.events.time" type="date" id="10004" version="2.0">
 			<p7:documentation>
