@@ -91,12 +91,20 @@ void wd_events_reply_events(wd_user_t *user, wi_p7_message_t *message) {
 
 #pragma mark -
 
-void wd_events_add_event(wi_string_t *event, wd_user_t *user, wi_array_t *parameters) {
+void wd_events_add_event(wi_string_t *event, wd_user_t *user, ...) {
 	wi_enumerator_t				*enumerator;
 	wi_mutable_dictionary_t		*dictionary;
+	wi_array_t					*parameters;
 	wi_string_t					*nick, *login, *ip, *path;
 	wi_p7_message_t				*message;
 	wd_user_t					*peer;
+	va_list						ap;
+	
+	va_start(ap, user);
+	
+	parameters		= wi_array_with_arguments(ap);
+	
+	va_end(ap);
 	
 	nick			= wd_user_nick(user);
 	login			= wd_user_login(user);
@@ -109,7 +117,7 @@ void wd_events_add_event(wi_string_t *event, wd_user_t *user, wi_array_t *parame
 		ip ? ip : WI_STR(""),			WI_STR("wired.user.ip"),
 		NULL);
 	
-	if(parameters)
+	if(wi_array_count(parameters) > 0)
 		wi_mutable_dictionary_set_data_for_key(dictionary, parameters, WI_STR("wired.events.parameters"));
 	
 	wi_rwlock_wrlock(wd_events_lock);

@@ -35,6 +35,6 @@ void									wd_events_initialize(void);
 
 void									wd_events_reply_events(wd_user_t *, wi_p7_message_t *);
 
-void									wd_events_add_event(wi_string_t *, wd_user_t *, wi_array_t *);
+void									wd_events_add_event(wi_string_t *, wd_user_t *, ...);
 
 #endif // WD_EVENTS_H

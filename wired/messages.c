@@ -476,8 +476,10 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 	
 	wd_accounts_update_login_time(account);
 	
-	wd_events_add_event(WI_STR("wired.events.logged_in"), user, wi_array_with_data(
-		wd_client_info_application_string(wd_user_client_info(user)), wd_client_info_os_string(wd_user_client_info(user)), NULL));
+	wd_events_add_event(WI_STR("wired.events.logged_in"), user,
+		wd_client_info_application_string(wd_user_client_info(user)),
+		wd_client_info_os_string(wd_user_client_info(user)),
+		NULL);
 }
 
 
@@ -503,7 +505,8 @@ static void wd_message_user_set_nick(wd_user_t *user, wi_p7_message_t *message) 
 		if(wd_user_state(user) == WD_USER_LOGGED_IN) {
 			wd_user_broadcast_status(user);
 			
-			wd_events_add_event(WI_STR("wired.events.changed_nick"), user, wi_array_with_data(oldnick, newnick, NULL));
+			wd_events_add_event(WI_STR("wired.events.changed_nick"), user,
+				oldnick, newnick, NULL);
 		}
 	}
 	
@@ -579,7 +582,8 @@ static void wd_message_user_get_info(wd_user_t *user, wi_p7_message_t *message) 
 	
 	wd_user_reply_user_info(peer, user, message);
 	
-	wd_events_add_event(WI_STR("wired.events.got_user_info"), user, wi_array_with_data(wd_user_nick(peer), NULL));
+	wd_events_add_event(WI_STR("wired.events.got_user_info"), user,
+		wd_user_nick(peer), NULL);
 }
 
 
@@ -1513,8 +1517,10 @@ static void wd_message_file_list_directory(wd_user_t *user, wi_p7_message_t *mes
 	if(!wi_p7_message_get_bool_for_name(message, &recursive, WI_STR("wired.file.recursive")))
 		recursive = false;
 	
-	if(wd_files_reply_list(path, recursive, user, message))
-		wd_events_add_event(WI_STR("wired.events.listed_directory"), user, wi_array_with_data(path, NULL));
+	if(wd_files_reply_list(path, recursive, user, message)) {
+		wd_events_add_event(WI_STR("wired.events.listed_directory"), user,
+			path, NULL);
+	}
 }
 
 
@@ -1550,15 +1556,16 @@ static void wd_message_file_get_info(wd_user_t *user, wi_p7_message_t *message) 
 	
 	path = wi_string_by_normalizing_path(path);
 
-	if(wd_files_reply_info(path, user, message))
-		wd_events_add_event(WI_STR("wired.events.got_file_info"), user, wi_array_with_data(path, NULL));
+	if(wd_files_reply_info(path, user, message)) {
+		wd_events_add_event(WI_STR("wired.events.got_file_info"), user,
+			path, NULL);
+	}
 }
 
 
 
 static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t				*frompath, *topath;
-	wi_string_t				*properfrompath, *propertopath;
 	wi_string_t				*fromdirectory, *todirectory;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
@@ -1585,8 +1592,8 @@ static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 		}
 	}
 
-	properfrompath	= wi_string_by_normalizing_path(frompath);
-	privileges		= wd_files_privileges(properfrompath, user);
+	frompath		= wi_string_by_normalizing_path(frompath);
+	privileges		= wd_files_privileges(frompath, user);
 	
 	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1594,8 +1601,8 @@ static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 		return;
 	}
 	
-	propertopath	= wi_string_by_normalizing_path(topath);
-	privileges		= wd_files_privileges(propertopath, user);
+	topath			= wi_string_by_normalizing_path(topath);
+	privileges		= wd_files_privileges(topath, user);
 	
 	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1603,13 +1610,19 @@ static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 		return;
 	}
 	
-	if(wd_files_move_path(properfrompath, propertopath, user, message)) {
+	if(wd_files_move_path(frompath, topath, user, message)) {
+		frompath	= wd_files_virtual_path(frompath, user);
+		topath		= wd_files_virtual_path(topath, user);
+		
 		wi_log_info(WI_STR("%@ moved \"%@\" to \"%@\""),
 			wd_user_identifier(user),
-			wd_files_virtual_path(properfrompath, user),
-			wd_files_virtual_path(propertopath, user));
+			frompath,
+			topath);
 		
 		wd_user_reply_okay(user, message);
+		
+		wd_events_add_event(WI_STR("wired.events.moved_file"), user,
+			frompath, topath, NULL);
 	}
 }
 
@@ -1617,7 +1630,6 @@ static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 
 static void wd_message_file_link(wd_user_t *user, wi_p7_message_t *message) {
 	wi_string_t				*frompath, *topath;
-	wi_string_t				*properfrompath, *propertopath;
 	wd_files_privileges_t	*privileges;
 	wd_account_t			*account;
 	
@@ -1639,8 +1651,8 @@ static void wd_message_file_link(wd_user_t *user, wi_p7_message_t *message) {
 	}
 
 
-	properfrompath	= wi_string_by_normalizing_path(frompath);
-	privileges		= wd_files_privileges(properfrompath, user);
+	frompath		= wi_string_by_normalizing_path(frompath);
+	privileges		= wd_files_privileges(frompath, user);
 	
 	if(privileges && !wd_files_privileges_is_readable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1648,8 +1660,8 @@ static void wd_message_file_link(wd_user_t *user, wi_p7_message_t *message) {
 		return;
 	}
 
-	propertopath	= wi_string_by_normalizing_path(topath);
-	privileges		= wd_files_privileges(propertopath, user);
+	topath			= wi_string_by_normalizing_path(topath);
+	privileges		= wd_files_privileges(topath, user);
 	
 	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1657,20 +1669,26 @@ static void wd_message_file_link(wd_user_t *user, wi_p7_message_t *message) {
 		return;
 	}
 
-	if(wd_files_link_path(properfrompath, propertopath, user, message)) {
+	if(wd_files_link_path(frompath, topath, user, message)) {
+		frompath	= wd_files_virtual_path(frompath, user);
+		topath		= wd_files_virtual_path(topath, user);
+		
 		wi_log_info(WI_STR("%@ linked \"%@\" to \"%@\""),
 			wd_user_identifier(user),
-			wd_files_virtual_path(properfrompath, user),
-			wd_files_virtual_path(propertopath, user));
+			frompath,
+			topath);
 		
 		wd_user_reply_okay(user, message);
+		
+		wd_events_add_event(WI_STR("wired.events.linked_file"), user,
+			frompath, topath, NULL);
 	}
 }
 
 
 
 static void wd_message_file_set_type(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path, *properpath;
+	wi_string_t				*path;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 	wd_file_type_t			type;
@@ -1691,8 +1709,8 @@ static void wd_message_file_set_type(wd_user_t *user, wi_p7_message_t *message) 
 		return;
 	}
 	
-	properpath = wi_string_by_normalizing_path(path);
-	privileges = wd_files_privileges(properpath, user);
+	path			= wi_string_by_normalizing_path(path);
+	privileges		= wd_files_privileges(path, user);
 	
 	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1702,19 +1720,24 @@ static void wd_message_file_set_type(wd_user_t *user, wi_p7_message_t *message) 
 
 	wi_p7_message_get_enum_for_name(message, &type, WI_STR("wired.file.type"));
 
-	if(wd_files_set_type(properpath, type, user, message)) {
+	if(wd_files_set_type(path, type, user, message)) {
+		path = wd_files_virtual_path(path, user);
+		
 		wi_log_info(WI_STR("%@ changed type of \"%@\""),
 			wd_user_identifier(user),
-			wd_files_virtual_path(properpath, user));
+			path);
 		
 		wd_user_reply_okay(user, message);
+		
+		wd_events_add_event(WI_STR("wired.events.set_file_type"), user,
+			path, NULL);
 	}
 }
 
 
 
 static void wd_message_file_set_comment(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path, *properpath, *comment;
+	wi_string_t				*path, *comment;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 	wi_boolean_t			okay;
@@ -1735,8 +1758,8 @@ static void wd_message_file_set_comment(wd_user_t *user, wi_p7_message_t *messag
 		return;
 	}
 
-	properpath = wi_string_by_normalizing_path(path);
-	privileges = wd_files_privileges(properpath, user);
+	path		= wi_string_by_normalizing_path(path);
+	privileges	= wd_files_privileges(path, user);
 
 	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1747,23 +1770,28 @@ static void wd_message_file_set_comment(wd_user_t *user, wi_p7_message_t *messag
 	comment = wi_p7_message_string_for_name(message, WI_STR("wired.file.comment"));
 
 	if(wi_string_length(comment) > 0)
-		okay = wd_files_set_comment(properpath, comment, user, message);
+		okay = wd_files_set_comment(path, comment, user, message);
 	else
-		okay = wd_files_remove_comment(properpath, user, message);
+		okay = wd_files_remove_comment(path, user, message);
 	
 	if(okay) {
+		path = wd_files_virtual_path(path, user);
+		
 		wi_log_info(WI_STR("%@ changed comment of \"%@\""),
 			wd_user_identifier(user),
-			wd_files_virtual_path(properpath, user));
+			path);
 		
 		wd_user_reply_okay(user, message);
+		
+		wd_events_add_event(WI_STR("wired.events.set_file_comment"), user,
+			path, NULL);
 	}
 }
 
 
 
 static void wd_message_file_set_executable(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path, *properpath;
+	wi_string_t				*path;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 	wi_p7_boolean_t			executable;
@@ -1784,8 +1812,8 @@ static void wd_message_file_set_executable(wd_user_t *user, wi_p7_message_t *mes
 		return;
 	}
 
-	properpath = wi_string_by_normalizing_path(path);
-	privileges = wd_files_privileges(properpath, user);
+	path		= wi_string_by_normalizing_path(path);
+	privileges	= wd_files_privileges(path, user);
 	
 	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1795,19 +1823,24 @@ static void wd_message_file_set_executable(wd_user_t *user, wi_p7_message_t *mes
 	
 	wi_p7_message_get_bool_for_name(message, &executable, WI_STR("wired.file.executable"));
 
-	if(wd_files_set_executable(properpath, executable, user, message)) {
+	if(wd_files_set_executable(path, executable, user, message)) {
+		path = wd_files_virtual_path(path, user);
+		
 		wi_log_info(WI_STR("%@ changed executable mode of \"%@\""),
 			wd_user_identifier(user),
-			wd_files_virtual_path(properpath, user));
+			path);
 		
 		wd_user_reply_okay(user, message);
+		
+		wd_events_add_event(WI_STR("wired.events.set_file_executable"), user,
+			path, NULL);
 	}
 }
 
 
 
 static void wd_message_file_set_permissions(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path, *properpath;
+	wi_string_t				*path;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 	
@@ -1827,8 +1860,8 @@ static void wd_message_file_set_permissions(wd_user_t *user, wi_p7_message_t *me
 		return;
 	}
 	
-	properpath = wi_string_by_normalizing_path(path);
-	privileges = wd_files_privileges(properpath, user);
+	path		= wi_string_by_normalizing_path(path);
+	privileges	= wd_files_privileges(path, user);
 	
 	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1838,19 +1871,24 @@ static void wd_message_file_set_permissions(wd_user_t *user, wi_p7_message_t *me
 	
 	privileges = wd_files_privileges_with_message(message);
 	
-	if(wd_files_set_privileges(properpath, privileges, user, message)) {
+	if(wd_files_set_privileges(path, privileges, user, message)) {
+		path = wd_files_virtual_path(path, user);
+		
 		wi_log_info(WI_STR("%@ changed permissions of \"%@\""),
 			wd_user_identifier(user),
-			wd_files_virtual_path(properpath, user));
+			path);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.events.set_file_permissions"), user,
+			path, NULL);
 	}
 }
 
 
 
 static void wd_message_file_set_label(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path, *properpath;
+	wi_string_t				*path;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 	wi_p7_enum_t			label;
@@ -1872,8 +1910,8 @@ static void wd_message_file_set_label(wd_user_t *user, wi_p7_message_t *message)
 		return;
 	}
 
-	properpath = wi_string_by_normalizing_path(path);
-	privileges = wd_files_privileges(properpath, user);
+	path		= wi_string_by_normalizing_path(path);
+	privileges	= wd_files_privileges(path, user);
 	
 	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1884,23 +1922,28 @@ static void wd_message_file_set_label(wd_user_t *user, wi_p7_message_t *message)
 	wi_p7_message_get_enum_for_name(message, &label, WI_STR("wired.file.label"));
 
 	if(label != WD_FILE_LABEL_NONE)
-		okay = wd_files_set_label(properpath, label, user, message);
+		okay = wd_files_set_label(path, label, user, message);
 	else
-		okay = wd_files_remove_label(properpath, user, message);
+		okay = wd_files_remove_label(path, user, message);
 	
 	if(okay) {
+		path = wd_files_virtual_path(path, user);
+		
 		wi_log_info(WI_STR("%@ changed label of \"%@\""),
 			wd_user_identifier(user),
-			wd_files_virtual_path(properpath, user));
+			path);
 		
 		wd_user_reply_okay(user, message);
+		
+		wd_events_add_event(WI_STR("wired.events.set_file_label"), user,
+			path, NULL);
 	}
 }
 
 
 
 static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path, *properpath;
+	wi_string_t				*path;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 
@@ -1913,8 +1956,8 @@ static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
 	}
 
 	account			= wd_user_account(user);
-	properpath		= wi_string_by_normalizing_path(path);
-	privileges		= wd_files_privileges(properpath, user);
+	path			= wi_string_by_normalizing_path(path);
+	privileges		= wd_files_privileges(path, user);
 	
 	if(privileges) {
 		if(!wd_files_privileges_is_readable_and_writable_by_account(privileges, account)) {
@@ -1930,19 +1973,24 @@ static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
 		}
 	}
 	
-	if(wd_files_delete_path(properpath, user, message)) {
+	if(wd_files_delete_path(path, user, message)) {
+		path = wd_files_virtual_path(path, user);
+		
 		wi_log_info(WI_STR("%@ deleted \"%@\""),
 			wd_user_identifier(user),
-			wd_files_virtual_path(properpath, user));
+			path);
 
 		wd_user_reply_okay(user, message);
+		
+		wd_events_add_event(WI_STR("wired.events.deleted_file"), user,
+			path, NULL);
 	}
 }
 
 
 
 static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path, *properpath;
+	wi_string_t				*path;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 	wd_file_type_t			type;
@@ -1956,8 +2004,8 @@ static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *m
 	}
 	
 	account		= wd_user_account(user);
-	properpath	= wi_string_by_normalizing_path(path);
-	privileges	= wd_files_privileges(properpath, user);
+	path		= wi_string_by_normalizing_path(path);
+	privileges	= wd_files_privileges(path, user);
 	
 	if(privileges) {
 		if(!wd_files_privileges_is_writable_by_account(privileges, account)) {
@@ -1976,22 +2024,27 @@ static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *m
 	if(!wi_p7_message_get_enum_for_name(message, &type, WI_STR("wired.file.type")))
 		type = WD_FILE_TYPE_DIR;
 
-	if(wd_files_create_path(properpath, type, user, message)) {
+	if(wd_files_create_path(path, type, user, message)) {
 		if(type == WD_FILE_TYPE_DROPBOX && wd_account_file_set_permissions(account)) {
 			privileges = wd_files_privileges_with_message(message);
 			
-			if(!wd_files_set_privileges(properpath, privileges, user, message)) {
-				wi_fs_delete_path(properpath);
+			if(!wd_files_set_privileges(path, privileges, user, message)) {
+				wi_fs_delete_path(path);
 				
 				return;
 			}
 		}
 		
+		path = wd_files_virtual_path(path, user);
+		
 		wi_log_info(WI_STR("%@ created \"%@\""),
 			wd_user_identifier(user),
-			wd_files_virtual_path(properpath, user));
+			path);
 		
 		wd_user_reply_okay(user, message);
+		
+		wd_events_add_event(WI_STR("wired.events.created_directory"), user,
+			path, NULL);
 	}
 }
 
@@ -2008,8 +2061,10 @@ static void wd_message_file_search(wd_user_t *user, wi_p7_message_t *message) {
 
 	query = wi_p7_message_string_for_name(message, WI_STR("wired.file.query"));
 	
-	if(wd_files_search(query, user, message))
-		wd_events_add_event(WI_STR("wired.events.searched_files"), user, wi_array_with_data(query, NULL));
+	if(wd_files_search(query, user, message)) {
+		wd_events_add_event(WI_STR("wired.events.searched_files"), user,
+			query, NULL);
+	}
 }
 
 
@@ -2046,7 +2101,7 @@ static void wd_message_file_preview_file(wd_user_t *user, wi_p7_message_t *messa
 	path = wi_string_by_normalizing_path(path);
 
 	if(wd_files_reply_preview(path, user, message))
-		wd_events_add_event(WI_STR("wired.events.previewed_file"), user, wi_array_with_data(path, NULL));
+		wd_events_add_event(WI_STR("wired.events.previewed_file"), user, path, NULL);
 }
 
 

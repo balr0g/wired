@@ -1082,8 +1082,17 @@
 			<p7:enum name="wired.events.got_user_info" value="3" version="2.0" />
 			<p7:enum name="wired.events.listed_directory" value="4" version="2.0" />
 			<p7:enum name="wired.events.got_file_info" value="5" version="2.0" />
-			<p7:enum name="wired.events.previewed_file" value="6" version="2.0" />
-			<p7:enum name="wired.events.searched_files" value="7" version="2.0" />
+			<p7:enum name="wired.events.moved_file" value="6" version="2.0" />
+			<p7:enum name="wired.events.linked_file" value="7" version="2.0" />
+			<p7:enum name="wired.events.set_file_type" value="8" version="2.0" />
+			<p7:enum name="wired.events.set_file_comment" value="9" version="2.0" />
+			<p7:enum name="wired.events.set_file_executable" value="10" version="2.0" />
+			<p7:enum name="wired.events.set_file_permissions" value="11" version="2.0" />
+			<p7:enum name="wired.events.set_file_label" value="12" version="2.0" />
+			<p7:enum name="wired.events.deleted_file" value="13" version="2.0" />
+			<p7:enum name="wired.events.created_directory" value="14" version="2.0" />
+			<p7:enum name="wired.events.searched_files" value="15" version="2.0" />
+			<p7:enum name="wired.events.previewed_file" value="16" version="2.0" />
 		</p7:field>
 		<p7:field name="wired.events.time" type="date" id="10004" version="2.0">
 			<p7:documentation>
