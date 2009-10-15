@@ -58,6 +58,7 @@ typedef enum _wd_transfers_statistics_type	wd_transfers_statistics_type_t;
 
 static void									wd_transfers_queue_thread(wi_runtime_instance_t *);
 static wi_integer_t							wd_transfers_queue_compare(wi_runtime_instance_t *, wi_runtime_instance_t *);
+static wi_boolean_t							wd_transfers_wait_until_ready(wd_transfer_t *, wd_user_t *, wi_p7_message_t *);
 static wi_boolean_t							wd_transfers_run_download(wd_transfer_t *, wd_user_t *, wi_p7_message_t *);
 static wi_boolean_t							wd_transfers_run_upload(wd_transfer_t *, wd_user_t *, wi_p7_message_t *);
 static wi_string_t *						wd_transfers_transfer_key_for_user(wd_user_t *);
@@ -162,7 +163,9 @@ static void wd_transfers_queue_thread(wi_runtime_instance_t *argument) {
 		enumerator		= wi_array_data_enumerator(wd_transfers);
 		
 		while((transfer = wi_enumerator_next_data(enumerator))) {
-			if(transfer->state == WD_TRANSFER_QUEUED) {
+			wi_condition_lock_lock(transfer->queue_lock);
+			
+			if(transfer->state == WD_TRANSFER_QUEUED && transfer->queue != 0) {
 				key_queue = wi_dictionary_data_for_key(key_queues, transfer->key);
 				
 				if(!key_queue) {
@@ -176,6 +179,8 @@ static void wd_transfers_queue_thread(wi_runtime_instance_t *argument) {
 				if(wi_array_count(key_queue) > longest_queue)
 					longest_queue = wi_array_count(key_queue);
 			}
+			
+			wi_condition_lock_unlock(transfer->queue_lock);
 		}
 		
 		keys		= wi_autorelease(wi_mutable_copy(wi_dictionary_keys_sorted_by_value(key_queues, wd_transfers_queue_compare)));
@@ -262,6 +267,50 @@ static wi_integer_t wd_transfers_queue_compare(wi_runtime_instance_t *instance1,
 		return -1;
 	
 	return 0;
+}
+
+
+
+static wi_boolean_t wd_transfers_wait_until_ready(wd_transfer_t *transfer, wd_user_t *user, wi_p7_message_t *message) {
+	wi_p7_message_t			*reply;
+	wi_uinteger_t			queue;
+	wi_socket_state_t		state;
+	
+	while(true) {
+		if(wi_condition_lock_lock_when_condition(transfer->queue_lock, 1, 1.0)) {
+			queue = transfer->queue;
+			
+			wi_condition_lock_unlock_with_condition(transfer->queue_lock, 0);
+		
+			if(queue > 0) {
+				reply = wi_p7_message_with_name(WI_STR("wired.transfer.queue"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(reply, transfer->path, WI_STR("wired.file.path"));
+				wi_p7_message_set_uint32_for_name(reply, queue, WI_STR("wired.transfer.queue_position"));
+				wd_user_reply_message(user, reply, message);
+			} 
+			
+			if(queue == 0 || wd_user_state(user) != WD_USER_LOGGED_IN)
+				return true;
+		} else {
+			state = wi_socket_wait(wd_user_socket(user), 0.1);
+			
+			if(state == WI_SOCKET_ERROR)
+				return false;
+			
+			if(state == WI_SOCKET_READY) {
+				wd_user_lock_socket(user);
+				
+				reply = wi_p7_socket_read_message(wd_user_p7_socket(user), 30.0);
+
+				wd_user_unlock_socket(user);
+				
+				if(!reply)
+					return false;
+				
+				wd_messages_handle_message(reply, user);
+			}
+		}
+	}
 }
 
 
@@ -475,95 +524,46 @@ static void wd_transfers_note_statistics(wd_transfer_type_t type, wd_transfers_s
 #pragma mark -
 
 wi_boolean_t wd_transfers_run_transfer(wd_transfer_t *transfer, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_socket_t			*p7_socket;
-	wi_p7_message_t			*reply;
-	wi_socket_t				*socket;
-	wi_socket_state_t		state;
-	wi_integer_t			queue;
-	wd_user_state_t			user_state;
-	wi_boolean_t			result = false;
+	wi_boolean_t		result = false;
 	
 	wi_array_wrlock(wd_transfers);
 	wi_mutable_array_add_data(wd_transfers, transfer);
 	wi_array_unlock(wd_transfers);
 	
-	wi_condition_lock_lock(wd_transfers_queue_lock);	
+	wi_condition_lock_lock(wd_transfers_queue_lock);
 	wi_condition_lock_unlock_with_condition(wd_transfers_queue_lock, 1);
-
-	socket			= wd_user_socket(user);
-	p7_socket		= wd_user_p7_socket(user);
 	
-	do {
-		if(wi_condition_lock_lock_when_condition(transfer->queue_lock, 1, 1.0)) {
-			queue = transfer->queue;
-			
-			wi_condition_lock_unlock_with_condition(transfer->queue_lock, 0);
+	if(wd_transfers_wait_until_ready(transfer, user, message)) {
+		wi_condition_lock_lock(transfer->queue_lock);
+		transfer->state = WD_TRANSFER_RUNNING;
+		wi_condition_lock_unlock(transfer->queue_lock);
 		
-			if(queue > 0) {
-				reply = wi_p7_message_with_name(WI_STR("wired.transfer.queue"), wd_p7_spec);
-				wi_p7_message_set_string_for_name(reply, transfer->path, WI_STR("wired.file.path"));
-				wi_p7_message_set_uint32_for_name(reply, queue, WI_STR("wired.transfer.queue_position"));
-				wd_user_reply_message(user, reply, message);
-			}
-			
-			user_state		= wd_user_state(user);
-			state			= WI_SOCKET_TIMEOUT;
-		} else {
-			queue			= 1;
-			user_state		= wd_user_state(user);
-			state			= wi_socket_wait(socket, 0.1);
-			
-			if(state == WI_SOCKET_READY) {
-				wd_user_lock_socket(user);
-				
-				reply = wi_p7_socket_read_message(p7_socket, 30.0);
-
-				wd_user_unlock_socket(user);
-				
-				if(reply)
-					wd_messages_handle_message(reply, user);
-				else
-					state = WI_SOCKET_ERROR;
-			}
+		if(transfer->type == WD_TRANSFER_DOWNLOAD)
+			result = wd_transfers_run_download(transfer, user, message);
+		else
+			result = wd_transfers_run_upload(transfer, user, message);
+		
+		if(!result) {
+			wi_log_error(WI_STR("Could not process %@ for %@: %m"),
+				(transfer->type == WD_TRANSFER_DOWNLOAD)
+					? WI_STR("download")
+					: WI_STR("upload"),
+				wd_user_identifier(user));
 		}
-	} while(queue > 0 && user_state == WD_USER_LOGGED_IN && state != WI_SOCKET_ERROR);
-	
-	if(user_state == WD_USER_LOGGED_IN) {
-		if(state == WI_SOCKET_ERROR) {
-			if(transfer->type == WD_TRANSFER_DOWNLOAD) {
-				wi_log_error(WI_STR("Could not process download for %@: %m"),
-					wd_user_identifier(user));
-			} else {
-				wi_log_error(WI_STR("Could not process upload for %@: %m"),
-					wd_user_identifier(user));
-			}
-		} else {
-			transfer->state = WD_TRANSFER_RUNNING;
 			
-			if(transfer->type == WD_TRANSFER_DOWNLOAD) {
-				result = wd_transfers_run_download(transfer, user, message);
-				
-				if(!result) {
-					wi_log_error(WI_STR("Could not process download for %@: %m"),
-						wd_user_identifier(user));
-				}
-			} else {
-				result = wd_transfers_run_upload(transfer, user, message);
-				
-				if(!result) {
-					wi_log_error(WI_STR("Could not process upload for %@: %m"),
-						wd_user_identifier(user));
-				}
-			}
-			
-			wi_condition_lock_lock(transfer->finished_lock);
-			wi_condition_lock_unlock_with_condition(transfer->finished_lock, 1);
-		}
+		wi_condition_lock_lock(transfer->finished_lock);
+		wi_condition_lock_unlock_with_condition(transfer->finished_lock, 1);
+	} else {
+		wi_log_error(WI_STR("Could not process %@ for %@: %m"),
+			(transfer->type == WD_TRANSFER_DOWNLOAD)
+				? WI_STR("download")
+				: WI_STR("upload"),
+			wd_user_identifier(user));
 	}
 	
-	if(queue == 0)
+	if(transfer->queue == 0)
 		wd_transfers_add_or_remove_transfer(transfer, false);
-	
+
 	wi_array_wrlock(wd_transfers);
 	wi_mutable_array_remove_data(wd_transfers, transfer);
 	wi_array_unlock(wd_transfers);
