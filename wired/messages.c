@@ -238,6 +238,7 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 	wi_socket_state_t		state;
 	wd_user_state_t			user_state;
 	wi_time_interval_t		timeout;
+	wi_boolean_t			logged_in;
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
@@ -302,7 +303,9 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 		wd_write_status(true);
 		wi_lock_unlock(wd_status_lock);
 
-		wd_events_add_event(WI_STR("wired.event.user.logged_out"), user, NULL);
+		logged_in = true;
+	} else {
+		logged_in = false;
 	}
 	
 	wd_user_set_state(user, WD_USER_DISCONNECTED);
@@ -311,6 +314,9 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 		wd_chat_broadcast_user_leave(wd_public_chat, user);
 
 	wi_log_info(WI_STR("Disconnect from %@"), wd_user_identifier(user));
+	
+	if(logged_in)
+		wd_events_add_event(WI_STR("wired.event.user.logged_out"), user, NULL);
 	
 	wi_p7_socket_close(p7_socket);
 	wi_socket_close(socket);
