@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b42">
+			 version="2.0b43">
 	<p7:documentation>
 		TBD
 		
