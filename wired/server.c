@@ -858,7 +858,7 @@ void wd_broadcast_message(wi_p7_message_t *message) {
 	enumerator = wi_dictionary_data_enumerator(wd_users);
 	
 	while((user = wi_enumerator_next_data(enumerator))) {
-		if(wd_user_state(user) == WD_USER_LOGGED_IN)
+		if(wd_user_state(user) == WD_USER_LOGGED_IN && !wd_user_transfer(user))
 			wd_user_send_message(user, message);
 	}
 	
@@ -879,7 +879,7 @@ void wd_chat_broadcast_message(wd_chat_t *chat, wi_p7_message_t *message) {
 	enumerator = wi_array_data_enumerator(users);
 	
 	while((user = wi_enumerator_next_data(enumerator))) {
-		if(wd_user_state(user) == WD_USER_LOGGED_IN)
+		if(wd_user_state(user) == WD_USER_LOGGED_IN && !wd_user_transfer(user))
 			wd_user_send_message(user, message);
 	}
 	

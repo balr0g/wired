@@ -523,6 +523,7 @@ static void wd_signal_pipe(int sigraised) {
 
 static void wd_schedule(void) {
 	wd_files_schedule();
+	wd_server_schedule();
 	wd_servers_schedule();
 	wd_trackers_schedule();
 	wd_transfers_schedule();
