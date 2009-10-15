@@ -1366,7 +1366,7 @@ static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *mes
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.deleted_thread"), user,
-			subject ? subject : WI_STR(""), , board, NULL);
+			subject ? subject : WI_STR(""), board, NULL);
 	}
 }
 
