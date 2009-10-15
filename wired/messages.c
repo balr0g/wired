@@ -683,7 +683,7 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 		wi_p7_message_set_uint32_for_name(broadcast, wd_chat_id(chat), WI_STR("wired.chat.id"));
 		wi_p7_message_set_uint32_for_name(broadcast, uid, WI_STR("wired.user.disconnected_id"));
 		wi_p7_message_set_string_for_name(broadcast, disconnect_message, WI_STR("wired.user.disconnect_message"));
-		wd_chat_broadcast_message(wd_public_chat, broadcast);
+		wd_chat_broadcast_message(chat, broadcast);
 	}
 	
 	if(wd_banlist_add_ban(wd_user_ip(peer), expiration_date, user, message)) {
