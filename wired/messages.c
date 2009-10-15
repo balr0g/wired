@@ -301,16 +301,16 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 		wd_current_users--;
 		wd_write_status(true);
 		wi_lock_unlock(wd_status_lock);
-	}
 
+		wd_events_add_event(WI_STR("wired.event.user.logged_out"), user, NULL);
+	}
+	
 	wd_user_set_state(user, WD_USER_DISCONNECTED);
 
 	if(wd_chat_contains_user(wd_public_chat, user))
 		wd_chat_broadcast_user_leave(wd_public_chat, user);
 
 	wi_log_info(WI_STR("Disconnect from %@"), wd_user_identifier(user));
-	
-	wd_events_add_event(WI_STR("wired.event.user.logged_out"), user, NULL);
 	
 	wi_p7_socket_close(p7_socket);
 	wi_socket_close(socket);
