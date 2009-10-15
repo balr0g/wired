@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b44">
+			 version="2.0b45">
 	<p7:documentation>
 		TBD
 		
@@ -1108,17 +1108,19 @@
 			<p7:enum name="wired.event.account.deleted_group" value="29" version="2.0" />
 			<p7:enum name="wired.event.message.sent" value="30" version="2.0" />
 			<p7:enum name="wired.event.message.broadcasted" value="31" version="2.0" />
-			<p7:enum name="wired.event.board.added_board" value="32" version="2.0" />
-			<p7:enum name="wired.event.board.renamed_board" value="33" version="2.0" />
-			<p7:enum name="wired.event.board.moved_board" value="34" version="2.0" />
-			<p7:enum name="wired.event.board.deleted_board" value="35" version="2.0" />
-			<p7:enum name="wired.event.board.set_permissions" value="36" version="2.0" />
-			<p7:enum name="wired.event.board.added_thread" value="37" version="2.0" />
-			<p7:enum name="wired.event.board.moved_thread" value="38" version="2.0" />
-			<p7:enum name="wired.event.board.deleted_thread" value="39" version="2.0" />
-			<p7:enum name="wired.event.board.added_post" value="40" version="2.0" />
-			<p7:enum name="wired.event.board.edited_post" value="41" version="2.0" />
-			<p7:enum name="wired.event.board.deleted_post" value="42" version="2.0" />
+			<p7:enum name="wired.event.board.got_boards" value="32" version="2.0" />
+			<p7:enum name="wired.event.board.got_posts" value="33" version="2.0" />
+			<p7:enum name="wired.event.board.added_board" value="34" version="2.0" />
+			<p7:enum name="wired.event.board.renamed_board" value="35" version="2.0" />
+			<p7:enum name="wired.event.board.moved_board" value="36" version="2.0" />
+			<p7:enum name="wired.event.board.deleted_board" value="37" version="2.0" />
+			<p7:enum name="wired.event.board.set_permissions" value="38" version="2.0" />
+			<p7:enum name="wired.event.board.added_thread" value="39" version="2.0" />
+			<p7:enum name="wired.event.board.moved_thread" value="40" version="2.0" />
+			<p7:enum name="wired.event.board.deleted_thread" value="41" version="2.0" />
+			<p7:enum name="wired.event.board.added_post" value="42" version="2.0" />
+			<p7:enum name="wired.event.board.edited_post" value="43" version="2.0" />
+			<p7:enum name="wired.event.board.deleted_post" value="44" version="2.0" />
 		</p7:field>
 		<p7:field name="wired.event.time" type="date" id="10004" version="2.0">
 			<p7:documentation>
