@@ -1078,31 +1078,32 @@
 			</p7:documentation>
 			<p7:enum name="wired.event.user.logged_in" value="0" version="2.0" />
 			<p7:enum name="wired.event.user.login_failed" value="1" version="2.0" />
-			<p7:enum name="wired.event.user.changed_nick" value="2" version="2.0" />
-			<p7:enum name="wired.event.user.got_info" value="3" version="2.0" />
-			<p7:enum name="wired.event.file.listed_directory" value="4" version="2.0" />
-			<p7:enum name="wired.event.file.got_info" value="5" version="2.0" />
-			<p7:enum name="wired.event.file.moved" value="6" version="2.0" />
-			<p7:enum name="wired.event.file.linked" value="7" version="2.0" />
-			<p7:enum name="wired.event.file.set_type" value="8" version="2.0" />
-			<p7:enum name="wired.event.file.set_comment" value="9" version="2.0" />
-			<p7:enum name="wired.event.file.set_executable" value="10" version="2.0" />
-			<p7:enum name="wired.event.file.set_permissions" value="11" version="2.0" />
-			<p7:enum name="wired.event.file.set_label" value="12" version="2.0" />
-			<p7:enum name="wired.event.file.deleted" value="13" version="2.0" />
-			<p7:enum name="wired.event.file.created_directory" value="14" version="2.0" />
-			<p7:enum name="wired.event.file.searched" value="15" version="2.0" />
-			<p7:enum name="wired.event.file.previewed_file" value="16" version="2.0" />
-			<p7:enum name="wired.event.account.listed_users" value="17" version="2.0" />
-			<p7:enum name="wired.event.account.listed_groups" value="18" version="2.0" />
-			<p7:enum name="wired.event.account.read_user" value="19" version="2.0" />
-			<p7:enum name="wired.event.account.read_group" value="20" version="2.0" />
-			<p7:enum name="wired.event.account.created_user" value="21" version="2.0" />
-			<p7:enum name="wired.event.account.created_group" value="22" version="2.0" />
-			<p7:enum name="wired.event.account.edited_user" value="23" version="2.0" />
-			<p7:enum name="wired.event.account.edited_group" value="24" version="2.0" />
-			<p7:enum name="wired.event.account.deleted_user" value="25" version="2.0" />
-			<p7:enum name="wired.event.account.deleted_group" value="26" version="2.0" />
+			<p7:enum name="wired.event.user.logged_out" value="2" version="2.0" />
+			<p7:enum name="wired.event.user.changed_nick" value="3" version="2.0" />
+			<p7:enum name="wired.event.user.got_info" value="4" version="2.0" />
+			<p7:enum name="wired.event.file.listed_directory" value="5" version="2.0" />
+			<p7:enum name="wired.event.file.got_info" value="6" version="2.0" />
+			<p7:enum name="wired.event.file.moved" value="7" version="2.0" />
+			<p7:enum name="wired.event.file.linked" value="8" version="2.0" />
+			<p7:enum name="wired.event.file.set_type" value="9" version="2.0" />
+			<p7:enum name="wired.event.file.set_comment" value="10" version="2.0" />
+			<p7:enum name="wired.event.file.set_executable" value="11" version="2.0" />
+			<p7:enum name="wired.event.file.set_permissions" value="12" version="2.0" />
+			<p7:enum name="wired.event.file.set_label" value="13" version="2.0" />
+			<p7:enum name="wired.event.file.deleted" value="14" version="2.0" />
+			<p7:enum name="wired.event.file.created_directory" value="15" version="2.0" />
+			<p7:enum name="wired.event.file.searched" value="16" version="2.0" />
+			<p7:enum name="wired.event.file.previewed_file" value="17" version="2.0" />
+			<p7:enum name="wired.event.account.listed_users" value="18" version="2.0" />
+			<p7:enum name="wired.event.account.listed_groups" value="19" version="2.0" />
+			<p7:enum name="wired.event.account.read_user" value="20" version="2.0" />
+			<p7:enum name="wired.event.account.read_group" value="21" version="2.0" />
+			<p7:enum name="wired.event.account.created_user" value="22" version="2.0" />
+			<p7:enum name="wired.event.account.created_group" value="23" version="2.0" />
+			<p7:enum name="wired.event.account.edited_user" value="24" version="2.0" />
+			<p7:enum name="wired.event.account.edited_group" value="25" version="2.0" />
+			<p7:enum name="wired.event.account.deleted_user" value="26" version="2.0" />
+			<p7:enum name="wired.event.account.deleted_group" value="27" version="2.0" />
 		</p7:field>
 		<p7:field name="wired.event.time" type="date" id="10004" version="2.0">
 			<p7:documentation>

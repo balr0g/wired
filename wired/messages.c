@@ -310,6 +310,8 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 
 	wi_log_info(WI_STR("Disconnect from %@"), wd_user_identifier(user));
 	
+	wd_events_add_event(WI_STR("wired.event.user.logged_out"), user, NULL);
+	
 	wi_p7_socket_close(p7_socket);
 	wi_socket_close(socket);
 	
