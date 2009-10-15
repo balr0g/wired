@@ -112,6 +112,8 @@ struct _wd_user {
 	wi_date_t							*login_time;
 	wi_date_t							*idle_time;
 	
+	wi_boolean_t						joined_public_chat;
+	
 	wi_boolean_t						subscribed_boards;
 	wi_boolean_t						subscribed_accounts;
 	wi_boolean_t						subscribed_log;
@@ -704,7 +706,7 @@ void wd_user_set_idle_time(wd_user_t *user, wi_date_t * idle_time) {
 
 
 wi_date_t * wd_user_idle_time(wd_user_t *user) {
-	WD_USER_RETURN_VALUE(user, user->idle_time);
+	WD_USER_RETURN_INSTANCE(user, user->idle_time);
 }
 
 
@@ -717,6 +719,18 @@ void wd_user_set_transfer(wd_user_t *user, wd_transfer_t *transfer) {
 
 wd_transfer_t * wd_user_transfer(wd_user_t *user) {
 	WD_USER_RETURN_INSTANCE(user, user->transfer);
+}
+
+
+
+void wd_user_set_joined_public_chat(wd_user_t *user, wi_boolean_t joined_public_chat) {
+	WD_USER_SET_VALUE(user, user->joined_public_chat, joined_public_chat);
+}
+
+
+
+wi_boolean_t wd_user_has_joined_public_chat(wd_user_t *user) {
+	WD_USER_RETURN_VALUE(user, user->joined_public_chat);
 }
 
 

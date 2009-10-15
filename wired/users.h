@@ -105,6 +105,8 @@ void									wd_user_set_idle_time(wd_user_t *, wi_date_t *);
 wi_date_t *								wd_user_idle_time(wd_user_t *);
 void									wd_user_set_transfer(wd_user_t *, wd_transfer_t *);
 wd_transfer_t *							wd_user_transfer(wd_user_t *);
+void									wd_user_set_joined_public_chat(wd_user_t *, wi_boolean_t);
+wi_boolean_t							wd_user_has_joined_public_chat(wd_user_t *);
 
 wi_boolean_t							wd_user_supports_rsrc(wd_user_t *);
 

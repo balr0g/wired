@@ -238,7 +238,6 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 	wi_socket_state_t		state;
 	wd_user_state_t			user_state;
 	wi_time_interval_t		timeout;
-	wi_boolean_t			logged_in;
 	
 	pool = wi_pool_init(wi_pool_alloc());
 	
@@ -302,10 +301,6 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 		wd_current_users--;
 		wd_write_status(true);
 		wi_lock_unlock(wd_status_lock);
-
-		logged_in = true;
-	} else {
-		logged_in = false;
 	}
 	
 	wd_user_set_state(user, WD_USER_DISCONNECTED);
@@ -315,7 +310,7 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 
 	wi_log_info(WI_STR("Disconnect from %@"), wd_user_identifier(user));
 	
-	if(logged_in)
+	if(wd_user_has_joined_public_chat(user))
 		wd_events_add_event(WI_STR("wired.event.user.logged_out"), user, NULL);
 	
 	wi_p7_socket_close(p7_socket);
@@ -481,13 +476,8 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 	
 	reply = wd_account_privileges_message(account);
 	wd_user_reply_message(user, reply, message);
-	
+
 	wd_accounts_update_login_time(account);
-	
-	wd_events_add_event(WI_STR("wired.event.user.logged_in"), user,
-		wd_client_info_application_string(wd_user_client_info(user)),
-		wd_client_info_os_string(wd_user_client_info(user)),
-		NULL);
 }
 
 
@@ -644,7 +634,8 @@ static void wd_message_user_disconnect_user(wd_user_t *user, wi_p7_message_t *me
 	wd_user_set_state(peer, WD_USER_DISCONNECTED);
 	wd_user_reply_okay(user, message);
 	
-	wd_events_add_event(WI_STR("wired.event.user.disconnected"), user, wd_user_nick(peer));
+	wd_events_add_event(WI_STR("wired.event.user.disconnected"), user,
+		wd_user_nick(peer), NULL);
 }
 
 
@@ -700,7 +691,8 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 		wd_user_set_state(peer, WD_USER_DISCONNECTED);
 		wd_user_reply_okay(user, message);
 	
-		wd_events_add_event(WI_STR("wired.event.user.banned"), user, wd_user_nick(peer));
+		wd_events_add_event(WI_STR("wired.event.user.banned"), user,
+			wd_user_nick(peer), NULL);
 	}
 }
 
@@ -753,6 +745,15 @@ static void wd_message_chat_join_chat(wd_user_t *user, wi_p7_message_t *message)
 	
 	if(reply)
 		wd_user_reply_message(user, reply, message);
+	
+	if(chat == wd_public_chat && !wd_user_has_joined_public_chat(user)) {
+		wd_events_add_event(WI_STR("wired.event.user.logged_in"), user,
+			wd_client_info_application_string(wd_user_client_info(user)),
+			wd_client_info_os_string(wd_user_client_info(user)),
+			NULL);
+		
+		wd_user_set_joined_public_chat(user, true);
+	}
 }
 
 
@@ -1149,10 +1150,6 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 	privileges = wd_board_privileges_with_message(message);
 	
 	if(wd_boards_add_board(board, privileges, user, message)) {
-		wi_log_info(WI_STR("%@ added board \"%@\""),
-			wd_user_identifier(user),
-			board);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.added_board"), user,
@@ -1187,11 +1184,6 @@ static void wd_message_board_rename_board(wd_user_t *user, wi_p7_message_t *mess
 	}
 	
 	if(wd_boards_rename_board(oldboard, newboard, user, message)) {
-		wi_log_info(WI_STR("%@ renamed board \"%@\" to \"%@\""),
-			wd_user_identifier(user),
-			oldboard,
-			newboard);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.renamed_board"), user,
@@ -1220,11 +1212,6 @@ static void wd_message_board_move_board(wd_user_t *user, wi_p7_message_t *messag
 	}
 	
 	if(wd_boards_move_board(oldboard, newboard, user, message)) {
-		wi_log_info(WI_STR("%@ moved board \"%@\" to \"%@\""),
-			wd_user_identifier(user),
-			oldboard,
-			newboard);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.moved_board"), user,
@@ -1252,10 +1239,6 @@ static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *mess
 	}
 	
 	if(wd_boards_delete_board(board, user, message)) {
-		wi_log_info(WI_STR("%@ deleted board \"%@\""),
-			wd_user_identifier(user),
-			board);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.deleted_board"), user,
@@ -1286,10 +1269,6 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 	privileges = wd_board_privileges_with_message(message);
 
 	if(wd_boards_set_board_privileges(board, privileges, user, message)) {
-		wi_log_info(WI_STR("%@ changed permissions for board \"%@\""),
-			wd_user_identifier(user),
-			board);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.set_permissions"), user,
@@ -1320,11 +1299,6 @@ static void wd_message_board_add_thread(wd_user_t *user, wi_p7_message_t *messag
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 
 	if(wd_boards_add_thread(board, subject, text, user, message)) {
-		wi_log_info(WI_STR("%@ created the thread \"%@\" in board \"%@\""),
-			wd_user_identifier(user),
-			subject,
-			board);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.added_thread"), user,
@@ -1358,19 +1332,10 @@ static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *messa
 	if(wd_boards_move_thread(oldboard, thread, newboard, user, message)) {
 		subject = wd_boards_subject_for_thread(newboard, thread);
 		
-		if(!subject)
-			subject = WI_STR("");
-		
-		wi_log_info(WI_STR("%@ moved the thread \"%@\" from board \"%@\" to \"%@\""),
-			wd_user_identifier(user),
-			subject,
-			oldboard,
-			newboard);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.moved_thread"), user,
-			subject, oldboard, newboard, NULL);
+			subject ? subject : WI_STR(""), oldboard, newboard, NULL);
 	}
 }
 
@@ -1398,18 +1363,10 @@ static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *mes
 	subject		= wd_boards_subject_for_thread(board, thread);
 	
 	if(wd_boards_delete_thread(board, thread, user, message)) {
-		if(!subject)
-			subject = WI_STR("");
-		
-		wi_log_info(WI_STR("%@ deleted the thread \"%@\" from board \"%@\""),
-			wd_user_identifier(user),
-			subject,
-			board);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.deleted_thread"), user,
-			subject, board, NULL);
+			subject ? subject : WI_STR(""), , board, NULL);
 	}
 }
 
@@ -1438,11 +1395,6 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 
 	if(wd_boards_add_post(board, thread, subject, text, user, message)) {
-		wi_log_info(WI_STR("%@ created the post \"%@\" in board \"%@\""),
-			wd_user_identifier(user),
-			subject,
-			board);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.added_post"), user,
@@ -1479,11 +1431,6 @@ static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 	
 	if(wd_boards_edit_post(board, thread, post, subject, text, user, message)) {
-		wi_log_info(WI_STR("%@ edited the post \"%@\" in board \"%@\""),
-			wd_user_identifier(user),
-			subject,
-			board);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.edited_post"), user,
@@ -1519,18 +1466,10 @@ static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *messa
 	subject		= wd_boards_subject_for_post(board, thread, post);;
 	
 	if(wd_boards_delete_post(board, thread, post, user, message)) {
-		if(!subject)
-			subject = WI_STR("");
-		
-		wi_log_info(WI_STR("%@ deleted the post \"%@\" in board \"%@\""),
-			wd_user_identifier(user),
-			subject,
-			board);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.deleted_post"), user,
-			subject, board, NULL);
+			subject ? subject : WI_STR(""), board, NULL);
 	}
 }
 
@@ -2660,7 +2599,7 @@ static void wd_message_account_unsubscribe_accounts(wd_user_t *user, wi_p7_messa
 
 
 static void wd_message_transfer_download_file(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path, *properpath;
+	wi_string_t				*path;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 	wd_transfer_t			*transfer;
@@ -2682,8 +2621,8 @@ static void wd_message_transfer_download_file(wd_user_t *user, wi_p7_message_t *
 		return;
 	}
 	
-	properpath = wi_string_by_normalizing_path(path);
-	privileges = wd_files_privileges(path, user);
+	path		= wi_string_by_normalizing_path(path);
+	privileges	= wd_files_privileges(path, user);
 	
 	if(privileges && !wd_files_privileges_is_readable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.file_not_found"), message);
@@ -2694,13 +2633,29 @@ static void wd_message_transfer_download_file(wd_user_t *user, wi_p7_message_t *
 	wi_p7_message_get_uint64_for_name(message, &dataoffset, WI_STR("wired.transfer.data_offset"));
 	wi_p7_message_get_uint64_for_name(message, &rsrcoffset, WI_STR("wired.transfer.rsrc_offset"));
 	
-	transfer = wd_transfer_download_transfer(properpath, dataoffset, rsrcoffset, user, message);
+	transfer = wd_transfer_download_transfer(path, dataoffset, rsrcoffset, user, message);
 	
 	if(transfer) {
+		path = wd_files_virtual_path(path, user);
+		
 		wd_user_set_transfer(user, transfer);
 		
-		if(!wd_transfers_run_transfer(transfer, user, message))
+		wd_events_add_event(WI_STR("wired.event.transfer.started_file_download"), user,
+			path, NULL);
+		
+		if(wd_transfers_run_transfer(transfer, user, message)) {
+			wd_events_add_event(WI_STR("wired.event.transfer.completed_file_download"), user,
+				path,
+				wi_string_with_format(WI_STR("%llu"), transfer->actualtransferred),
+				NULL);
+		} else {
+			wd_events_add_event(WI_STR("wired.event.transfer.stopped_file_download"), user,
+				path,
+				wi_string_with_format(WI_STR("%llu"), transfer->actualtransferred),
+				NULL);
+			
 			wd_user_set_state(user, WD_USER_DISCONNECTED);
+		}
 		
 		wd_user_set_transfer(user, NULL);
 	}
@@ -2709,7 +2664,7 @@ static void wd_message_transfer_download_file(wd_user_t *user, wi_p7_message_t *
 
 
 static void wd_message_transfer_upload_file(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path, *realpath, *realparentpath, *properpath;
+	wi_string_t				*path, *realpath, *realparentpath;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 	wd_transfer_t			*transfer;
@@ -2725,8 +2680,8 @@ static void wd_message_transfer_upload_file(wd_user_t *user, wi_p7_message_t *me
 	}
 	
 	account		= wd_user_account(user);
-	properpath	= wi_string_by_normalizing_path(path);
-	privileges	= wd_files_privileges(properpath, user);
+	path		= wi_string_by_normalizing_path(path);
+	privileges	= wd_files_privileges(path, user);
 	
 	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -2734,7 +2689,7 @@ static void wd_message_transfer_upload_file(wd_user_t *user, wi_p7_message_t *me
 		return;
 	}
 
-	realpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(properpath, user));
+	realpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	realparentpath	= wi_string_by_deleting_last_path_component(realpath);
 
 	switch(wd_files_type(realparentpath)) {
@@ -2764,13 +2719,29 @@ static void wd_message_transfer_upload_file(wd_user_t *user, wi_p7_message_t *me
 	if(!wi_p7_message_get_bool_for_name(message, &executable, WI_STR("wired.file.executable")))
 		executable = false;
 
-	transfer = wd_transfer_upload_transfer(properpath, datasize, rsrcsize, executable, user, message);
+	transfer = wd_transfer_upload_transfer(path, datasize, rsrcsize, executable, user, message);
 	
 	if(transfer) {
+		path = wd_files_virtual_path(path, user);
+		
 		wd_user_set_transfer(user, transfer);
 		
-		if(!wd_transfers_run_transfer(transfer, user, message))
+		wd_events_add_event(WI_STR("wired.event.transfer.started_file_upload"), user,
+			path, NULL);
+		
+		if(wd_transfers_run_transfer(transfer, user, message)) {
+			wd_events_add_event(WI_STR("wired.event.transfer.completed_file_upload"), user,
+				path,
+				wi_string_with_format(WI_STR("%llu"), transfer->actualtransferred),
+				NULL);
+		} else {
+			wd_events_add_event(WI_STR("wired.event.transfer.stopped_file_upload"), user,
+				path,
+				wi_string_with_format(WI_STR("%llu"), transfer->actualtransferred),
+				NULL);
+			
 			wd_user_set_state(user, WD_USER_DISCONNECTED);
+		}
 
 		wd_user_set_transfer(user, NULL);
 	}
@@ -2779,7 +2750,7 @@ static void wd_message_transfer_upload_file(wd_user_t *user, wi_p7_message_t *me
 
 
 static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*path, *realparentpath, *realpath, *properpath;
+	wi_string_t				*path, *realparentpath, *realpath;
 	wd_account_t			*account;
 	wd_files_privileges_t	*privileges;
 	wd_file_type_t			parenttype;
@@ -2800,8 +2771,8 @@ static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_
 		return;
 	}
 
-	properpath = wi_string_by_normalizing_path(path);
-	privileges = wd_files_privileges(properpath, user);
+	path		= wi_string_by_normalizing_path(path);
+	privileges	= wd_files_privileges(path, user);
 
 	if(privileges && !wd_files_privileges_is_writable_by_account(privileges, account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -2809,7 +2780,7 @@ static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_
 		return;
 	}
 	
-	realpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(properpath, user));
+	realpath		= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	realparentpath	= wi_string_by_deleting_last_path_component(realpath);
 	parenttype		= wd_files_type(realparentpath);
 	
@@ -2819,10 +2790,15 @@ static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_
 		return;
 	}
 
-	if(wd_files_create_path(properpath, parenttype, user, message)) {
+	if(wd_files_create_path(path, parenttype, user, message)) {
+		path = wd_files_virtual_path(path, user);
+		
 		wi_log_info(WI_STR("%@ uploaded \"%@\""),
 			wd_user_identifier(user),
-			wd_files_virtual_path(properpath, user));
+			path);
+		
+		wd_events_add_event(WI_STR("wired.event.transfer.completed_directory_upload"), user,
+			path, NULL);
 		
 		wd_user_reply_okay(user, message);
 	}

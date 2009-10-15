@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b45">
+			 version="2.0b46">
 	<p7:documentation>
 		TBD
 		
@@ -1121,6 +1121,13 @@
 			<p7:enum name="wired.event.board.added_post" value="42" version="2.0" />
 			<p7:enum name="wired.event.board.edited_post" value="43" version="2.0" />
 			<p7:enum name="wired.event.board.deleted_post" value="44" version="2.0" />
+			<p7:enum name="wired.event.transfer.started_file_download" value="45" version="2.0" />
+			<p7:enum name="wired.event.transfer.stopped_file_download" value="46" version="2.0" />
+			<p7:enum name="wired.event.transfer.completed_file_download" value="47" version="2.0" />
+			<p7:enum name="wired.event.transfer.started_file_upload" value="48" version="2.0" />
+			<p7:enum name="wired.event.transfer.stopped_file_upload" value="49" version="2.0" />
+			<p7:enum name="wired.event.transfer.completed_file_upload" value="50" version="2.0" />
+			<p7:enum name="wired.event.transfer.completed_directory_upload" value="51" version="2.0" />
 		</p7:field>
 		<p7:field name="wired.event.time" type="date" id="10004" version="2.0">
 			<p7:documentation>
