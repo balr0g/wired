@@ -542,14 +542,6 @@ wi_boolean_t wd_transfers_run_transfer(wd_transfer_t *transfer, wd_user_t *user,
 			result = wd_transfers_run_download(transfer, user, message);
 		else
 			result = wd_transfers_run_upload(transfer, user, message);
-		
-		if(!result) {
-			wi_log_error(WI_STR("Could not process %@ for %@: %m"),
-				(transfer->type == WD_TRANSFER_DOWNLOAD)
-					? WI_STR("download")
-					: WI_STR("upload"),
-				wd_user_identifier(user));
-		}
 			
 		wi_condition_lock_lock(transfer->finished_lock);
 		wi_condition_lock_unlock_with_condition(transfer->finished_lock, 1);
