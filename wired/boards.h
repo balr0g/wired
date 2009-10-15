@@ -68,6 +68,9 @@ wi_boolean_t							wd_boards_add_post(wi_string_t *, wi_uuid_t *, wi_string_t *,
 wi_boolean_t							wd_boards_edit_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_boards_delete_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
 
+wi_string_t *							wd_boards_subject_for_thread(wi_string_t *, wi_uuid_t *);
+wi_string_t *							wd_boards_subject_for_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *);
+
 wd_board_privileges_t *					wd_board_privileges_with_message(wi_p7_message_t *);
 
 #endif /* WD_BOARD_H */

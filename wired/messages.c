@@ -637,6 +637,8 @@ static void wd_message_user_disconnect_user(wd_user_t *user, wi_p7_message_t *me
 	
 	wd_user_set_state(peer, WD_USER_DISCONNECTED);
 	wd_user_reply_okay(user, message);
+	
+	wd_events_add_event(WI_STR("wired.event.user.disconnected"), user, wd_user_nick(peer));
 }
 
 
@@ -691,6 +693,8 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 		
 		wd_user_set_state(peer, WD_USER_DISCONNECTED);
 		wd_user_reply_okay(user, message);
+	
+		wd_events_add_event(WI_STR("wired.event.user.banned"), user, wd_user_nick(peer));
 	}
 }
 
@@ -1060,6 +1064,9 @@ static void wd_message_message_send_message(wd_user_t *user, wi_p7_message_t *me
 	wd_user_send_message(peer, reply);
 	
 	wd_user_reply_okay(user, message);
+	
+	wd_events_add_event(WI_STR("wired.event.message.sent"), user,
+		wd_user_nick(peer), NULL);
 }
 
 
@@ -1081,6 +1088,8 @@ static void wd_message_message_send_broadcast(wd_user_t *user, wi_p7_message_t *
 	wd_broadcast_message(broadcast);
 	
 	wd_user_reply_okay(user, message);
+	
+	wd_events_add_event(WI_STR("wired.event.message.broadcasted"), user, NULL);
 }
 
 
@@ -1093,6 +1102,8 @@ static void wd_message_board_get_boards(wd_user_t *user, wi_p7_message_t *messag
 	}
 	
 	wd_boards_reply_boards(user, message);
+
+	wd_events_add_event(WI_STR("wired.event.board.got_boards"), user, NULL);
 }
 
 
@@ -1105,6 +1116,8 @@ static void wd_message_board_get_posts(wd_user_t *user, wi_p7_message_t *message
 	}
 	
 	wd_boards_reply_posts(user, message);
+
+	wd_events_add_event(WI_STR("wired.event.board.got_posts"), user, NULL);
 }
 
 
@@ -1135,6 +1148,9 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 			board);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.added_board"), user,
+			board, NULL);
 	}
 }
 
@@ -1171,6 +1187,9 @@ static void wd_message_board_rename_board(wd_user_t *user, wi_p7_message_t *mess
 			newboard);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.renamed_board"), user,
+			oldboard, newboard, NULL);
 	}
 }
 
@@ -1201,6 +1220,9 @@ static void wd_message_board_move_board(wd_user_t *user, wi_p7_message_t *messag
 			newboard);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.moved_board"), user,
+			oldboard, newboard, NULL);
 	}
 }
 
@@ -1229,6 +1251,9 @@ static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *mess
 			board);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.deleted_board"), user,
+			board, NULL);
 	}
 }
 
@@ -1260,6 +1285,9 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 			board);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.set_permissions"), user,
+			board, NULL);
 	}
 }
 
@@ -1286,18 +1314,22 @@ static void wd_message_board_add_thread(wd_user_t *user, wi_p7_message_t *messag
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 
 	if(wd_boards_add_thread(board, subject, text, user, message)) {
-		wi_log_info(WI_STR("%@ created a thread in board \"%@\""),
+		wi_log_info(WI_STR("%@ created the thread \"%@\" in board \"%@\""),
 			wd_user_identifier(user),
+			subject,
 			board);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.added_thread"), user,
+			subject, board, NULL);
 	}
 }
 
 
 
 static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*oldboard, *newboard;
+	wi_string_t		*oldboard, *newboard, *subject;
 	wi_uuid_t		*thread;
 	
 	if(!wd_account_board_move_threads(wd_user_account(user))) {
@@ -1318,18 +1350,28 @@ static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *messa
 	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	
 	if(wd_boards_move_thread(oldboard, thread, newboard, user, message)) {
-		wi_log_info(WI_STR("%@ moved a thread from board \"%@\" to \"%@\""),
+		subject = wd_boards_subject_for_thread(newboard, thread);
+		
+		if(!subject)
+			subject = WI_STR("");
+		
+		wi_log_info(WI_STR("%@ moved the thread \"%@\" from board \"%@\" to \"%@\""),
 			wd_user_identifier(user),
-			oldboard, newboard);
+			subject,
+			oldboard,
+			newboard);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.moved_thread"), user,
+			subject, oldboard, newboard, NULL);
 	}
 }
 
 
 
 static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*board;
+	wi_string_t		*board, *subject;
 	wi_uuid_t		*thread;
 	
 	if(!wd_account_board_delete_threads(wd_user_account(user))) {
@@ -1346,14 +1388,22 @@ static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *mes
 		return;
 	}
 	
-	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
+	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
+	subject		= wd_boards_subject_for_thread(board, thread);
 	
 	if(wd_boards_delete_thread(board, thread, user, message)) {
-		wi_log_info(WI_STR("%@ deleted a thread from board \"%@\""),
+		if(!subject)
+			subject = WI_STR("");
+		
+		wi_log_info(WI_STR("%@ deleted the thread \"%@\" from board \"%@\""),
 			wd_user_identifier(user),
+			subject,
 			board);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.deleted_thread"), user,
+			subject, board, NULL);
 	}
 }
 
@@ -1382,11 +1432,15 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 
 	if(wd_boards_add_post(board, thread, subject, text, user, message)) {
-		wi_log_info(WI_STR("%@ created a post in board \"%@\""),
+		wi_log_info(WI_STR("%@ created the post \"%@\" in board \"%@\""),
 			wd_user_identifier(user),
+			subject,
 			board);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.added_post"), user,
+			subject, board, NULL);
 	}
 }
 
@@ -1419,18 +1473,22 @@ static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 	
 	if(wd_boards_edit_post(board, thread, post, subject, text, user, message)) {
-		wi_log_info(WI_STR("%@ edited a post in board \"%@\""),
+		wi_log_info(WI_STR("%@ edited the post \"%@\" in board \"%@\""),
 			wd_user_identifier(user),
+			subject,
 			board);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.edited_post"), user,
+			subject, board, NULL);
 	}
 }
 
 
 
 static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*board;
+	wi_string_t		*board, *subject;
 	wi_uuid_t		*thread, *post;
 	wd_account_t	*account;
 	
@@ -1452,13 +1510,21 @@ static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *messa
 	
 	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	post		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.post"));
+	subject		= wd_boards_subject_for_post(board, thread, post);;
 	
 	if(wd_boards_delete_post(board, thread, post, user, message)) {
-		wi_log_info(WI_STR("%@ deleted a post in board \"%@\""),
+		if(!subject)
+			subject = WI_STR("");
+		
+		wi_log_info(WI_STR("%@ deleted the post \"%@\" in board \"%@\""),
 			wd_user_identifier(user),
+			subject,
 			board);
 		
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.deleted_post"), user,
+			subject, board, NULL);
 	}
 }
 

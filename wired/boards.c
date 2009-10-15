@@ -1195,6 +1195,63 @@ wi_boolean_t wd_boards_delete_post(wi_string_t *board, wi_uuid_t *thread, wi_uui
 
 #pragma mark -
 
+wi_string_t * wd_boards_subject_for_thread(wi_string_t *board, wi_uuid_t *thread) {
+	wi_fsenumerator_t			*fsenumerator;
+	wi_mutable_dictionary_t		*dictionary;
+	wi_array_t					*keys;
+	wi_string_t					*path, *subject = NULL;
+	wi_uuid_t					*post;
+	wi_runtime_instance_t		*instance;
+	wi_fsenumerator_status_t	status;
+	
+	wi_rwlock_rdlock(wd_boards_lock);
+	
+	dictionary		= wi_mutable_dictionary();
+	fsenumerator	= wi_fs_enumerator_at_path(wd_boards_thread_path(board, thread));
+	
+	while((status = wi_fsenumerator_get_next_path(fsenumerator, &path)) != WI_FSENUMERATOR_EOF) {
+		if(status == WI_FSENUMERATOR_ERROR)
+			continue;
+		
+		post		= wi_uuid_with_string(wi_string_by_deleting_path_extension(wi_string_last_path_component(path)));
+		instance	= wi_plist_read_instance_from_file(wd_boards_post_path(board, thread, post));
+		
+		if(instance && wi_runtime_id(instance) == wi_dictionary_runtime_id())
+			wi_mutable_dictionary_set_data_for_key(dictionary, instance, wi_dictionary_data_for_key(instance, WI_STR("wired.board.post_date")));
+	}
+	
+	keys = wi_array_by_sorting(wi_dictionary_all_keys(dictionary), wi_date_compare);
+	
+	if(wi_array_count(keys) > 0)
+		subject = wi_dictionary_data_for_key(wi_dictionary_data_for_key(dictionary, WI_ARRAY(keys, 0)), WI_STR("wired.board.subject"));
+
+	wi_rwlock_unlock(wd_boards_lock);
+	
+	return subject;
+}
+
+
+
+wi_string_t * wd_boards_subject_for_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post) {
+	wi_string_t				*subject = NULL;
+	wi_runtime_instance_t	*instance;
+	
+	wi_rwlock_rdlock(wd_boards_lock);
+
+	instance = wi_plist_read_instance_from_file(wd_boards_post_path(board, thread, post));
+
+	if(instance && wi_runtime_id(instance) == wi_dictionary_runtime_id())
+		subject = wi_dictionary_data_for_key(instance, WI_STR("wired.board.subject"));
+	
+	wi_rwlock_unlock(wd_boards_lock);
+	
+	return subject;
+}
+
+
+
+#pragma mark -
+
 static wd_board_privileges_t * wd_board_privileges_alloc(void) {
 	return wi_runtime_create_instance(wd_board_privileges_runtime_id, sizeof(wd_board_privileges_t));
 }
