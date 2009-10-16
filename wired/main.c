@@ -468,8 +468,6 @@ void wd_signal_thread(wi_runtime_instance_t *arg) {
 				wd_settings_read_config();
 				
 				wd_schedule();
-				
-				wd_accounts_reload_all_accounts();
 				break;
 				
 			case SIGUSR1:

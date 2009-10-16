@@ -88,7 +88,7 @@ static wi_boolean_t									wd_accounts_write_account(wd_account_t *, wd_account
 static wi_boolean_t									wd_accounts_delete_account(wd_account_t *, wd_account_type_t, wd_user_t *, wi_p7_message_t *);
 static void											wd_accounts_reload_user_account(wd_account_t *);
 static void											wd_accounts_reload_group_account(wd_account_t *);
-static void											wd_accounts_reload_account(wd_user_t *, wd_account_t *);
+static void											wd_accounts_reload_account(wd_user_t *, wi_string_t *);
 static void											wd_accounts_update_users_for_group_account(wd_account_t *);
 static void											wd_accounts_notify_subscribers(void);
 
@@ -597,27 +597,6 @@ void wd_accounts_add_upload_statistics(wd_account_t *account, wi_boolean_t finis
 
 
 
-void wd_accounts_reload_all_accounts(void) {
-	wi_enumerator_t		*enumerator;
-	wd_user_t			*user;
-	wd_account_t		*account;
-	
-	wi_dictionary_rdlock(wd_users);
-	
-	enumerator = wi_dictionary_data_enumerator(wd_users);
-
-	while((user = wi_enumerator_next_data(enumerator))) {
-		account = wd_user_account(user);
-		
-		if(account)
-			wd_accounts_reload_account(user, account);
-	}
-
-	wi_dictionary_unlock(wd_users);
-}
-
-
-
 #pragma mark -
 
 static void wd_accounts_convert_accounts(void) {
@@ -1018,8 +997,8 @@ static void wd_accounts_reload_user_account(wd_account_t *account) {
 	while((user = wi_enumerator_next_data(enumerator))) {
 		useraccount = wd_user_account(user);
 		
-		if(useraccount && wi_is_equal(wd_account_name(account), wd_account_name(useraccount)))
-			wd_accounts_reload_account(user, useraccount);
+		if(useraccount && wi_is_equal(wd_account_name(useraccount), wd_account_name(account)))
+			wd_accounts_reload_account(user, wd_account_new_name(account));
 	}
 	
 	wi_dictionary_unlock(wd_users);
@@ -1039,8 +1018,8 @@ static void wd_accounts_reload_group_account(wd_account_t *account) {
 	while((user = wi_enumerator_next_data(enumerator))) {
 		useraccount = wd_user_account(user);
 		
-		if(useraccount && wi_is_equal(wd_account_group(account), wd_account_name(useraccount)))
-			wd_accounts_reload_account(user, useraccount);
+		if(useraccount && wi_is_equal(wd_account_group(useraccount), wd_account_name(account)))
+			wd_accounts_reload_account(user, wd_account_name(useraccount));
 	}
 	
 	wi_dictionary_unlock(wd_users);
@@ -1048,17 +1027,20 @@ static void wd_accounts_reload_group_account(wd_account_t *account) {
 
 
 
-static void wd_accounts_reload_account(wd_user_t *user, wd_account_t *account) {
+static void wd_accounts_reload_account(wd_user_t *user, wi_string_t *name) {
 	wi_string_t		*newnick;
-	wd_account_t	*newaccount;
+	wd_account_t	*oldaccount, *newaccount;
 	wi_boolean_t	newadmin, changed = false;
 	
-	newaccount = wd_accounts_read_user_and_group(wd_account_name(account));
+	oldaccount = wd_user_account(user);
+	newaccount = wd_accounts_read_user_and_group(name);
 	
 	if(!newaccount)
 		return;
 	
 	wd_user_set_account(user, newaccount);
+	
+	wd_user_set_login(user, wd_account_name(newaccount));
 	
 	newadmin = wd_account_is_admin(newaccount);
 	

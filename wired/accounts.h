@@ -51,7 +51,6 @@ wi_boolean_t						wd_accounts_delete_group(wd_account_t *, wd_user_t *, wi_p7_me
 void								wd_accounts_update_login_time(wd_account_t *);
 void								wd_accounts_add_download_statistics(wd_account_t *, wi_boolean_t, wi_file_offset_t);
 void								wd_accounts_add_upload_statistics(wd_account_t *, wi_boolean_t, wi_file_offset_t);
-void								wd_accounts_reload_all_accounts(void);
 
 wi_boolean_t						wd_accounts_reply_user_list(wd_user_t *, wi_p7_message_t *);
 wi_boolean_t						wd_accounts_reply_group_list(wd_user_t *, wi_p7_message_t *);
