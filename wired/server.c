@@ -775,6 +775,13 @@ static void wd_server_log_callback(wi_log_level_t level, wi_string_t *string) {
 void wd_user_send_message(wd_user_t *user, wi_p7_message_t *message) {
 	wd_user_lock_socket(user);
 	
+	if(wd_user_transfer(user) &&
+	   !wi_is_equal(wi_p7_message_name(message), WI_STR("wired.transfer.download")) &&
+	   !wi_is_equal(wi_p7_message_name(message), WI_STR("wired.transfer.upload_ready"))) {
+		wi_log_warn(WI_STR("XXX: Sending %@ to %@ while %@ is active"),
+			message, user, wd_user_transfer(user));
+	}
+	
 	if(!wi_p7_socket_write_message(wd_user_p7_socket(user), 0.0, message)) {
 		wd_user_set_state(user, WD_USER_DISCONNECTED);
 	
