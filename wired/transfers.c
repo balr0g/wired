@@ -278,6 +278,8 @@ static wi_boolean_t wd_transfers_wait_until_ready(wd_transfer_t *transfer, wd_us
 	wi_uinteger_t			queue;
 	wi_socket_state_t		state;
 	
+	transfer->queue = 0;
+	
 	return true;
 	
 	while(true) {
