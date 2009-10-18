@@ -1050,10 +1050,6 @@ static void wd_accounts_reload_account(wd_user_t *user, wi_string_t *name) {
 	oldaccount = wd_user_account(user);
 	newaccount = wd_accounts_read_user_and_group(name);
 	
-	wi_log_info(WI_STR("oldaccount = %@"), oldaccount);
-	wi_log_info(WI_STR("newaccount = %@"), newaccount);
-	wi_log_info(WI_STR("name = %@"), name);
-	
 	if(!newaccount)
 		return;
 	
