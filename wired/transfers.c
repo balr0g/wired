@@ -336,24 +336,12 @@ static wi_boolean_t wd_transfers_run_download(wd_transfer_t *transfer, wd_user_t
 	wi_p7_message_set_data_for_name(reply, data ? data : wi_data(), WI_STR("wired.transfer.finderinfo"));
 	wd_user_reply_message(user, reply, message);
 	
-	wi_log_info(WI_STR("Sending \"%@\" to %@"),
-		wd_files_virtual_path(transfer->path, user),
-		wd_user_identifier(user));
-	
 	wi_socket_set_interactive(wd_user_socket(user), false);
 	
 	result = wd_transfer_download(transfer);
 	
 	wi_socket_set_interactive(wd_user_socket(user), true);
 	
-	wi_log_info(WI_STR("Sent %@/%@ (%llu/%llu bytes) of \"%@\" to %@"),
-		wd_files_string_for_bytes(transfer->transferred - transfer->dataoffset - transfer->rsrcoffset),
-		wd_files_string_for_bytes((transfer->datasize - transfer->dataoffset) + (transfer->rsrcsize - transfer->rsrcoffset)),
-		transfer->transferred - transfer->dataoffset - transfer->rsrcoffset,
-		(transfer->datasize - transfer->dataoffset) + (transfer->rsrcsize - transfer->rsrcoffset),
-		wd_files_virtual_path(transfer->path, user),
-		wd_user_identifier(user));
-
 	if(transfer->transferred == transfer->datasize + transfer->rsrcsize)
 		wd_accounts_add_download_statistics(wd_user_account(user), true, transfer->actualtransferred);
 	else
@@ -395,23 +383,11 @@ static wi_boolean_t wd_transfers_run_upload(wd_transfer_t *transfer, wd_user_t *
 	
 	transfer->finderinfo = wi_retain(wi_p7_message_data_for_name(reply, WI_STR("wired.transfer.finderinfo")));
 	
-	wi_log_info(WI_STR("Receiving \"%@\" from %@"),
-		wd_files_virtual_path(transfer->path, transfer->user),
-		wd_user_identifier(transfer->user));
-	
 	wi_socket_set_interactive(wd_user_socket(user), false);
 	
 	result = wd_transfer_upload(transfer);
 
 	wi_socket_set_interactive(wd_user_socket(user), true);
-	
-	wi_log_info(WI_STR("Received %@/%@ (%llu/%llu bytes) of \"%@\" from %@"),
-		wd_files_string_for_bytes(transfer->transferred - transfer->dataoffset - transfer->rsrcoffset),
-		wd_files_string_for_bytes((transfer->datasize - transfer->dataoffset) + (transfer->rsrcsize - transfer->rsrcoffset)),
-		transfer->transferred - transfer->dataoffset - transfer->rsrcoffset,
-		(transfer->datasize - transfer->dataoffset) + (transfer->rsrcsize - transfer->rsrcoffset),
-		wd_files_virtual_path(transfer->path, user),
-		wd_user_identifier(user));
 
 	if(transfer->transferred == transfer->datasize + transfer->rsrcsize) {
 		path = wi_string_by_deleting_path_extension(transfer->realdatapath);

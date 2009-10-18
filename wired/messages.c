@@ -616,10 +616,6 @@ static void wd_message_user_disconnect_user(wd_user_t *user, wi_p7_message_t *me
 		return;
 	}
 	
-	wi_log_info(WI_STR("%@ disconnected %@"),
-		wd_user_identifier(user),
-		wd_user_identifier(peer));
-	
 	disconnect_message	= wi_p7_message_string_for_name(message, WI_STR("wired.user.disconnect_message"));
 	enumerator			= wi_array_data_enumerator(wd_chats_chats_with_user(user));
 	
@@ -684,10 +680,6 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 	}
 	
 	if(wd_banlist_add_ban(wd_user_ip(peer), expiration_date, user, message)) {
-		wi_log_info(WI_STR("%@ banned %@"),
-			wd_user_identifier(user),
-			wd_user_identifier(peer));
-		
 		wd_user_set_state(peer, WD_USER_DISCONNECTED);
 		wd_user_reply_okay(user, message);
 	
@@ -1532,7 +1524,7 @@ static void wd_message_file_list_directory(wd_user_t *user, wi_p7_message_t *mes
 	
 	if(wd_files_reply_list(path, recursive, user, message)) {
 		wd_events_add_event(WI_STR("wired.event.file.listed_directory"), user,
-			path, NULL);
+			wd_files_virtual_path(path, user), NULL);
 	}
 }
 
@@ -1571,7 +1563,7 @@ static void wd_message_file_get_info(wd_user_t *user, wi_p7_message_t *message) 
 
 	if(wd_files_reply_info(path, user, message)) {
 		wd_events_add_event(WI_STR("wired.event.file.got_info"), user,
-			path, NULL);
+			wd_files_virtual_path(path, user), NULL);
 	}
 }
 
@@ -1624,18 +1616,12 @@ static void wd_message_file_move(wd_user_t *user, wi_p7_message_t *message) {
 	}
 	
 	if(wd_files_move_path(frompath, topath, user, message)) {
-		frompath	= wd_files_virtual_path(frompath, user);
-		topath		= wd_files_virtual_path(topath, user);
-		
-		wi_log_info(WI_STR("%@ moved \"%@\" to \"%@\""),
-			wd_user_identifier(user),
-			frompath,
-			topath);
-		
 		wd_user_reply_okay(user, message);
 		
 		wd_events_add_event(WI_STR("wired.event.file.moved"), user,
-			frompath, topath, NULL);
+			wd_files_virtual_path(frompath, user),
+			wd_files_virtual_path(topath, user),
+			NULL);
 	}
 }
 
@@ -1683,18 +1669,12 @@ static void wd_message_file_link(wd_user_t *user, wi_p7_message_t *message) {
 	}
 
 	if(wd_files_link_path(frompath, topath, user, message)) {
-		frompath	= wd_files_virtual_path(frompath, user);
-		topath		= wd_files_virtual_path(topath, user);
-		
-		wi_log_info(WI_STR("%@ linked \"%@\" to \"%@\""),
-			wd_user_identifier(user),
-			frompath,
-			topath);
-		
 		wd_user_reply_okay(user, message);
 		
 		wd_events_add_event(WI_STR("wired.event.file.linked"), user,
-			frompath, topath, NULL);
+			wd_files_virtual_path(frompath, user),
+			wd_files_virtual_path(topath, user),
+			NULL);
 	}
 }
 
@@ -1734,16 +1714,10 @@ static void wd_message_file_set_type(wd_user_t *user, wi_p7_message_t *message) 
 	wi_p7_message_get_enum_for_name(message, &type, WI_STR("wired.file.type"));
 
 	if(wd_files_set_type(path, type, user, message)) {
-		path = wd_files_virtual_path(path, user);
-		
-		wi_log_info(WI_STR("%@ changed type of \"%@\""),
-			wd_user_identifier(user),
-			path);
-		
 		wd_user_reply_okay(user, message);
 		
 		wd_events_add_event(WI_STR("wired.event.file.set_type"), user,
-			path, NULL);
+			wd_files_virtual_path(path, user), NULL);
 	}
 }
 
@@ -1788,16 +1762,10 @@ static void wd_message_file_set_comment(wd_user_t *user, wi_p7_message_t *messag
 		okay = wd_files_remove_comment(path, user, message);
 	
 	if(okay) {
-		path = wd_files_virtual_path(path, user);
-		
-		wi_log_info(WI_STR("%@ changed comment of \"%@\""),
-			wd_user_identifier(user),
-			path);
-		
 		wd_user_reply_okay(user, message);
 		
 		wd_events_add_event(WI_STR("wired.event.file.set_comment"), user,
-			path, NULL);
+			wd_files_virtual_path(path, user), NULL);
 	}
 }
 
@@ -1837,16 +1805,10 @@ static void wd_message_file_set_executable(wd_user_t *user, wi_p7_message_t *mes
 	wi_p7_message_get_bool_for_name(message, &executable, WI_STR("wired.file.executable"));
 
 	if(wd_files_set_executable(path, executable, user, message)) {
-		path = wd_files_virtual_path(path, user);
-		
-		wi_log_info(WI_STR("%@ changed executable mode of \"%@\""),
-			wd_user_identifier(user),
-			path);
-		
 		wd_user_reply_okay(user, message);
 		
 		wd_events_add_event(WI_STR("wired.event.file.set_executable"), user,
-			path, NULL);
+			wd_files_virtual_path(path, user), NULL);
 	}
 }
 
@@ -1885,16 +1847,10 @@ static void wd_message_file_set_permissions(wd_user_t *user, wi_p7_message_t *me
 	privileges = wd_files_privileges_with_message(message);
 	
 	if(wd_files_set_privileges(path, privileges, user, message)) {
-		path = wd_files_virtual_path(path, user);
-		
-		wi_log_info(WI_STR("%@ changed permissions of \"%@\""),
-			wd_user_identifier(user),
-			path);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.file.set_permissions"), user,
-			path, NULL);
+			wd_files_virtual_path(path, user), NULL);
 	}
 }
 
@@ -1940,16 +1896,10 @@ static void wd_message_file_set_label(wd_user_t *user, wi_p7_message_t *message)
 		okay = wd_files_remove_label(path, user, message);
 	
 	if(okay) {
-		path = wd_files_virtual_path(path, user);
-		
-		wi_log_info(WI_STR("%@ changed label of \"%@\""),
-			wd_user_identifier(user),
-			path);
-		
 		wd_user_reply_okay(user, message);
 		
 		wd_events_add_event(WI_STR("wired.event.file.set_label"), user,
-			path, NULL);
+			wd_files_virtual_path(path, user), NULL);
 	}
 }
 
@@ -1987,16 +1937,10 @@ static void wd_message_file_delete(wd_user_t *user, wi_p7_message_t *message) {
 	}
 	
 	if(wd_files_delete_path(path, user, message)) {
-		path = wd_files_virtual_path(path, user);
-		
-		wi_log_info(WI_STR("%@ deleted \"%@\""),
-			wd_user_identifier(user),
-			path);
-
 		wd_user_reply_okay(user, message);
 		
 		wd_events_add_event(WI_STR("wired.event.file.deleted"), user,
-			path, NULL);
+			wd_files_virtual_path(path, user), NULL);
 	}
 }
 
@@ -2048,16 +1992,10 @@ static void wd_message_file_create_directory(wd_user_t *user, wi_p7_message_t *m
 			}
 		}
 		
-		path = wd_files_virtual_path(path, user);
-		
-		wi_log_info(WI_STR("%@ created \"%@\""),
-			wd_user_identifier(user),
-			path);
-		
 		wd_user_reply_okay(user, message);
 		
 		wd_events_add_event(WI_STR("wired.event.file.created_directory"), user,
-			path, NULL);
+			wd_files_virtual_path(path, user), NULL);
 	}
 }
 
@@ -2188,10 +2126,9 @@ static void wd_message_account_change_password(wd_user_t *user, wi_p7_message_t 
 	password = wi_p7_message_string_for_name(message, WI_STR("wired.account.password"));
 	
 	if(wd_accounts_change_password(account, password, user, message)) {
-		wi_log_info(WI_STR("%@ changed password"),
-			wd_user_identifier(user));
-		
 		wd_user_reply_okay(user, message);
+		
+		wd_events_add_event(WI_STR("wired.event.account.changed_password"), user, NULL);
 	}
 }
 
@@ -2306,10 +2243,6 @@ static void wd_message_account_create_user(wd_user_t *user, wi_p7_message_t *mes
 	}
 
 	if(wd_accounts_create_user(account, user, message)) {
-		wi_log_info(WI_STR("%@ created the user \"%@\""),
-			wd_user_identifier(user),
-			wd_account_name(account));
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.account.created_user"), user,
@@ -2352,10 +2285,6 @@ static void wd_message_account_create_group(wd_user_t *user, wi_p7_message_t *me
 	}
 	
 	if(wd_accounts_create_group(account, user, message)) {
-		wi_log_info(WI_STR("%@ created the group \"%@\""),
-			wd_user_identifier(user),
-			wd_account_name(account));
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.account.created_group"), user,
@@ -2407,10 +2336,6 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	if(wd_accounts_edit_user(account, user, message)) {
 		if(newname)
 			wd_boards_rename_owner(name, newname);
-		
-		wi_log_info(WI_STR("%@ modified the user \"%@\""),
-			wd_user_identifier(user),
-			wd_account_name(account));
 		
 		wd_user_reply_okay(user, message);
 
@@ -2464,10 +2389,6 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 		if(newname)
 			wd_boards_rename_group(name, newname);
 		
-		wi_log_info(WI_STR("%@ modified the group \"%@\""),
-			wd_user_identifier(user),
-			wd_account_name(account));
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.account.edited_group"), user,
@@ -2509,19 +2430,15 @@ static void wd_message_account_delete_user(wd_user_t *user, wi_p7_message_t *mes
 	}
 
 	if(wd_accounts_delete_user(account, user, message)) {
-		wi_log_info(WI_STR("%@ deleted the user \"%@\""),
-			wd_user_identifier(user),
-			wd_account_name(account));
-	
 		wd_user_reply_okay(user, message);
-
-		wd_events_add_event(WI_STR("wired.event.account.deleted_user"), user,
-			wd_account_name(account), NULL);
 	
 		enumerator = wi_array_data_enumerator(users);
 	
 		while((peer = wi_enumerator_next_data(enumerator)))
 			wd_user_set_state(peer, WD_USER_DISCONNECTED);
+
+		wd_events_add_event(WI_STR("wired.event.account.deleted_user"), user,
+			wd_account_name(account), NULL);
 	}
 }
 
@@ -2545,10 +2462,6 @@ static void wd_message_account_delete_group(wd_user_t *user, wi_p7_message_t *me
 	}
 
 	if(wd_accounts_delete_group(account, user, message)) {
-		wi_log_info(WI_STR("%@ deleted the group \"%@\""),
-			wd_user_identifier(user),
-			wd_account_name(account));
-		
 		wd_events_add_event(WI_STR("wired.event.account.deleted_group"), user,
 			wd_account_name(account), NULL);
 		
@@ -2791,16 +2704,10 @@ static void wd_message_transfer_upload_directory(wd_user_t *user, wi_p7_message_
 	}
 
 	if(wd_files_create_path(path, parenttype, user, message)) {
-		path = wd_files_virtual_path(path, user);
-		
-		wi_log_info(WI_STR("%@ uploaded \"%@\""),
-			wd_user_identifier(user),
-			path);
+		wd_user_reply_okay(user, message);
 		
 		wd_events_add_event(WI_STR("wired.event.transfer.completed_directory_upload"), user,
-			path, NULL);
-		
-		wd_user_reply_okay(user, message);
+			wd_files_virtual_path(path, user), NULL);
 	}
 }
 
@@ -2814,6 +2721,8 @@ static void wd_message_log_get_log(wd_user_t *user, wi_p7_message_t *message) {
 	}
 
 	wd_server_log_reply_log(user, message);
+
+	wd_events_add_event(WI_STR("wired.event.log.got_log"), user, NULL);
 }
 
 
@@ -2864,6 +2773,8 @@ static void wd_message_event_get_events(wd_user_t *user, wi_p7_message_t *messag
 		
 		return;
 	}
+
+	wd_events_add_event(WI_STR("wired.event.events.got_events"), user, NULL);
 
 	wd_events_reply_events(user, message);
 }
@@ -2918,6 +2829,8 @@ static void wd_message_settings_get_settings(wd_user_t *user, wi_p7_message_t *m
 	}
 
 	wd_settings_reply_settings(user, message);
+
+	wd_events_add_event(WI_STR("wired.event.settings.got_settings"), user, NULL);
 }
 
 
@@ -2930,9 +2843,9 @@ static void wd_message_settings_set_settings(wd_user_t *user, wi_p7_message_t *m
 	}
 
 	if(wd_settings_set_settings(user, message)) {
-		wi_log_info(WI_STR("%@ changed server settings"), wd_user_identifier(user));
-
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.settings.set_settings"), user, NULL);
 	}
 }
 
@@ -2946,6 +2859,8 @@ static void wd_message_banlist_get_bans(wd_user_t *user, wi_p7_message_t *messag
 	}
 	
 	wd_banlist_reply_bans(user, message);
+
+	wd_events_add_event(WI_STR("wired.event.banlist.got_bans"), user, NULL);
 }
 
 
@@ -2964,9 +2879,10 @@ static void wd_message_banlist_add_ban(wd_user_t *user, wi_p7_message_t *message
 	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
 	
 	if(wd_banlist_add_ban(ip, expiration_date, user, message)) {
-		wi_log_info(WI_STR("%@ added ban for %@"), wd_user_identifier(user), ip);
-
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.banlist.added_ban"), user,
+			ip, NULL);
 	}
 }
 
@@ -2986,9 +2902,10 @@ static void wd_message_banlist_delete_ban(wd_user_t *user, wi_p7_message_t *mess
 	expiration_date		= wi_p7_message_date_for_name(message, WI_STR("wired.banlist.expiration_date"));
 	
 	if(wd_banlist_delete_ban(ip, expiration_date, user, message)) {
-		wi_log_info(WI_STR("%@ deleted ban for %@"), wd_user_identifier(user), ip);
-	
 		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.banlist.deleted_ban"), user,
+			ip, NULL);
 	}
 }
 
@@ -3008,6 +2925,8 @@ static void wd_message_tracker_get_categories(wd_user_t *user, wi_p7_message_t *
 	}
 
 	wd_servers_reply_categories(user, message);
+
+	wd_events_add_event(WI_STR("wired.event.tracker.got_categories"), user, NULL);
 }
 
 
@@ -3026,11 +2945,15 @@ static void wd_message_tracker_get_servers(wd_user_t *user, wi_p7_message_t *mes
 	}
 
 	wd_servers_reply_server_list(user, message);
+	
+	wd_events_add_event(WI_STR("wired.event.tracker.got_servers"), user, NULL);
 }
 
 
 
 static void wd_message_tracker_send_register(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*name;
+	
 	if(!wi_config_bool_for_name(wd_config, WI_STR("enable tracker"))) {
 		wd_user_reply_error(user, WI_STR("wired.error.tracker_not_enabled"), message);
 		
@@ -3044,6 +2967,11 @@ static void wd_message_tracker_send_register(wd_user_t *user, wi_p7_message_t *m
 	}
 
 	wd_servers_register_server(user, message);
+	
+	name = wi_p7_message_string_for_name(message, WI_STR("wired.info.name"));
+	
+	wd_events_add_event(WI_STR("wired.event.tracker.registered_server"), user,
+		name, NULL);
 }
 
 

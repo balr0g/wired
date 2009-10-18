@@ -315,8 +315,6 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 	wd_servers_add_server(server);
 	wd_servers_add_stats_for_server(server);
 	
-	wi_log_info(WI_STR("Registered server \"%@\""), server->name);
-	
 	reply = wi_p7_message_with_name(WI_STR("wired.tracker.register"), wd_p7_spec);
 	wi_p7_message_set_uuid_for_name(reply, server->token, WI_STR("wired.tracker.token"));
 	wd_user_reply_message(user, reply, message);
