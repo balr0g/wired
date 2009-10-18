@@ -97,7 +97,6 @@ struct _wd_user {
 	wd_uid_t							id;
 	wd_user_state_t						state;
 	wi_boolean_t						idle;
-	wi_boolean_t						admin;
 	
 	wd_account_t						*account;
 
@@ -108,6 +107,7 @@ struct _wd_user {
 	wd_client_info_t					*client_info;
 	wi_string_t							*status;
 	wi_data_t							*icon;
+	wi_p7_enum_t						color;
 	
 	wi_date_t							*login_time;
 	wi_date_t							*idle_time;
@@ -342,11 +342,11 @@ void wd_users_reply_users(wd_user_t *user, wi_p7_message_t *message) {
 		
 		reply = wi_p7_message_with_name(WI_STR("wired.user.user_list"), wd_p7_spec);
 		wi_p7_message_set_uint32_for_name(reply, peer->id, WI_STR("wired.user.id"));
-		wi_p7_message_set_bool_for_name(reply, peer->admin, WI_STR("wired.user.admin"));
 		wi_p7_message_set_bool_for_name(reply, peer->idle, WI_STR("wired.user.idle"));
 		wi_p7_message_set_string_for_name(reply, peer->nick, WI_STR("wired.user.nick"));
 		wi_p7_message_set_string_for_name(reply, peer->status, WI_STR("wired.user.status"));
 		wi_p7_message_set_data_for_name(reply, peer->icon, WI_STR("wired.user.icon"));
+		wi_p7_message_set_enum_for_name(reply, peer->color, WI_STR("wired.account.color"));
 		wi_p7_message_set_date_for_name(reply, peer->idle_time, WI_STR("wired.user.idle_time"));
 		
 		if(peer->transfer) {
@@ -491,12 +491,12 @@ void wd_user_reply_user_info(wd_user_t *peer, wd_user_t *user, wi_p7_message_t *
 	
 	reply = wi_p7_message_with_name(WI_STR("wired.user.info"), wd_p7_spec);
 	wi_p7_message_set_uint32_for_name(reply, peer->id, WI_STR("wired.user.id"));
-	wi_p7_message_set_bool_for_name(reply, peer->admin, WI_STR("wired.user.admin"));
 	wi_p7_message_set_bool_for_name(reply, peer->idle, WI_STR("wired.user.idle"));
 	wi_p7_message_set_string_for_name(reply, peer->login, WI_STR("wired.user.login"));
 	wi_p7_message_set_string_for_name(reply, peer->nick, WI_STR("wired.user.nick"));
 	wi_p7_message_set_string_for_name(reply, peer->status, WI_STR("wired.user.status"));
 	wi_p7_message_set_data_for_name(reply, peer->icon, WI_STR("wired.user.icon"));
+	wi_p7_message_set_enum_for_name(reply, peer->color, WI_STR("wired.account.color"));
 	wi_p7_message_set_string_for_name(reply, peer->ip, WI_STR("wired.user.ip"));
 	wi_p7_message_set_string_for_name(reply, peer->host, WI_STR("wired.user.host"));
 	wi_p7_message_set_date_for_name(reply, peer->login_time, WI_STR("wired.user.login_time"));
@@ -539,10 +539,10 @@ void wd_user_broadcast_status(wd_user_t *user) {
 		message = wi_p7_message_with_name(WI_STR("wired.chat.user_status"), wd_p7_spec);
 		wi_p7_message_set_uint32_for_name(message, wd_chat_id(chat), WI_STR("wired.chat.id"));
 		wi_p7_message_set_uint32_for_name(message, user->id, WI_STR("wired.user.id"));
-		wi_p7_message_set_bool_for_name(message, user->admin, WI_STR("wired.user.admin"));
 		wi_p7_message_set_bool_for_name(message, user->idle, WI_STR("wired.user.idle"));
 		wi_p7_message_set_string_for_name(message, user->nick, WI_STR("wired.user.nick"));
 		wi_p7_message_set_string_for_name(message, user->status, WI_STR("wired.user.status"));
+		wi_p7_message_set_enum_for_name(message, user->color, WI_STR("wired.account.color"));
 		wi_p7_message_set_date_for_name(message, user->idle_time, WI_STR("wired.user.idle_time"));
 
 		wd_chat_broadcast_message(chat, message);
@@ -565,6 +565,7 @@ void wd_user_broadcast_icon(wd_user_t *user) {
 	while((chat = wi_enumerator_next_data(enumerator))) {
 		message = wi_p7_message_with_name(WI_STR("wired.chat.user_icon"), wd_p7_spec);
 		wi_p7_message_set_uint32_for_name(message, user->id, WI_STR("wired.user.id"));
+		wi_p7_message_set_uint32_for_name(message, wd_chat_id(chat), WI_STR("wired.chat.id"));
 		wi_p7_message_set_data_for_name(message, user->icon, WI_STR("wired.user.icon"));
 		
 		wd_chat_broadcast_message(chat, message);
@@ -611,18 +612,6 @@ void wd_user_set_idle(wd_user_t *user, wi_boolean_t idle) {
 
 wi_boolean_t wd_user_is_idle(wd_user_t *user) {
 	WD_USER_RETURN_VALUE(user, user->idle);
-}
-
-
-
-void wd_user_set_admin(wd_user_t *user, wi_boolean_t admin) {
-	WD_USER_SET_VALUE(user, user->admin, admin);
-}
-
-
-
-wi_boolean_t wd_user_is_admin(wd_user_t *user) {
-	WD_USER_RETURN_VALUE(user, user->admin);
 }
 
 
@@ -695,6 +684,18 @@ void wd_user_set_icon(wd_user_t *user, wi_data_t *icon) {
 
 wi_data_t * wd_user_icon(wd_user_t *user) {
 	WD_USER_RETURN_INSTANCE(user, user->icon);
+}
+
+
+
+void wd_user_set_color(wd_user_t *user, wi_p7_enum_t color) {
+	WD_USER_SET_VALUE(user, user->color, color);
+}
+
+
+
+wi_p7_enum_t wd_user_color(wd_user_t *user) {
+	WD_USER_RETURN_VALUE(user, user->color);
 }
 
 

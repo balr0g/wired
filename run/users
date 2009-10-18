@@ -64,6 +64,8 @@
       <true/>
       <key>wired.account.chat.set_topic</key>
       <true/>
+	  <key>wired.account.color</key>
+	  <string>wired.account.color.red</string>
       <key>wired.account.events.view_events</key>
       <true/>
       <key>wired.account.file.access_all_dropboxes</key>

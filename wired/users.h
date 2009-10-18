@@ -87,8 +87,6 @@ wd_user_state_t							wd_user_state(wd_user_t *);
 
 void									wd_user_set_idle(wd_user_t *, wi_boolean_t);
 wi_boolean_t							wd_user_is_idle(wd_user_t *);
-void									wd_user_set_admin(wd_user_t *, wi_boolean_t);
-wi_boolean_t							wd_user_is_admin(wd_user_t *);
 void									wd_user_set_account(wd_user_t *, wd_account_t *);
 wd_account_t *							wd_user_account(wd_user_t *);
 void									wd_user_set_nick(wd_user_t *, wi_string_t *);
@@ -101,6 +99,8 @@ void									wd_user_set_status(wd_user_t *, wi_string_t *);
 wi_string_t	*							wd_user_status(wd_user_t *);
 void									wd_user_set_icon(wd_user_t *, wi_data_t *);
 wi_data_t *								wd_user_icon(wd_user_t *);
+void									wd_user_set_color(wd_user_t *, wi_p7_enum_t);
+wi_p7_enum_t							wd_user_color(wd_user_t *);
 void									wd_user_set_idle_time(wd_user_t *, wi_date_t *);
 wi_date_t *								wd_user_idle_time(wd_user_t *);
 void									wd_user_set_transfer(wd_user_t *, wd_transfer_t *);

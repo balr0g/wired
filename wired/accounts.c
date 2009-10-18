@@ -61,6 +61,7 @@ enum _wd_account_field_type {
 	WD_ACCOUNT_FIELD_DATE,
 	WD_ACCOUNT_FIELD_NUMBER,
 	WD_ACCOUNT_FIELD_BOOLEAN,
+	WD_ACCOUNT_FIELD_ENUM,
 	WD_ACCOUNT_FIELD_LIST
 };
 typedef enum _wd_account_field_type					wd_account_field_type_t;
@@ -171,6 +172,8 @@ void wd_accounts_initialize(void) {
 			WI_STR("wired.account.groups"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER | WD_ACCOUNT_FIELD_USER_LIST, true),
 			WI_STR("wired.account.password"),
+		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_ENUM, WD_ACCOUNT_FIELD_USER_AND_GROUP | WD_ACCOUNT_FIELD_USER_LIST_AND_GROUP_LIST, false),
+			WI_STR("wired.account.color"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_STRING, WD_ACCOUNT_FIELD_USER_AND_GROUP, false),
 			WI_STR("wired.account.files"),
 		WD_ACCOUNT_FIELD_DICTIONARY(WD_ACCOUNT_FIELD_BOOLEAN, WD_ACCOUNT_FIELD_USER_AND_GROUP_AND_PRIVILEGE, false),
@@ -802,6 +805,10 @@ static wi_boolean_t wd_accounts_convert_accounts_from_1_3(wi_string_t *path, wi_
 									instance = wi_number_with_bool(wi_string_integer(value));
 								break;
 
+							case WD_ACCOUNT_FIELD_ENUM:
+								instance = value;
+								break;
+
 							case WD_ACCOUNT_FIELD_LIST:
 								instance = wi_string_components_separated_by_string(value, WI_STR(","));
 								
@@ -987,6 +994,7 @@ static wi_boolean_t wd_accounts_delete_account(wd_account_t *account, wd_account
 
 static void wd_accounts_reload_user_account(wd_account_t *account) {
 	wi_enumerator_t		*enumerator;
+	wi_string_t			*name;
 	wd_user_t			*user;
 	wd_account_t		*useraccount;
 	
@@ -997,8 +1005,14 @@ static void wd_accounts_reload_user_account(wd_account_t *account) {
 	while((user = wi_enumerator_next_data(enumerator))) {
 		useraccount = wd_user_account(user);
 		
-		if(useraccount && wi_is_equal(wd_account_name(useraccount), wd_account_name(account)))
-			wd_accounts_reload_account(user, wd_account_new_name(account));
+		if(useraccount && wi_is_equal(wd_account_name(useraccount), wd_account_name(account))) {
+			name = wd_account_new_name(account);
+			
+			if(wi_string_length(name) == 0)
+				name = wd_account_name(account);
+
+			wd_accounts_reload_account(user, name);
+		}
 	}
 	
 	wi_dictionary_unlock(wd_users);
@@ -1028,12 +1042,17 @@ static void wd_accounts_reload_group_account(wd_account_t *account) {
 
 
 static void wd_accounts_reload_account(wd_user_t *user, wi_string_t *name) {
-	wi_string_t		*newnick;
-	wd_account_t	*oldaccount, *newaccount;
-	wi_boolean_t	newadmin, changed = false;
+	wi_string_t			*newnick;
+	wd_account_t		*oldaccount, *newaccount;
+	wi_p7_enum_t		newcolor;
+	wi_boolean_t		changed = false;
 	
 	oldaccount = wd_user_account(user);
 	newaccount = wd_accounts_read_user_and_group(name);
+	
+	wi_log_info(WI_STR("oldaccount = %@"), oldaccount);
+	wi_log_info(WI_STR("newaccount = %@"), newaccount);
+	wi_log_info(WI_STR("name = %@"), name);
 	
 	if(!newaccount)
 		return;
@@ -1042,10 +1061,10 @@ static void wd_accounts_reload_account(wd_user_t *user, wi_string_t *name) {
 	
 	wd_user_set_login(user, wd_account_name(newaccount));
 	
-	newadmin = wd_account_is_admin(newaccount);
+	newcolor = wd_account_color(newaccount);
 	
-	if(wd_user_is_admin(user) != newadmin) {
-		wd_user_set_admin(user, newadmin);
+	if(wd_user_color(user) != newcolor) {
+		wd_user_set_color(user, newcolor);
 		
 		changed = true;
 	}
@@ -1328,7 +1347,7 @@ static void wd_account_read_from_message(wd_account_t *account, wi_p7_message_t 
 		field		= wi_dictionary_data_for_key(wd_account_fields, name);
 		required	= wi_number_bool(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_REQUIRED)));
 
-		switch(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)))) {
+		switch((wd_account_field_type_t) wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)))) {
 			case WD_ACCOUNT_FIELD_STRING:
 				instance = wi_p7_message_string_for_name(message, name);
 				
@@ -1356,6 +1375,15 @@ static void wd_account_read_from_message(wd_account_t *account, wi_p7_message_t 
 				else if(!required)
 					wi_mutable_dictionary_remove_data_for_key(account->values, name);
 				break;
+			
+			case WD_ACCOUNT_FIELD_ENUM:
+				instance = wi_p7_message_enum_name_for_name(message, name);
+				
+				if(instance)
+					wi_mutable_dictionary_set_data_for_key(account->values, instance, name);
+				else if(!required)
+					wi_mutable_dictionary_remove_data_for_key(account->values, name);
+				break;
 
 			case WD_ACCOUNT_FIELD_LIST:
 				instance = wi_p7_message_list_for_name(message, name);
@@ -1372,11 +1400,11 @@ static void wd_account_read_from_message(wd_account_t *account, wi_p7_message_t 
 
 
 static void wd_account_write_to_message(wd_account_t *account, wi_uinteger_t type, wi_p7_message_t *message) {
-	wi_enumerator_t			*enumerator;
-	wi_dictionary_t			*field;
-	wi_string_t				*name;
-	wi_runtime_instance_t	*instance;
-	wi_boolean_t			required;
+	wi_enumerator_t				*enumerator;
+	wi_dictionary_t				*field;
+	wi_string_t					*name;
+	wi_runtime_instance_t		*instance;
+	wi_boolean_t				required;
 	
 	enumerator = wi_dictionary_key_enumerator(wd_account_fields);
 	
@@ -1391,7 +1419,7 @@ static void wd_account_write_to_message(wd_account_t *account, wi_uinteger_t typ
 			else
 				required = wi_number_bool(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_REQUIRED)));
 			
-			switch(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)))) {
+			switch((wd_account_field_type_t) wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)))) {
 				case WD_ACCOUNT_FIELD_STRING:
 					if(!instance && required)
 						instance = WI_STR("");
@@ -1415,6 +1443,14 @@ static void wd_account_write_to_message(wd_account_t *account, wi_uinteger_t typ
 					
 					if(instance)
 						wi_p7_message_set_number_for_name(message, instance, name);
+					break;
+				
+				case WD_ACCOUNT_FIELD_ENUM:
+					
+					if(!instance && required)
+						wi_p7_message_set_enum_for_name(message, 0, name);
+					else if(instance)
+						wi_p7_message_set_enum_name_for_name(message, instance, name);
 					break;
 
 				case WD_ACCOUNT_FIELD_LIST:
@@ -1443,7 +1479,8 @@ static void wd_account_override_privileges(wd_account_t *account1, wd_account_t 
 		field = wi_dictionary_data_for_key(wd_account_fields, field_name);
 		
 		if(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_ACCOUNT))) & WD_ACCOUNT_FIELD_PRIVILEGE ||
-		   wi_is_equal(field_name, WI_STR("wired.account.files"))) {
+		   wi_is_equal(field_name, WI_STR("wired.account.files")) ||
+		   wi_is_equal(field_name, WI_STR("wired.account.color"))) {
 			value = wi_dictionary_data_for_key(account1->values, field_name);
 			
 			if(!value) {
@@ -1514,12 +1551,6 @@ wi_string_t * wd_account_nick(wd_account_t *account) {
 
 
 
-wi_boolean_t wd_account_is_admin(wd_account_t *account) {
-	return (wd_account_user_disconnect_users(account) || wd_account_user_ban_users(account));
-}
-
-
-
 #pragma mark -
 
 wi_boolean_t wd_account_verify_privileges_for_user(wd_account_t *account, wd_user_t *user, wi_string_t **error) {
@@ -1559,6 +1590,7 @@ wi_boolean_t wd_account_verify_privileges_for_user(wd_account_t *account, wd_use
 					case WD_ACCOUNT_FIELD_STRING:
 					case WD_ACCOUNT_FIELD_DATE:
 					case WD_ACCOUNT_FIELD_LIST:
+					case WD_ACCOUNT_FIELD_ENUM:
 						break;
 					
 					case WD_ACCOUNT_FIELD_NUMBER:
@@ -1607,54 +1639,73 @@ wi_boolean_t wd_account_verify_privileges_for_user(wd_account_t *account, wd_use
 
 #pragma mark -
 
-#define WD_ACCOUNT_STRING_ACCESSOR(name, field)									\
-	wi_string_t * (name)(wd_account_t *account) {								\
-		wi_string_t		*string;												\
-																				\
-		if((string = wi_dictionary_data_for_key((account)->values, (field))))	\
-			return string;														\
-																				\
-		return WI_STR("");														\
+#define WD_ACCOUNT_STRING_ACCESSOR(name, fieldname)										\
+	wi_string_t * (name)(wd_account_t *account) {										\
+		wi_string_t		*string;														\
+																						\
+		if((string = wi_dictionary_data_for_key((account)->values, (fieldname))))		\
+			return string;																\
+																						\
+		return WI_STR("");																\
 	}
 
-#define WD_ACCOUNT_DATE_ACCESSOR(name, field)									\
-	wi_date_t * (name)(wd_account_t *account) {									\
-		return wi_dictionary_data_for_key((account)->values, (field));			\
+#define WD_ACCOUNT_DATE_ACCESSOR(name, fieldname)										\
+	wi_date_t * (name)(wd_account_t *account) {											\
+		return wi_dictionary_data_for_key((account)->values, (fieldname));				\
 	}
 
-#define WD_ACCOUNT_BOOLEAN_ACCESSOR(name, field)								\
-	wi_boolean_t (name)(wd_account_t *account) {								\
-		wi_number_t		*number;												\
-																				\
-		if((number = wi_dictionary_data_for_key((account)->values, (field))))	\
-			return wi_number_bool(number);										\
-																				\
-		return false;															\
+#define WD_ACCOUNT_BOOLEAN_ACCESSOR(name, fieldname)									\
+	wi_boolean_t (name)(wd_account_t *account) {										\
+		wi_number_t		*number;														\
+																						\
+		if((number = wi_dictionary_data_for_key((account)->values, (fieldname))))		\
+			return wi_number_bool(number);												\
+																						\
+		return false;																	\
 	}
 
-#define WD_ACCOUNT_NUMBER_ACCESSOR(name, field)									\
-	wi_uinteger_t (name)(wd_account_t *account) {								\
-		wi_number_t		*number;												\
-																				\
-		if((number = wi_dictionary_data_for_key((account)->values, (field))))	\
-			return wi_number_integer(number);									\
-																				\
-		return 0;																\
+#define WD_ACCOUNT_NUMBER_ACCESSOR(name, fieldname)										\
+	wi_uinteger_t (name)(wd_account_t *account) {										\
+		wi_number_t		*number;														\
+																						\
+		if((number = wi_dictionary_data_for_key((account)->values, (fieldname))))		\
+			return wi_number_integer(number);											\
+																						\
+		return 0;																		\
 	}
 
-#define WD_ACCOUNT_LIST_ACCESSOR(name, field)									\
-	wi_array_t * (name)(wd_account_t *account) {								\
-		wi_array_t		*array;													\
-																				\
-		if((array = wi_dictionary_data_for_key((account)->values, (field))))	\
-			return array;														\
-																				\
-		return wi_array();														\
+#define WD_ACCOUNT_ENUM_ACCESSOR(name, fieldname)										\
+	wi_p7_enum_t (name)(wd_account_t *account) {										\
+		wi_p7_spec_field_t		*field;													\
+		wi_string_t				*enumname;												\
+																						\
+		if((enumname = wi_dictionary_data_for_key((account)->values, (fieldname)))) {	\
+			field = wi_p7_spec_field_with_name(wd_p7_spec, (fieldname));				\
+																						\
+			if(field) {																	\
+				return (wi_p7_enum_t) (intptr_t) wi_dictionary_data_for_key(			\
+					wi_p7_spec_field_enums_by_name(field), (enumname));					\
+			}																			\
+		}																				\
+																						\
+		return 0;																		\
+	}
+
+#define WD_ACCOUNT_LIST_ACCESSOR(name, fieldname)										\
+	wi_array_t * (name)(wd_account_t *account) {										\
+		wi_array_t		*array;															\
+																						\
+		if((array = wi_dictionary_data_for_key((account)->values, (fieldname))))		\
+			return array;																\
+																						\
+		return wi_array();																\
 	}
 
 WD_ACCOUNT_STRING_ACCESSOR(wd_account_name, WI_STR("wired.account.name"))
 WD_ACCOUNT_STRING_ACCESSOR(wd_account_new_name, WI_STR("wired.account.new_name"))
 WD_ACCOUNT_STRING_ACCESSOR(wd_account_full_name, WI_STR("wired.account.full_name"))
+WD_ACCOUNT_STRING_ACCESSOR(wd_account_comment, WI_STR("wired.account.comment"))
+WD_ACCOUNT_ENUM_ACCESSOR(wd_account_color, WI_STR("wired.account.color"))
 WD_ACCOUNT_DATE_ACCESSOR(wd_account_creation_time, WI_STR("wired.account.creation_time"))
 WD_ACCOUNT_DATE_ACCESSOR(wd_account_modification_time, WI_STR("wired.account.modification_time"))
 WD_ACCOUNT_DATE_ACCESSOR(wd_account_login_time, WI_STR("wired.account.login_time"))

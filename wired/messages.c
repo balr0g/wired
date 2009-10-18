@@ -461,7 +461,7 @@ static void wd_message_send_login(wd_user_t *user, wi_p7_message_t *message) {
 		wd_user_set_nick(user, wd_account_nick(account));
 	
 	wd_user_set_account(user, account);
-	wd_user_set_admin(user, wd_account_is_admin(account));
+	wd_user_set_color(user, wd_account_color(account));
 	wd_user_set_state(user, WD_USER_LOGGED_IN);
 	
 	wi_lock_lock(wd_status_lock);

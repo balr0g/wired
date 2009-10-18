@@ -306,11 +306,11 @@ void wd_chat_add_user_and_broadcast(wd_chat_t *chat, wd_user_t *user) {
 	message = wi_p7_message_with_name(WI_STR("wired.chat.user_join"), wd_p7_spec);
 	wi_p7_message_set_uint32_for_name(message, chat->id, WI_STR("wired.chat.id"));
 	wi_p7_message_set_uint32_for_name(message, wd_user_id(user), WI_STR("wired.user.id"));
-	wi_p7_message_set_bool_for_name(message, wd_user_is_admin(user), WI_STR("wired.user.admin"));
 	wi_p7_message_set_bool_for_name(message, wd_user_is_idle(user), WI_STR("wired.user.idle"));
 	wi_p7_message_set_string_for_name(message, wd_user_nick(user), WI_STR("wired.user.nick"));
 	wi_p7_message_set_string_for_name(message, wd_user_status(user), WI_STR("wired.user.status"));
 	wi_p7_message_set_data_for_name(message, wd_user_icon(user), WI_STR("wired.user.icon"));
+	wi_p7_message_set_enum_for_name(message, wd_user_color(user), WI_STR("wired.account.color"));
 	wi_p7_message_set_date_for_name(message, wd_user_idle_time(user), WI_STR("wired.user.idle_time"));
 	wd_chat_broadcast_message(chat, message);
 	
@@ -351,12 +351,12 @@ void wd_chat_reply_user_list(wd_chat_t *chat, wd_user_t *user, wi_p7_message_t *
 			reply = wi_p7_message_with_name(WI_STR("wired.chat.user_list"), wd_p7_spec);
 			wi_p7_message_set_uint32_for_name(reply, chat->id, WI_STR("wired.chat.id"));
 			wi_p7_message_set_uint32_for_name(reply, wd_user_id(peer), WI_STR("wired.user.id"));
-			wi_p7_message_set_bool_for_name(reply, wd_user_is_admin(peer), WI_STR("wired.user.admin"));
 			wi_p7_message_set_bool_for_name(reply, wd_user_is_idle(peer), WI_STR("wired.user.idle"));
 			wi_p7_message_set_string_for_name(reply, wd_user_nick(peer), WI_STR("wired.user.nick"));
 			wi_p7_message_set_string_for_name(reply, wd_user_status(peer), WI_STR("wired.user.status"));
 			wi_p7_message_set_data_for_name(reply, wd_user_icon(peer), WI_STR("wired.user.icon"));
 			wi_p7_message_set_date_for_name(reply, wd_user_idle_time(peer), WI_STR("wired.user.idle_time"));
+			wi_p7_message_set_enum_for_name(reply, wd_user_color(peer), WI_STR("wired.account.color"));
 			wd_user_reply_message(user, reply, message);
 		}
 	}

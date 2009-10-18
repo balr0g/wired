@@ -173,87 +173,80 @@
 				other than [message:wired.send_ping].
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.admin" type="bool" id="3002" version="2.0">
-			<p7:documentation>
-				Should be set to true if the user is logged in with an account that has the
-				[field:wired.account.user.kick_users] or [field:wired.account.user.ban_users]
-				privileges.
-			</p7:documentation>
-		</p7:field>
-		<p7:field name="wired.user.nick" type="string" id="3003" version="2.0">
+		<p7:field name="wired.user.nick" type="string" id="3002" version="2.0">
 			<p7:documentation>
 				Nick name of a user. This is not guaranteed to be unique across all users.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.login" type="string" id="3004" version="2.0">
+		<p7:field name="wired.user.login" type="string" id="3003" version="2.0">
 			<p7:documentation>
 				Login name of a user. This is the same as [field:wired.account.name] for user
 				accounts, but used for logins.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.password" type="string" id="3005" version="2.0">
+		<p7:field name="wired.user.password" type="string" id="3004" version="2.0">
 			<p7:documentation>
 				Password of a user. This is the same as [field:wired.account.password], but used
 				for logins. The string should be the hexadecimal representation of the SHA-1 hash of
 				the actual password. This should be the case even if the actual password is empty.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.status" type="string" id="3006" version="2.0">
+		<p7:field name="wired.user.status" type="string" id="3005" version="2.0">
 			<p7:documentation>
 				Status of a user.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.icon" type="data" id="3007" version="2.0">
+		<p7:field name="wired.user.icon" type="data" id="3006" version="2.0">
 			<p7:documentation>
 				User icon as image data. The image format should be PNG, and the icon dimensions
 				should not exceed 32x32 pixels.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.ip" type="string" id="3008" version="2.0">
+		<p7:field name="wired.user.ip" type="string" id="3007" version="2.0">
 			<p7:documentation>
 				IP address of a user. Should be set to the string representation of either an IPv4
 				address, e.g. "127.0.0.1", or an IPv6 address, e.g. "::1".
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.host" type="string" id="3009" version="2.0">
+		<p7:field name="wired.user.host" type="string" id="3008" version="2.0">
 			<p7:documentation>
 				Host name of the user. Should be resolved by the server, and set to the empty string
 				if resolution fails.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.cipher.name" type="string" id="3010" version="2.0">
+		<p7:field name="wired.user.cipher.name" type="string" id="3009" version="2.0">
 			<p7:documentation>
 				Name of the cipher, e.g. "AES", used by the underlying protocol, if any. 
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.cipher.bits" type="uint32" id="3011" version="2.0">
+		<p7:field name="wired.user.cipher.bits" type="uint32" id="3010" version="2.0">
 			<p7:documentation>
 				Number of bits, e.g. 256, used by the cipher for its key in the underlying protocol, if any.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.login_time" type="date" id="3012" version="2.0">
+		<p7:field name="wired.user.login_time" type="date" id="3011" version="2.0">
 			<p7:documentation>
 				Time of login of the user.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.idle_time" type="date" id="3013" version="2.0">
+		<p7:field name="wired.user.idle_time" type="date" id="3012" version="2.0">
 			<p7:documentation>
 				Time of last activity of the user. See [field:wired.user.idle] for details on when this is
 				reset.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.disconnect_message" type="string" id="3014" version="2.0">
+		<p7:field name="wired.user.disconnect_message" type="string" id="3013" version="2.0">
 			<p7:documentation>
 				User-given message when that user forcibly parts another user (i.e. disconnects, kicks or bans).
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.disconnected_id" type="uint32" id="3015" version="2.0">
+		<p7:field name="wired.user.disconnected_id" type="uint32" id="3014" version="2.0">
 			<p7:documentation>
 				Same as [field:wired.user.id] but used when one user forcibly parts another user (i.e. disconnects,
 				kicks or bans).
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.user.state" type="enum" id="3016" version="2.0">
+		<p7:field name="wired.user.state" type="enum" id="3015" version="2.0">
 			<p7:documentation>
 				State of the user. [enum:wired.user.state.connected] means that the user has just logged
 				in but not sent [message:wired.send_login] yet. [enum:wired.user.state.logging_in] means
@@ -582,411 +575,422 @@
 				Comment on an account.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.creation_time" type="date" id="8005" version="2.0">
+		<p7:field name="wired.account.color" type="enum" id="8005" version="2.0">
+			<p7:documentation>
+				Color for an account.
+			</p7:documentation>
+			<p7:enum name="wired.account.color.black" value="0" version="2.0" />
+			<p7:enum name="wired.account.color.red" value="1" version="2.0" />
+			<p7:enum name="wired.account.color.orange" value="2" version="2.0" />
+			<p7:enum name="wired.account.color.green" value="3" version="2.0" />
+			<p7:enum name="wired.account.color.blue" value="4" version="2.0" />
+			<p7:enum name="wired.account.color.purple" value="5" version="2.0" />
+		</p7:field>
+		<p7:field name="wired.account.creation_time" type="date" id="8006" version="2.0">
 			<p7:documentation>
 				Date when the account was created.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.modification_time" type="date" id="8006" version="2.0">
+		<p7:field name="wired.account.modification_time" type="date" id="8007" version="2.0">
 			<p7:documentation>
 				Date when the account was last modified.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.login_time" type="date" id="8007" version="2.0">
+		<p7:field name="wired.account.login_time" type="date" id="8008" version="2.0">
 			<p7:documentation>
 				Date when the account was last logged in.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.edited_by" type="string" id="8008" version="2.0">
+		<p7:field name="wired.account.edited_by" type="string" id="8009" version="2.0">
 			<p7:documentation>
 				Nick name of user who creator or last edited the account. Like [field:wired.user.nick].
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.downloads" type="uint32" id="8009" version="2.0">
+		<p7:field name="wired.account.downloads" type="uint32" id="8010" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.download_transferred" type="uint64" id="8010" version="2.0">
+		<p7:field name="wired.account.download_transferred" type="uint64" id="8011" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.uploads" type="uint32" id="8011" version="2.0">
+		<p7:field name="wired.account.uploads" type="uint32" id="8012" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.upload_transferred" type="uint64" id="8012" version="2.0">
+		<p7:field name="wired.account.upload_transferred" type="uint64" id="8013" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.password" type="string" id="8013" version="2.0">
+		<p7:field name="wired.account.password" type="string" id="8014" version="2.0">
 			<p7:documentation>
 				Password of an account. The string should be the hexadecimal representation of the SHA-1
 				hash of the actual password.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.group" type="string" id="8014" version="2.0">
+		<p7:field name="wired.account.group" type="string" id="8015" version="2.0">
 			<p7:documentation>
 				Primary group name of a user account. If this is set, privileges from the group account
 				should override those from the user account.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.groups" type="list" listtype="string" id="8015" version="2.0">
+		<p7:field name="wired.account.groups" type="list" listtype="string" id="8016" version="2.0">
 			<p7:documentation>
 				Secondary group names of a user account. These should not be used for account privileges,
 				but rather for permissions on files and boards.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.files" type="string" id="8016" version="2.0">
+		<p7:field name="wired.account.files" type="string" id="8017" version="2.0">
 			<p7:documentation>
 				Path within the files area that should be accessible to the account.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.user.cannot_set_nick" type="bool" id="8017" version="2.0">
+		<p7:field name="wired.account.user.cannot_set_nick" type="bool" id="8018" version="2.0">
 			<p7:documentation>
 				Indicates whether the account cannot change its nick name.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.user.get_info" type="bool" id="8018" version="2.0">
+		<p7:field name="wired.account.user.get_info" type="bool" id="8019" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege to get info of other users.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.user.disconnect_users" type="bool" id="8019" version="2.0">
+		<p7:field name="wired.account.user.disconnect_users" type="bool" id="8020" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege to disconnect other users.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.user.ban_users" type="bool" id="8020" version="2.0">
+		<p7:field name="wired.account.user.ban_users" type="bool" id="8021" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege to ban other users.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.user.cannot_be_disconnected" type="bool" id="8021" version="2.0">
+		<p7:field name="wired.account.user.cannot_be_disconnected" type="bool" id="8022" version="2.0">
 			<p7:documentation>
 				Indicates whether the account cannot be disconnected (i.e. disconnected, kicked or banned).
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.user.get_users" type="bool" id="8022" version="2.0">
+		<p7:field name="wired.account.user.get_users" type="bool" id="8023" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege to get a list of all users currently
 				logged in.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.chat.kick_users" type="bool" id="8023" version="2.0">
+		<p7:field name="wired.account.chat.kick_users" type="bool" id="8024" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege to kick other users.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.chat.set_topic" type="bool" id="8024" version="2.0">
+		<p7:field name="wired.account.chat.set_topic" type="bool" id="8025" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege to set the topic of the public chat.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.chat.create_chats" type="bool" id="8025" version="2.0">
+		<p7:field name="wired.account.chat.create_chats" type="bool" id="8026" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege to create new chats.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.message.send_messages" type="bool" id="8026" version="2.0">
+		<p7:field name="wired.account.message.send_messages" type="bool" id="8027" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege to send private messages to other users.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.message.broadcast" type="bool" id="8027" version="2.0">
+		<p7:field name="wired.account.message.broadcast" type="bool" id="8028" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege to broadcast messages to all users currently
 				logged in.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.read_boards" type="bool" id="8028" version="2.0">
+		<p7:field name="wired.account.board.read_boards" type="bool" id="8029" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of reading boards.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.add_boards" type="bool" id="8029" version="2.0">
+		<p7:field name="wired.account.board.add_boards" type="bool" id="8030" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of creating boards.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.move_boards" type="bool" id="8030" version="2.0">
+		<p7:field name="wired.account.board.move_boards" type="bool" id="8031" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of moving boards.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.rename_boards" type="bool" id="8031" version="2.0">
+		<p7:field name="wired.account.board.rename_boards" type="bool" id="8032" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of renaming boards.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.delete_boards" type="bool" id="8032" version="2.0">
+		<p7:field name="wired.account.board.delete_boards" type="bool" id="8033" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of deleting boards.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.set_permissions" type="bool" id="8033" version="2.0">
+		<p7:field name="wired.account.board.set_permissions" type="bool" id="8034" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of change board permissions.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.add_threads" type="bool" id="8034" version="2.0">
+		<p7:field name="wired.account.board.add_threads" type="bool" id="8035" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of creating new threads.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.move_threads" type="bool" id="8035" version="2.0">
+		<p7:field name="wired.account.board.move_threads" type="bool" id="8036" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of moving threads.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.delete_threads" type="bool" id="8036" version="2.0">
+		<p7:field name="wired.account.board.delete_threads" type="bool" id="8037" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of deleting threads.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.add_posts" type="bool" id="8037" version="2.0">
+		<p7:field name="wired.account.board.add_posts" type="bool" id="8038" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of creating new posts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.edit_own_posts" type="bool" id="8038" version="2.0">
+		<p7:field name="wired.account.board.edit_own_posts" type="bool" id="8039" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of editing own posts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.edit_all_posts" type="bool" id="8039" version="2.0">
+		<p7:field name="wired.account.board.edit_all_posts" type="bool" id="8040" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of editing all posts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.delete_own_posts" type="bool" id="8040" version="2.0">
+		<p7:field name="wired.account.board.delete_own_posts" type="bool" id="8041" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of deleting own posts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.delete_all_posts" type="bool" id="8041" version="2.0">
+		<p7:field name="wired.account.board.delete_all_posts" type="bool" id="8042" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of deleting all posts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.list_files" type="bool" id="8042" version="2.0">
+		<p7:field name="wired.account.file.list_files" type="bool" id="8043" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of listing files.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.get_info" type="bool" id="8043" version="2.0">
+		<p7:field name="wired.account.file.get_info" type="bool" id="8044" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of getting file info.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.search_files" type="bool" id="8044" version="2.0">
+		<p7:field name="wired.account.file.search_files" type="bool" id="8045" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of search files.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.create_directories" type="bool" id="8045" version="2.0">
+		<p7:field name="wired.account.file.create_directories" type="bool" id="8046" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of creating new directories.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.create_links" type="bool" id="8046" version="2.0">
+		<p7:field name="wired.account.file.create_links" type="bool" id="8047" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of creating new file links.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.move_files" type="bool" id="8047" version="2.0">
+		<p7:field name="wired.account.file.move_files" type="bool" id="8048" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of moving files.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.rename_files" type="bool" id="8048" version="2.0">
+		<p7:field name="wired.account.file.rename_files" type="bool" id="8049" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of renaming files.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.set_type" type="bool" id="8049" version="2.0">
+		<p7:field name="wired.account.file.set_type" type="bool" id="8050" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of changing file types.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.set_comment" type="bool" id="8050" version="2.0">
+		<p7:field name="wired.account.file.set_comment" type="bool" id="8051" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of changing file comments.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.set_permissions" type="bool" id="8051" version="2.0">
+		<p7:field name="wired.account.file.set_permissions" type="bool" id="8052" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of changing file permissions.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.set_executable" type="bool" id="8052" version="2.0">
+		<p7:field name="wired.account.file.set_executable" type="bool" id="8053" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of changing file executable flags.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.set_label" type="bool" id="8053" version="2.0">
+		<p7:field name="wired.account.file.set_label" type="bool" id="8054" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of changing file labels.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.delete_files" type="bool" id="8054" version="2.0">
+		<p7:field name="wired.account.file.delete_files" type="bool" id="8055" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of deleting files.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.access_all_dropboxes" type="bool" id="8055" version="2.0">
+		<p7:field name="wired.account.file.access_all_dropboxes" type="bool" id="8056" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of accessing all drop boxes.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.file.recursive_list_depth_limit" type="uint32" id="8056" version="2.0">
+		<p7:field name="wired.account.file.recursive_list_depth_limit" type="uint32" id="8057" version="2.0">
 			<p7:documentation>
 				Indicates the limit on the directory depth the account gives for recursive file
 				operations. 0 means no limit.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.transfer.download_files" type="bool" id="8057" version="2.0">
+		<p7:field name="wired.account.transfer.download_files" type="bool" id="8058" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of downloading files.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.transfer.upload_files" type="bool" id="8058" version="2.0">
+		<p7:field name="wired.account.transfer.upload_files" type="bool" id="8059" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of uploading new files in upload
 				directories and drop boxes.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.transfer.upload_directories" type="bool" id="8059" version="2.0">
+		<p7:field name="wired.account.transfer.upload_directories" type="bool" id="8060" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of uploading new directories in
 				upload directories and drop boxes.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.transfer.upload_anywhere" type="bool" id="8060" version="2.0">
+		<p7:field name="wired.account.transfer.upload_anywhere" type="bool" id="8061" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of uploading new files or directories
 				in any directory.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.transfer.download_limit" type="uint32" id="8061" version="2.0">
+		<p7:field name="wired.account.transfer.download_limit" type="uint32" id="8062" version="2.0">
 			<p7:documentation>
 				Indicates the limit on the number of simultaneous download transfers the account gives.
 				0 means no limit.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.transfer.upload_limit" type="uint32" id="8062" version="2.0">
+		<p7:field name="wired.account.transfer.upload_limit" type="uint32" id="8063" version="2.0">
 			<p7:documentation>
 				Indicates the limit on the number of simultaneous upload transfers the account gives.
 				0 means no limit.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.transfer.download_speed_limit" type="uint32" id="8063" version="2.0">
+		<p7:field name="wired.account.transfer.download_speed_limit" type="uint32" id="8064" version="2.0">
 			<p7:documentation>
 				Indicates the combined limit in speed in bytes/second for all download transfers
 				the account gives. 0 means no limit.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.transfer.upload_speed_limit" type="uint32" id="8064" version="2.0">
+		<p7:field name="wired.account.transfer.upload_speed_limit" type="uint32" id="8065" version="2.0">
 			<p7:documentation>
 				Indicates the combined limit in speed in bytes/second for all upload transfers
 				the account gives. 0 means no limit.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.account.change_password" type="bool" id="8065" version="2.0">
+		<p7:field name="wired.account.account.change_password" type="bool" id="8066" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of changing the password.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.account.list_accounts" type="bool" id="8066" version="2.0">
+		<p7:field name="wired.account.account.list_accounts" type="bool" id="8067" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of listing other accounts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.account.read_accounts" type="bool" id="8067" version="2.0">
+		<p7:field name="wired.account.account.read_accounts" type="bool" id="8068" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of reading other accounts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.account.create_users" type="bool" id="8068" version="2.0">
+		<p7:field name="wired.account.account.create_users" type="bool" id="8069" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of creating new user accounts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.account.edit_users" type="bool" id="8069" version="2.0">
+		<p7:field name="wired.account.account.edit_users" type="bool" id="8070" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of editing user accounts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.account.delete_users" type="bool" id="8070" version="2.0">
+		<p7:field name="wired.account.account.delete_users" type="bool" id="8071" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of deleting user accounts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.account.create_groups" type="bool" id="8071" version="2.0">
+		<p7:field name="wired.account.account.create_groups" type="bool" id="8072" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of creating new group accounts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.account.edit_groups" type="bool" id="8072" version="2.0">
+		<p7:field name="wired.account.account.edit_groups" type="bool" id="8073" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of editing group accounts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.account.delete_groups" type="bool" id="8073" version="2.0">
+		<p7:field name="wired.account.account.delete_groups" type="bool" id="8074" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of deleting group accounts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.account.raise_account_privileges" type="bool" id="8074" version="2.0">
+		<p7:field name="wired.account.account.raise_account_privileges" type="bool" id="8075" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of creating or editing accounts
 				to give them more privileges or higher limits than itself has.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.log.view_log" type="bool" id="8075" version="2.0">
+		<p7:field name="wired.account.log.view_log" type="bool" id="8076" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of viewing the log.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.events.view_events" type="bool" id="8076" version="2.0">
+		<p7:field name="wired.account.events.view_events" type="bool" id="8077" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of viewing events.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.settings.get_settings" type="bool" id="8077" version="2.0">
+		<p7:field name="wired.account.settings.get_settings" type="bool" id="8078" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of reading the server configuration.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.settings.set_settings" type="bool" id="8078" version="2.0">
+		<p7:field name="wired.account.settings.set_settings" type="bool" id="8079" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of changing the server configuration.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.banlist.get_bans" type="bool" id="8079" version="2.0">
+		<p7:field name="wired.account.banlist.get_bans" type="bool" id="8080" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of reading the server banlist.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.banlist.add_bans" type="bool" id="8080" version="2.0">
+		<p7:field name="wired.account.banlist.add_bans" type="bool" id="8081" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of adding bans to the server banlist.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.banlist.delete_bans" type="bool" id="8081" version="2.0">
+		<p7:field name="wired.account.banlist.delete_bans" type="bool" id="8082" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of removing bans from the server banlist.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.tracker.list_servers" type="bool" id="8082" version="2.0">
+		<p7:field name="wired.account.tracker.list_servers" type="bool" id="8083" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of listing other servers.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.tracker.register_servers" type="bool" id="8083" version="2.0">
+		<p7:field name="wired.account.tracker.register_servers" type="bool" id="8084" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of registering other servers.
 			</p7:documentation>
@@ -1231,7 +1235,6 @@
 
 		<p7:collection name="wired.user.info">
 			<p7:member field="wired.user.id" />
-			<p7:member field="wired.user.admin" />
 			<p7:member field="wired.user.idle" />
 			<p7:member field="wired.user.nick" />
 			<p7:member field="wired.user.status" />
@@ -1452,6 +1455,7 @@
 			<p7:parameter field="wired.user.login_time" use="required" version="2.0" />
 			<p7:parameter field="wired.user.idle_time" use="required" version="2.0" />
 			<p7:parameter collection="wired.info.host_info" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 		</p7:message>
 
 		<p7:message name="wired.user.disconnect_user" id="3006" version="2.0">
@@ -1497,6 +1501,7 @@
 			<p7:parameter collection="wired.user.info" use="required" version="2.0" />
 			<p7:parameter field="wired.user.idle_time" use="required" version="2.0" />
 			<p7:parameter field="wired.user.state" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 			<p7:parameter field="wired.transfer.type" version="2.0" />
 			<p7:parameter field="wired.file.path" version="2.0" />
 			<p7:parameter field="wired.transfer.data_size" version="2.0" />
@@ -1536,6 +1541,7 @@
 			<p7:parameter field="wired.transaction" version="2.0" />
 			<p7:parameter field="wired.chat.id" use="required" version="2.0" />
 			<p7:parameter collection="wired.user.info" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 		</p7:message>
 
 		<p7:message name="wired.chat.user_list.done" id="4003" version="2.0">
@@ -1552,6 +1558,7 @@
 			</p7:documentation>
 			<p7:parameter field="wired.chat.id" use="required" version="2.0" />
 			<p7:parameter collection="wired.user.info" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 		</p7:message>
 
 		<p7:message name="wired.chat.user_leave" id="4005" version="2.0">
@@ -1567,13 +1574,15 @@
 				User status message for a chat. Any of the fields, except [field:wired.user.id] may have
 				changed, and it is not possible to find out which, except by caching the previous values.
 				[field:wired.user.status] may be the empty string, but [field:wired.user.nick] may not.
+				
+				wired.account.color TBD
 			</p7:documentation>
 			<p7:parameter field="wired.chat.id" use="required" version="2.0" />
 			<p7:parameter field="wired.user.id" use="required" version="2.0" />
-			<p7:parameter field="wired.user.admin" use="required" version="2.0" />
 			<p7:parameter field="wired.user.idle" use="required" version="2.0" />
 			<p7:parameter field="wired.user.nick" use="required" version="2.0" />
 			<p7:parameter field="wired.user.status" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 		</p7:message>
 
 		<p7:message name="wired.chat.user_icon" id="4007" version="2.0">
@@ -2403,6 +2412,7 @@
 			<p7:parameter field="wired.account.group" use="required" version="2.0" />
 			<p7:parameter field="wired.account.groups" use="required" version="2.0" />
 			<p7:parameter field="wired.account.password" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 		</p7:message>
 
 		<p7:message name="wired.account.user_list.done" id="8004" version="2.0">
@@ -2430,6 +2440,7 @@
 			<p7:parameter field="wired.account.creation_time" use="required" version="2.0" />
 			<p7:parameter field="wired.account.modification_time" use="required" version="2.0" />
 			<p7:parameter field="wired.account.edited_by" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 		</p7:message>
 
 		<p7:message name="wired.account.group_list.done" id="8007" version="2.0">
@@ -2476,6 +2487,7 @@
 			<p7:parameter field="wired.account.group" use="required" version="2.0" />
 			<p7:parameter field="wired.account.groups" use="required" version="2.0" />
 			<p7:parameter field="wired.account.password" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 			<p7:parameter field="wired.account.files" version="2.0" />
 			<p7:parameter collection="wired.account.privileges" version="2.0" />
 		</p7:message>
@@ -2502,6 +2514,7 @@
 			<p7:parameter field="wired.account.creation_time" use="required" version="2.0" />
 			<p7:parameter field="wired.account.modification_time" use="required" version="2.0" />
 			<p7:parameter field="wired.account.edited_by" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 			<p7:parameter field="wired.account.files" version="2.0" />
 			<p7:parameter collection="wired.account.privileges" version="2.0" />
 		</p7:message>
@@ -2522,9 +2535,11 @@
 			<p7:parameter field="wired.transaction" version="2.0" />
 			<p7:parameter field="wired.account.name" use="required" version="2.0" />
 			<p7:parameter field="wired.account.full_name" use="required" version="2.0" />
+			<p7:parameter field="wired.account.comment" use="required" version="2.0" />
 			<p7:parameter field="wired.account.group" use="required" version="2.0" />
 			<p7:parameter field="wired.account.groups" use="required" version="2.0" />
 			<p7:parameter field="wired.account.password" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 			<p7:parameter field="wired.account.files" version="2.0" />
 			<p7:parameter collection="wired.account.privileges" version="2.0" />
 		</p7:message>
@@ -2538,6 +2553,8 @@
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 			<p7:parameter field="wired.account.name" use="required" version="2.0" />
+			<p7:parameter field="wired.account.comment" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 			<p7:parameter field="wired.account.files" version="2.0" />
 			<p7:parameter collection="wired.account.privileges" version="2.0" />
 		</p7:message>
@@ -2561,9 +2578,11 @@
 			<p7:parameter field="wired.account.name" use="required" version="2.0" />
 			<p7:parameter field="wired.account.new_name" version="2.0" />
 			<p7:parameter field="wired.account.full_name" use="required" version="2.0" />
+			<p7:parameter field="wired.account.comment" use="required" version="2.0" />
 			<p7:parameter field="wired.account.group" use="required" version="2.0" />
 			<p7:parameter field="wired.account.groups" use="required" version="2.0" />
 			<p7:parameter field="wired.account.password" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 			<p7:parameter field="wired.account.files" version="2.0" />
 			<p7:parameter collection="wired.account.privileges" version="2.0" />
 		</p7:message>
@@ -2580,6 +2599,8 @@
 			<p7:parameter field="wired.transaction" version="2.0" />
 			<p7:parameter field="wired.account.name" use="required" version="2.0" />
 			<p7:parameter field="wired.account.new_name" version="2.0" />
+			<p7:parameter field="wired.account.comment" use="required" version="2.0" />
+			<p7:parameter field="wired.account.color" version="2.0" />
 			<p7:parameter field="wired.account.files" version="2.0" />
 			<p7:parameter collection="wired.account.privileges" version="2.0" />
 		</p7:message>
