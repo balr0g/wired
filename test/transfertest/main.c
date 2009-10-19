@@ -119,7 +119,7 @@ int main(int argc, const char **argv) {
 	
 	signal(SIGPIPE, SIG_IGN);
 	
-	wc_test(url, 100, WI_STR("/transfertest"));
+	wc_test(url, 10, WI_STR("/transfertest"));
 	
 	wi_release(pool);
 	
@@ -214,7 +214,7 @@ static void wc_test_thread(wi_runtime_instance_t *argument) {
 
 
 static void wc_download(wi_p7_socket_t *socket, wi_string_t *path) {
-	wi_p7_message_t		*message;
+	wi_p7_message_t		*message, *reply;
 	wi_string_t			*name, *error;
 	void				*file;
 	wi_p7_uint32_t		queue;
@@ -258,13 +258,19 @@ static void wc_download(wi_p7_socket_t *socket, wi_string_t *path) {
 			
 			wi_log_info(WI_STR("Queued at position %u for %@"), queue, path);
 		}
+		else if(wi_is_equal(name, WI_STR("wired.send_ping"))) {
+			reply = wi_p7_message_with_name(WI_STR("wired.ping"), wc_spec);
+			
+			if(!wi_p7_socket_write_message(socket, 0.0, reply))
+				wi_log_fatal(WI_STR("Could not send message for %@: %m"), path);
+		}
 		else if(wi_is_equal(name, WI_STR("wired.error"))) {
 			error = wi_p7_message_enum_name_for_name(message, WI_STR("wired.error"));
 			
 			wi_log_fatal(WI_STR("Could not download %@: %@"), path, error);
 		}
 		else {
-			wi_log_fatal(WI_STR("Unexpected message %@ for %@"), name, path);
+			wi_log_fatal(WI_STR("Unexpected message %@ for download of %@"), name, path);
 		}
 	}
 }
@@ -272,7 +278,7 @@ static void wc_download(wi_p7_socket_t *socket, wi_string_t *path) {
 
 
 static void wc_upload(wi_p7_socket_t *socket, wi_string_t *path) {
-	wi_p7_message_t		*message;
+	wi_p7_message_t		*message, *reply;
 	wi_string_t			*name, *error;
 	char				file[8192];
 	wi_uinteger_t		sendsize;
@@ -281,7 +287,7 @@ static void wc_upload(wi_p7_socket_t *socket, wi_string_t *path) {
 	
 	memset(file, 42, sizeof(file));
 	
-	size = 10 * sizeof(file);
+	size = 1000 * sizeof(file);
 	
 	wi_log_info(WI_STR("Deleting %@..."), path);
 	
@@ -336,13 +342,19 @@ static void wc_upload(wi_p7_socket_t *socket, wi_string_t *path) {
 			
 			wi_log_info(WI_STR("Queued at position %u for %@"), queue, path);
 		}
+		else if(wi_is_equal(name, WI_STR("wired.send_ping"))) {
+			reply = wi_p7_message_with_name(WI_STR("wired.ping"), wc_spec);
+			
+			if(!wi_p7_socket_write_message(socket, 0.0, reply))
+				wi_log_fatal(WI_STR("Could not send message for %@: %m"), path);
+		}
 		else if(wi_is_equal(name, WI_STR("wired.error"))) {
 			error = wi_p7_message_enum_name_for_name(message, WI_STR("wired.error"));
 			
 			wi_log_fatal(WI_STR("Could not upload %@: %@"), path, error);
 		}
 		else {
-			wi_log_fatal(WI_STR("Unexpected message %@ for %@"), name, path);
+			wi_log_fatal(WI_STR("Unexpected message %@ for upload of %@"), name, path);
 		}
 	}
 }
