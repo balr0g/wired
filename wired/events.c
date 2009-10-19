@@ -35,6 +35,7 @@
 #include "server.h"
 #include "users.h"
 
+#define WD_EVENTS_WRITE_EVENTS			100
 #define WD_EVENTS_MAX_EVENTS			1000
 
 
@@ -125,8 +126,10 @@ void wd_events_add_event(wi_string_t *event, wd_user_t *user, ...) {
 	
 	wi_mutable_array_add_data(wd_events, dictionary);
 	
-	if(!wi_plist_write_instance_to_file(wd_events, wd_events_path))
-		wi_log_error(WI_STR("Could not write events to \"%@\": %m"), wd_events_path);
+	if(wi_array_count(wd_events) > 0 && wi_array_count(wd_events) % WD_EVENTS_WRITE_EVENTS == 0) {
+		if(!wi_plist_write_instance_to_file(wd_events, wd_events_path))
+			wi_log_error(WI_STR("Could not write events to \"%@\": %m"), wd_events_path);
+	}
 		
 	if(wi_array_count(wd_events) >= WD_EVENTS_MAX_EVENTS) {
 		wi_mutable_array_remove_all_data(wd_events);

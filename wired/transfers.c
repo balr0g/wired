@@ -375,7 +375,7 @@ static wi_boolean_t wd_transfers_run_upload(wd_transfer_t *transfer, wd_user_t *
 		if(wi_is_equal(wi_p7_message_name(reply), WI_STR("wired.transfer.upload")))
 			break;
 		
-		wd_messages_handle_message(message, user);
+		wd_messages_handle_message(reply, user);
 	}
 	
 	wi_p7_message_get_uint64_for_name(reply, &transfer->remainingdatasize, WI_STR("wired.transfer.data"));
