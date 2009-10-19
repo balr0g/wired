@@ -30,6 +30,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 
 #include <wired/wired.h>
 
