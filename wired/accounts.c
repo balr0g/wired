@@ -824,6 +824,11 @@ static wi_boolean_t wd_accounts_convert_accounts_from_1_3(wi_string_t *path, wi_
 			}
 			
 			if(wi_dictionary_count(values) > 0) {
+				if(wi_number_bool(wi_dictionary_data_for_key(values, WI_STR("wired.account.user.disconnect_users"))) ||
+				   wi_number_bool(wi_dictionary_data_for_key(values, WI_STR("wired.account.user.ban_users")))) {
+					wi_mutable_dictionary_set_data_for_key(values, WI_STR("wired.account.color.red"), WI_STR("wired.account.color"));
+				}
+				
 				name = wi_autorelease(wi_retain(wi_dictionary_data_for_key(values, WI_STR("wired.account.name"))));
 				
 				wi_mutable_dictionary_remove_data_for_key(values, name);
