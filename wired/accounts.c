@@ -320,24 +320,24 @@ void wd_accounts_initialize(void) {
 #pragma mark -
 
 wd_account_t * wd_accounts_read_user_and_group(wi_string_t *name) {
-	wi_string_t			*group_name;
-	wd_account_t		*user, *group;
+	wi_string_t			*groupname;
+	wd_account_t		*useraccount, *groupaccount;
 	
-	user = wd_accounts_read_user(name);
+	useraccount = wd_accounts_read_user(name);
 	
-	if(!user)
+	if(!useraccount)
 		return NULL;
 	
-	group_name = wd_account_group(user);
+	groupname = wd_account_group(useraccount);
 	
-	if(group_name && wi_string_length(group_name) > 0) {
-		group = wd_accounts_read_group(group_name);
+	if(groupname && wi_string_length(groupname) > 0) {
+		groupaccount = wd_accounts_read_group(groupname);
 		
-		if(group)
-			wd_account_override_privileges(user, group);
+		if(groupaccount)
+			wd_account_override_privileges(useraccount, groupaccount);
 	}
 	
-	return user;
+	return useraccount;
 }
 
 
@@ -1178,8 +1178,8 @@ wi_boolean_t wd_accounts_reply_user_list(wd_user_t *user, wi_p7_message_t *messa
 	wi_mutable_dictionary_t		*dictionary;
 	wi_dictionary_t				*values;
 	wi_p7_message_t				*reply;
-	wi_string_t					*name;
-	wd_account_t				*account;
+	wi_string_t					*name, *groupname;
+	wd_account_t				*useraccount, *groupaccount;
 	wi_boolean_t				result = false;
 
 	wi_recursive_lock_lock(wd_users_lock);
@@ -1190,11 +1190,20 @@ wi_boolean_t wd_accounts_reply_user_list(wd_user_t *user, wi_p7_message_t *messa
 		enumerator = wi_dictionary_key_enumerator(dictionary);
 		
 		while((name = wi_enumerator_next_data(enumerator))) {
-			values		= wi_dictionary_data_for_key(dictionary, name);
-			account		= wi_autorelease(wd_account_init_with_name_and_values(wd_account_alloc(), name, values));
-			reply		= wi_p7_message_with_name(WI_STR("wired.account.user_list"), wd_p7_spec);
+			values			= wi_dictionary_data_for_key(dictionary, name);
+			useraccount		= wi_autorelease(wd_account_init_with_name_and_values(wd_account_alloc(), name, values));
+			groupname		= wd_account_group(useraccount);
 			
-			wd_account_write_to_message(account, WD_ACCOUNT_FIELD_USER_LIST, reply);
+			if(groupname && wi_string_length(groupname) > 0) {
+				groupaccount = wd_accounts_read_group(groupname);
+				
+				if(groupaccount)
+					wd_account_override_privileges(useraccount, groupaccount);
+			}
+			
+			reply = wi_p7_message_with_name(WI_STR("wired.account.user_list"), wd_p7_spec);
+			
+			wd_account_write_to_message(useraccount, WD_ACCOUNT_FIELD_USER_LIST, reply);
 			
 			wd_user_reply_message(user, reply, message);
 		}
