@@ -747,10 +747,11 @@ static void wd_accounts_convert_accounts(void) {
 static wi_boolean_t wd_accounts_convert_accounts_from_1_3(wi_string_t *path, wi_array_t *fields) {
 	wi_enumerator_t				*enumerator;
 	wi_file_t					*file;
-	wi_string_t					*string, *name, *value;
+	wi_string_t					*string, *name, *value, *color;
 	wi_array_t					*array;
 	wi_mutable_dictionary_t		*values, *dictionary;
 	wi_dictionary_t				*field;
+	wi_number_t					*number;
 	wi_runtime_instance_t		*instance;
 	wi_uinteger_t				i, count;
 	wd_account_field_type_t		type;
@@ -824,10 +825,15 @@ static wi_boolean_t wd_accounts_convert_accounts_from_1_3(wi_string_t *path, wi_
 			}
 			
 			if(wi_dictionary_count(values) > 0) {
-				if(wi_number_bool(wi_dictionary_data_for_key(values, WI_STR("wired.account.user.disconnect_users"))) ||
-				   wi_number_bool(wi_dictionary_data_for_key(values, WI_STR("wired.account.user.ban_users")))) {
-					wi_mutable_dictionary_set_data_for_key(values, WI_STR("wired.account.color.red"), WI_STR("wired.account.color"));
-				}
+				if((number = wi_dictionary_data_for_key(values, WI_STR("wired.account.user.disconnect_users"))) && wi_number_bool(number))
+					color = WI_STR("wired.account.color.red");
+				else if((number = wi_dictionary_data_for_key(values, WI_STR("wired.account.user.ban_users"))) && wi_number_bool(number))
+					color = WI_STR("wired.account.color.red");
+				else
+					color = NULL;
+
+				if(color)
+					wi_mutable_dictionary_set_data_for_key(values, color, WI_STR("wired.account.color"));
 				
 				name = wi_autorelease(wi_retain(wi_dictionary_data_for_key(values, WI_STR("wired.account.name"))));
 				
