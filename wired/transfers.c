@@ -276,7 +276,7 @@ static wi_integer_t wd_transfers_queue_compare(wi_runtime_instance_t *instance1,
 static wi_boolean_t wd_transfers_wait_until_ready(wd_transfer_t *transfer, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t			*reply;
 	wi_uinteger_t			queue;
-	wi_socket_state_t		state;
+	wi_p7_uint32_t			transaction;
 	
 	transfer->queue = 0;
 	
@@ -292,29 +292,20 @@ static wi_boolean_t wd_transfers_wait_until_ready(wd_transfer_t *transfer, wd_us
 				reply = wi_p7_message_with_name(WI_STR("wired.transfer.queue"), wd_p7_spec);
 				wi_p7_message_set_string_for_name(reply, transfer->path, WI_STR("wired.file.path"));
 				wi_p7_message_set_uint32_for_name(reply, queue, WI_STR("wired.transfer.queue_position"));
-				wd_user_reply_message(user, reply, message);
+
+				if(wi_p7_message_get_uint32_for_name(message, &transaction, WI_STR("wired.transaction")))
+					wi_p7_message_set_uint32_for_name(reply, transaction, WI_STR("wired.transaction"));
+				
+				if(!wd_user_write_message(user, 30.0, reply)) {
+					wi_log_error(WI_STR("Could not write message to %@: %m"),
+						wd_user_identifier(user));
+					
+					return false;
+				}
 			} 
 			
 			if(queue == 0 || wd_user_state(user) != WD_USER_LOGGED_IN)
 				return true;
-		} else {
-			state = wi_socket_wait(wd_user_socket(user), 0.1);
-			
-			if(state == WI_SOCKET_ERROR)
-				return false;
-			
-			if(state == WI_SOCKET_READY) {
-				wd_user_lock_socket(user);
-				
-				reply = wi_p7_socket_read_message(wd_user_p7_socket(user), 30.0);
-
-				wd_user_unlock_socket(user);
-				
-				if(!reply)
-					return false;
-				
-				wd_messages_handle_message(reply, user);
-			}
 		}
 	}
 }
@@ -324,17 +315,26 @@ static wi_boolean_t wd_transfers_wait_until_ready(wd_transfer_t *transfer, wd_us
 static wi_boolean_t wd_transfers_run_download(wd_transfer_t *transfer, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t		*reply;
 	wi_data_t			*data;
+	wi_p7_uint32_t		transaction;
 	wi_boolean_t		result;
+	
+	data = wi_fs_finder_info_for_path(transfer->realdatapath);
 	
 	reply = wi_p7_message_with_name(WI_STR("wired.transfer.download"), wd_p7_spec);
 	wi_p7_message_set_string_for_name(reply, transfer->path, WI_STR("wired.file.path"));
 	wi_p7_message_set_oobdata_for_name(reply, transfer->remainingdatasize, WI_STR("wired.transfer.data"));
 	wi_p7_message_set_oobdata_for_name(reply, transfer->remainingrsrcsize, WI_STR("wired.transfer.rsrc"));
-	
-	data = wi_fs_finder_info_for_path(transfer->realdatapath);
-	
 	wi_p7_message_set_data_for_name(reply, data ? data : wi_data(), WI_STR("wired.transfer.finderinfo"));
-	wd_user_reply_message(user, reply, message);
+
+	if(wi_p7_message_get_uint32_for_name(message, &transaction, WI_STR("wired.transaction")))
+		wi_p7_message_set_uint32_for_name(reply, transaction, WI_STR("wired.transaction"));
+
+	if(!wd_user_write_message(user, 30.0, reply)) {
+		wi_log_error(WI_STR("Could not write message to %@: %m"),
+			wd_user_identifier(user));
+
+		return false;
+	}
 	
 	wi_socket_set_interactive(wd_user_socket(user), false);
 	
@@ -363,28 +363,29 @@ static wi_boolean_t wd_transfers_run_upload(wd_transfer_t *transfer, wd_user_t *
 	wi_p7_message_set_oobdata_for_name(reply, transfer->rsrcoffset, WI_STR("wired.transfer.rsrc_offset"));
 	wd_user_reply_message(user, reply, message);
 	
-	while(true) {
-		reply = wi_p7_socket_read_message(wd_user_p7_socket(user), 30.0);
+	reply = wd_user_read_message(user, 30.0);
+	
+	if(!reply) {
+		wi_log_warn(WI_STR("Could not read message from %@ while waiting for upload: %m"),
+			wd_user_identifier(user));
 		
-		if(!reply) {
-			wi_log_warn(WI_STR("Could not read message from %@ while waiting for upload: %m"),
-				wd_user_identifier(user));
-			
-			return false;
-		}
+		return false;
+	}
+	
+	if(!wi_p7_spec_verify_message(wd_p7_spec, reply)) {
+		wi_log_error(WI_STR("Could not verify message from %@ while waiting for upload: %m"),
+			wd_user_identifier(user));
+		wd_user_reply_error(user, WI_STR("wired.error.invalid_message"), reply);
 		
-		if(!wi_p7_spec_verify_message(wd_p7_spec, reply)) {
-			wi_log_error(WI_STR("Could not verify message from %@ while waiting for upload: %m"),
-				wd_user_identifier(user));
-			wd_user_reply_error(user, WI_STR("wired.error.invalid_message"), reply);
-			
-			continue;
-		}
+		return false;
+	}
+	
+	if(!wi_is_equal(wi_p7_message_name(reply), WI_STR("wired.transfer.upload"))) {
+		wi_log_error(WI_STR("Could not accept message %@ from %@: Expected \"wired.transfer.upload\""),
+			wi_p7_message_name(reply), wd_user_identifier(user));
+		wd_user_reply_error(user, WI_STR("wired.error.invalid_message"), reply);
 		
-		if(wi_is_equal(wi_p7_message_name(reply), WI_STR("wired.transfer.upload")))
-			break;
-		else
-			wd_messages_handle_message(reply, user);
+		return false;
 	}
 	
 	wi_p7_message_get_uint64_for_name(reply, &transfer->remainingdatasize, WI_STR("wired.transfer.data"));
@@ -962,10 +963,14 @@ static wi_boolean_t wd_transfer_download(wd_transfer_t *transfer) {
 	wd_transfers_note_statistics(WD_TRANSFER_DOWNLOAD, WD_TRANSFER_STATISTICS_ADD, 0);
 	
 	wi_dictionary_rdlock(wd_transfers_user_downloads);
+	
 	transfers = (wi_integer_t) wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key);
+	
 	wi_dictionary_unlock(wd_transfers_user_downloads);
 
 	pool = wi_pool_init(wi_pool_alloc());
+	
+	wd_user_lock_socket(transfer->user);
 	
 	while(wd_user_state(transfer->user) == WD_USER_LOGGED_IN) {
 		if(data && transfer->remainingdatasize == 0)
@@ -1068,13 +1073,17 @@ static wi_boolean_t wd_transfer_download(wd_transfer_t *transfer) {
 			accountinterval = interval;
 
 			wi_dictionary_rdlock(wd_transfers_user_downloads);
+			
 			transfers = (wi_integer_t) wi_dictionary_data_for_key(wd_transfers_user_downloads, transfer->key);
+			
 			wi_dictionary_unlock(wd_transfers_user_downloads);
 		}
 		
 		if(++i % 1000 == 0)
 			wi_pool_drain(pool);
 	}
+	
+	wd_user_unlock_socket(transfer->user);
 	
 	wi_release(pool);
 
@@ -1117,10 +1126,14 @@ static wi_boolean_t wd_transfer_upload(wd_transfer_t *transfer) {
 	wd_transfers_note_statistics(WD_TRANSFER_UPLOAD, WD_TRANSFER_STATISTICS_ADD, 0);
 
 	wi_dictionary_rdlock(wd_transfers_user_uploads);
+	
 	transfers = (wi_integer_t) wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key);
+	
 	wi_dictionary_unlock(wd_transfers_user_uploads);
 
 	pool = wi_pool_init(wi_pool_alloc());
+	
+	wd_user_lock_socket(transfer->user);
 	
 	while(wd_user_state(transfer->user) == WD_USER_LOGGED_IN) {
 		if(transfer->remainingdatasize == 0)
@@ -1217,13 +1230,17 @@ static wi_boolean_t wd_transfer_upload(wd_transfer_t *transfer) {
 			accountinterval = interval;
 			
 			wi_dictionary_rdlock(wd_transfers_user_uploads);
+			
 			transfers = (wi_integer_t) wi_dictionary_data_for_key(wd_transfers_user_uploads, transfer->key);
+			
 			wi_dictionary_unlock(wd_transfers_user_uploads);
 		}
 		
 		if(++i % 1000 == 0)
 			wi_pool_drain(pool);
 	}
+	
+	wd_user_unlock_socket(transfer->user);
 	
 	wi_release(pool);
 

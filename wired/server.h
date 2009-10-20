@@ -48,6 +48,9 @@ wi_p7_message_t *					wd_server_info_message(void);
 
 void								wd_server_log_reply_log(wd_user_t *, wi_p7_message_t *);
 
+wi_p7_message_t *					wd_user_read_message(wd_user_t *, wi_time_interval_t);
+wi_boolean_t						wd_user_write_message(wd_user_t *, wi_time_interval_t, wi_p7_message_t *);
+
 void								wd_user_send_message(wd_user_t *, wi_p7_message_t *);
 void								wd_user_reply_message(wd_user_t *, wi_p7_message_t *, wi_p7_message_t *);
 void								wd_user_reply_okay(wd_user_t *, wi_p7_message_t *);

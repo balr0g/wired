@@ -772,23 +772,45 @@ static void wd_server_log_callback(wi_log_level_t level, wi_string_t *string) {
 
 #pragma mark -
 
-void wd_user_send_message(wd_user_t *user, wi_p7_message_t *message) {
+wi_p7_message_t * wd_user_read_message(wd_user_t *user, wi_time_interval_t timeout) {
+	wi_p7_message_t		*message;
+	
 	wd_user_lock_socket(user);
 	
-	if(wd_user_transfer(user) &&
-	   !wi_is_equal(wi_p7_message_name(message), WI_STR("wired.transfer.download")) &&
-	   !wi_is_equal(wi_p7_message_name(message), WI_STR("wired.transfer.upload_ready"))) {
-		wi_log_warn(WI_STR("XXX: Sending %@ to %@ while %@ is active"),
-			message, user, wd_user_transfer(user));
-	}
-	
-	if(!wi_p7_socket_write_message(wd_user_p7_socket(user), 0.0, message)) {
-		wd_user_set_state(user, WD_USER_DISCONNECTED);
-	
-		wi_log_error(WI_STR("Could not write to %@: %m"), wd_user_ip(user));
-	}
+	message = wi_p7_socket_read_message(wd_user_p7_socket(user), timeout);
 	
 	wd_user_unlock_socket(user);
+	
+	return message;
+}
+
+
+
+wi_boolean_t wd_user_write_message(wd_user_t *user, wi_time_interval_t timeout, wi_p7_message_t *message) {
+	wi_boolean_t		result;
+	
+	wd_user_lock_socket(user);
+	
+	result = wi_p7_socket_write_message(wd_user_p7_socket(user), timeout, message);
+	
+	wd_user_unlock_socket(user);
+	
+	return result;
+}
+
+
+
+#pragma mark -
+
+void wd_user_send_message(wd_user_t *user, wi_p7_message_t *message) {
+	if(!wd_user_transfer(user)) {
+		if(!wd_user_write_message(user, 0.0, message)) {
+			wd_user_set_state(user, WD_USER_DISCONNECTED);
+			
+			wi_log_error(WI_STR("Could not write message to %@: %m"),
+				wd_user_identifier(user));
+		}
+	}
 }
 
 
@@ -865,7 +887,7 @@ void wd_broadcast_message(wi_p7_message_t *message) {
 	enumerator = wi_dictionary_data_enumerator(wd_users);
 	
 	while((user = wi_enumerator_next_data(enumerator))) {
-		if(wd_user_state(user) == WD_USER_LOGGED_IN && !wd_user_transfer(user))
+		if(wd_user_state(user) == WD_USER_LOGGED_IN)
 			wd_user_send_message(user, message);
 	}
 	
@@ -886,7 +908,7 @@ void wd_chat_broadcast_message(wd_chat_t *chat, wi_p7_message_t *message) {
 	enumerator = wi_array_data_enumerator(users);
 	
 	while((user = wi_enumerator_next_data(enumerator))) {
-		if(wd_user_state(user) == WD_USER_LOGGED_IN && !wd_user_transfer(user))
+		if(wd_user_state(user) == WD_USER_LOGGED_IN)
 			wd_user_send_message(user, message);
 	}
 	

@@ -268,11 +268,7 @@ void wd_messages_loop_for_user(wd_user_t *user) {
 			break;
 		}
 		
-		wd_user_lock_socket(user);
-		
-		message = wi_p7_socket_read_message(p7_socket, 120.0);
-		
-		wd_user_unlock_socket(user);
+		message = wd_user_read_message(user, 120.0);
 		
 		if(!message) {
 			if(wi_error_domain() != WI_ERROR_DOMAIN_LIBWIRED && wi_error_code() != WI_ERROR_SOCKET_EOF) {
