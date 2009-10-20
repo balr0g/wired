@@ -35,6 +35,7 @@
 #include <wired/wired.h>
 
 #include "chats.h"
+#include "events.h"
 #include "server.h"
 #include "settings.h"
 #include "transfers.h"
@@ -249,6 +250,7 @@ void wd_users_add_user(wd_user_t *user) {
 
 void wd_users_remove_user(wd_user_t *user) {
 	wd_chats_remove_user(user);
+	wd_events_remove_user(user);
 	wd_transfers_remove_user(user, false);
 	
 	wd_user_unsubscribe_paths(user);

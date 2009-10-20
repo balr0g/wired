@@ -631,7 +631,7 @@ static void wd_message_user_disconnect_user(wd_user_t *user, wi_p7_message_t *me
 	wd_user_set_state(peer, WD_USER_DISCONNECTED);
 	wd_user_reply_okay(user, message);
 	
-	wd_events_add_event(WI_STR("wired.event.user.disconnected"), user,
+	wd_events_add_event(WI_STR("wired.event.user.disconnected_user"), user,
 		wd_user_nick(peer), NULL);
 }
 
@@ -684,7 +684,7 @@ static void wd_message_user_ban_user(wd_user_t *user, wi_p7_message_t *message) 
 		wd_user_set_state(peer, WD_USER_DISCONNECTED);
 		wd_user_reply_okay(user, message);
 	
-		wd_events_add_event(WI_STR("wired.event.user.banned"), user,
+		wd_events_add_event(WI_STR("wired.event.user.banned_user"), user,
 			wd_user_nick(peer), NULL);
 	}
 }
@@ -699,6 +699,8 @@ static void wd_message_user_get_users(wd_user_t *user, wi_p7_message_t *message)
 	}
 	
 	wd_users_reply_users(user, message);
+
+	wd_events_add_event(WI_STR("wired.event.user.got_users"), user, NULL);
 }
 
 

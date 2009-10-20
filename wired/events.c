@@ -45,6 +45,8 @@ static wi_p7_message_t *				wd_events_message_with_dictionary(wi_string_t *, wi_
 
 static wi_mutable_array_t				*wd_events;
 
+static wi_mutable_dictionary_t			*wd_events_last_events;
+
 static wi_rwlock_t						*wd_events_lock;
 static wi_string_t						*wd_events_path;
 
@@ -62,6 +64,8 @@ void wd_events_initialize(void) {
 		wd_events = wi_retain(events);
 	else
 		wd_events = wi_array_init(wi_mutable_array_alloc());
+	
+	wd_events_last_events = wi_dictionary_init(wi_mutable_dictionary_alloc());
 }
 
 
@@ -96,10 +100,19 @@ void wd_events_add_event(wi_string_t *event, wd_user_t *user, ...) {
 	wi_enumerator_t				*enumerator;
 	wi_mutable_dictionary_t		*dictionary;
 	wi_array_t					*parameters;
-	wi_string_t					*nick, *login, *ip, *path;
+	wi_string_t					*lastevent, *nick, *login, *ip, *path;
 	wi_p7_message_t				*message;
 	wd_user_t					*peer;
 	va_list						ap;
+	
+	wi_dictionary_rdlock(wd_events_last_events);
+	
+	lastevent = wi_autorelease(wi_retain(wi_dictionary_data_for_key(wd_events_last_events, wi_number_with_integer(wd_user_id(user)))));
+	
+	wi_dictionary_unlock(wd_events_last_events);
+	
+	if(lastevent && wi_is_equal(lastevent, event))
+		return;
 	
 	va_start(ap, user);
 	
@@ -158,6 +171,24 @@ void wd_events_add_event(wi_string_t *event, wd_user_t *user, ...) {
 	}
 	
 	wi_dictionary_unlock(wd_users);
+
+	wi_dictionary_wrlock(wd_events_last_events);
+	
+	wi_mutable_dictionary_set_data_for_key(wd_events_last_events, event, wi_number_with_integer(wd_user_id(user)));
+	
+	wi_dictionary_unlock(wd_events_last_events);
+}
+
+
+
+#pragma mark -
+
+void wd_events_remove_user(wd_user_t *user) {
+	wi_dictionary_wrlock(wd_events_last_events);
+	
+	wi_mutable_dictionary_remove_data_for_key(wd_events_last_events, wi_number_with_integer(wd_user_id(user)));
+	
+	wi_dictionary_unlock(wd_events_last_events);
 }
 
 
