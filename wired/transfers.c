@@ -355,13 +355,23 @@ static wi_boolean_t wd_transfers_run_download(wd_transfer_t *transfer, wd_user_t
 static wi_boolean_t wd_transfers_run_upload(wd_transfer_t *transfer, wd_user_t *user, wi_p7_message_t *message) {
 	wi_p7_message_t		*reply;
 	wi_string_t			*path;
+	wi_p7_uint32_t		transaction;
 	wi_boolean_t		result;
 	
 	reply = wi_p7_message_with_name(WI_STR("wired.transfer.upload_ready"), wd_p7_spec);
 	wi_p7_message_set_string_for_name(reply, transfer->path, WI_STR("wired.file.path"));
 	wi_p7_message_set_oobdata_for_name(reply, transfer->dataoffset, WI_STR("wired.transfer.data_offset"));
 	wi_p7_message_set_oobdata_for_name(reply, transfer->rsrcoffset, WI_STR("wired.transfer.rsrc_offset"));
-	wd_user_reply_message(user, reply, message);
+	
+	if(wi_p7_message_get_uint32_for_name(message, &transaction, WI_STR("wired.transaction")))
+		wi_p7_message_set_uint32_for_name(reply, transaction, WI_STR("wired.transaction"));
+	
+	if(!wd_user_write_message(user, 30.0, reply)) {
+		wi_log_error(WI_STR("Could not write message to %@: %m"),
+			wd_user_identifier(user));
+
+		return false;
+	}
 	
 	reply = wd_user_read_message(user, 30.0);
 	
