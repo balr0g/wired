@@ -596,9 +596,9 @@ void wd_transfers_remove_user(wd_user_t *user, wi_boolean_t removingallusers) {
 		for(i = 0; i < count; i++) {
 			transfer = WI_ARRAY(wd_transfers, i);
 			
-			wd_user_set_state(transfer->user, WD_USER_DISCONNECTED);
-			
 			if(wi_is_equal(key, transfer->key)) {
+				wd_user_set_state(transfer->user, WD_USER_DISCONNECTED);
+			
 				if(transfer->state == WD_TRANSFER_RUNNING) {
 					if(wi_condition_lock_lock_when_condition(transfer->finished_lock, 1, 1.0))
 						wi_condition_lock_unlock(transfer->finished_lock);
