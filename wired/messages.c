@@ -2307,7 +2307,7 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	newname		= wi_p7_message_string_for_name(message, WI_STR("wired.account.new_name"));
 	
 	if(newname && !wi_is_equal(name, newname)) {
-		account = wd_accounts_read_user(wi_p7_message_string_for_name(message, newname));
+		account = wd_accounts_read_user(newname);
 		
 		if(account) {
 			wd_user_reply_error(user, WI_STR("wired.error.account_exists"), message);
@@ -2359,7 +2359,7 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 	newname		= wi_p7_message_string_for_name(message, WI_STR("wired.account.new_name"));
 	
 	if(newname && !wi_is_equal(name, newname)) {
-		account = wd_accounts_read_group(wi_p7_message_string_for_name(message, newname));
+		account = wd_accounts_read_group(newname);
 		
 		if(account) {
 			wd_user_reply_error(user, WI_STR("wired.error.account_exists"), message);
