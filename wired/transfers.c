@@ -149,8 +149,6 @@ static void wd_transfers_queue_thread(wi_runtime_instance_t *argument) {
 	wi_uinteger_t				user_downloads, user_uploads, user_transfers;
 	wi_uinteger_t				new_position, position, queue, i, count, longest_queue;
 	
-	return;
-	
 	pool = wi_pool_init(wi_pool_alloc());
 	
 	key_queues = wi_dictionary_init(wi_mutable_dictionary_alloc());
@@ -277,10 +275,6 @@ static wi_boolean_t wd_transfers_wait_until_ready(wd_transfer_t *transfer, wd_us
 	wi_p7_message_t			*reply;
 	wi_uinteger_t			queue;
 	wi_p7_uint32_t			transaction;
-	
-	transfer->queue = 0;
-	
-	return true;
 	
 	while(true) {
 		if(wi_condition_lock_lock_when_condition(transfer->queue_lock, 1, 1.0)) {
