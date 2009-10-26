@@ -729,7 +729,10 @@ static void wd_message_chat_join_chat(wd_user_t *user, wi_p7_message_t *message)
 	}
 
 	wd_chat_add_user_and_broadcast(chat, user);
-	wd_chat_remove_invitation_for_user(chat, user);
+	
+	if(chat != wd_public_chat)
+		wd_chat_remove_invitation_for_user(chat, user);
+	
 	wd_chat_reply_user_list(chat, user, message);
 
 	reply = wd_chat_topic_message(chat);
@@ -979,7 +982,7 @@ static void wd_message_chat_invite_user(wd_user_t *user, wi_p7_message_t *messag
 		return;
 	}
 	
-	wd_chat_add_invitation_for_user(chat, user);
+	wd_chat_add_invitation_for_user(chat, peer);
 
 	reply = wi_p7_message_with_name(WI_STR("wired.chat.invitation"), wd_p7_spec);
 	wi_p7_message_set_uint32_for_name(reply, wd_user_id(user), WI_STR("wired.user.id"));
@@ -1022,6 +1025,8 @@ static void wd_message_chat_decline_invitation(wd_user_t *user, wi_p7_message_t 
 		
 		return;
 	}
+	
+	wd_chat_remove_invitation_for_user(chat, user);
 
 	reply = wi_p7_message_with_name(WI_STR("wired.chat.user_decline_invitation"), wd_p7_spec);
 	wi_p7_message_set_uint32_for_name(reply, wd_user_id(user), WI_STR("wired.user.id"));
