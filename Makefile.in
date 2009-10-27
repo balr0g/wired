@@ -142,9 +142,15 @@ install-wired:
 	if [ ! -f $(installdir)/etc/wired.conf ]; then \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/etc/wired.conf $(installdir)/etc/; \
 	fi
+	
+	if [ -f $(installdir)/events ]; then \
+		rm -f $(installdir)/events; \
+	fi
 
-	if [ ! -f $(installdir)/events ]; then \
-		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/events $(installdir)/; \
+	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/events/
+
+	if [ ! -f $(installdir)/events/current ]; then \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/events/current $(installdir)/events/; \
 	fi
 
 	if [ ! -d $(installdir)/files ]; then \
