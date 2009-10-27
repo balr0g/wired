@@ -361,6 +361,7 @@ void wd_messages_handle_message(wi_p7_message_t *message, wd_user_t *user) {
 	(*handler)(user, message);
 	
 	if(handler != wd_message_send_ping &&
+	   handler != wd_message_ping &&
 	   handler != wd_message_user_set_idle &&
 	   handler != wd_message_user_get_users) {
 		wd_user_set_idle_time(user, wi_date());
