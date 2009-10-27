@@ -36,7 +36,7 @@
 #include "users.h"
 
 #define WD_EVENTS_WRITE_EVENTS			100
-#define WD_EVENTS_MAX_EVENTS			1000
+#define WD_EVENTS_MAX_EVENTS			5000
 
 
 static wi_mutable_array_t *				wd_events_array_for_archive(wi_date_t *);
