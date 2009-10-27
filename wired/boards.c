@@ -148,7 +148,8 @@ void wd_boards_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
 			board = WI_ARRAY(boards, i);
 			privs = WI_ARRAY(privileges, i);
 			
-			if(wd_board_privileges_is_readable_by_user(privs, user)) {
+			if(wd_board_privileges_is_readable_by_user(privs, user) ||
+			   wd_board_privileges_is_writable_by_user(privs, user)) {
 				reply = wi_p7_message_with_name(WI_STR("wired.board.board_list"), wd_p7_spec);
 				wi_p7_message_set_string_for_name(reply, board, WI_STR("wired.board.board"));
 				wi_p7_message_set_string_for_name(reply, privs->owner, WI_STR("wired.board.owner"));
