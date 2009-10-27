@@ -288,7 +288,7 @@ static void wd_events_archive_events(void) {
 	wi_rwlock_wrlock(wd_events_lock);
 	wi_array_wrlock(wd_events);
 	
-	if(wi_array_count(wd_events) >= 1) {
+	if(wi_array_count(wd_events) >= WD_EVENTS_MAX_EVENTS) {
 		wi_mutable_array_remove_all_data(wd_events);
 		
 		archive		= wi_date();
