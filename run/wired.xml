@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b48">
+			 version="2.0b49">
 	<p7:documentation>
 		TBD
 		
@@ -1076,7 +1076,12 @@
 				Message of a log entry.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.event.event" type="enum" id="10003" version="2.0">
+		<p7:field name="wired.event.archive" type="date" id="10003" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.event.event" type="enum" id="10004" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -1145,36 +1150,36 @@
 			<p7:enum name="wired.event.tracker.got_servers" value="62" version="2.0" />
 			<p7:enum name="wired.event.tracker.registered_server" value="63" version="2.0" />
 		</p7:field>
-		<p7:field name="wired.event.time" type="date" id="10004" version="2.0">
+		<p7:field name="wired.event.time" type="date" id="10005" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.event.parameters" type="list" listtype="string" id="10005" version="2.0">
+		<p7:field name="wired.event.parameters" type="list" listtype="string" id="10006" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.settings.register_with_trackers" type="bool" id="10006" version="2.0">
+		<p7:field name="wired.settings.register_with_trackers" type="bool" id="10007" version="2.0">
 			<p7:documentation>
 				Indicates whether the server should register with the trackers listed in
 				[field:wired.setting.trackers].
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.settings.trackers" type="list" listtype="string" id="10007" version="2.0">
+		<p7:field name="wired.settings.trackers" type="list" listtype="string" id="10008" version="2.0">
 			<p7:documentation>
 				URLs of trackers the server should register with if [field:wired.settings.register_with_trackers]
 				is on. The URLs should be in the "wired://server[:port]/Category" format.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.banlist.ip" type="string" id="10008" version="2.0">
+		<p7:field name="wired.banlist.ip" type="string" id="10009" version="2.0">
 			<p7:documentation>
 				An entry in the banlist. Should be set to the string representation of either an IPv4
 				address, e.g. "127.0.0.1", or an IPv6 address, e.g. "::1". It can also be a netblock, such as
 				"127.0.0.1/8", or a wildcard string, such as "127.0.0.*".
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.banlist.expiration_date" type="date" id="10009" version="2.0">
+		<p7:field name="wired.banlist.expiration_date" type="date" id="10010" version="2.0">
 			<p7:documentation>
 				Expiration date of an entry in the banlist.
 			</p7:documentation>
@@ -2772,14 +2777,37 @@
 			<p7:parameter field="wired.log.message" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.get_events" id="10006" version="2.0">
+		<p7:message name="wired.event.get_archives" id="10006" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.list" id="10007" version="2.0">
+		<p7:message name="wired.event.archive_list" id="10007" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.event.archive" use="required" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.event.archive_list.done" id="10008" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.event.get_events" id="10009" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.event.archive" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.event.event_list" id="10010" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -2787,33 +2815,34 @@
 			<p7:parameter field="wired.event.event" use="required" version="2.0" />
 			<p7:parameter field="wired.event.time" use="required" version="2.0" />
 			<p7:parameter field="wired.event.parameters" version="2.0" />
+			<p7:parameter field="wired.event.archive" version="2.0" />
 			<p7:parameter field="wired.user.nick" use="required" version="2.0" />
 			<p7:parameter field="wired.user.login" use="required" version="2.0" />
 			<p7:parameter field="wired.user.ip" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.list.done" id="10008" version="2.0">
+		<p7:message name="wired.event.event_list.done" id="10011" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.subscribe" id="10009" version="2.0">
+		<p7:message name="wired.event.subscribe" id="10012" version="2.0">
 			<p7:documentation>
 				Subscribe to events message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.unsubscribe" id="10010" version="2.0">
+		<p7:message name="wired.event.unsubscribe" id="10013" version="2.0">
 			<p7:documentation>
 				Unsubscribe from events message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.event" id="10011" version="2.0">
+		<p7:message name="wired.event.event" id="10014" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -2825,14 +2854,21 @@
 			<p7:parameter field="wired.user.ip" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.settings.get_settings" id="10012" version="2.0">
+		<p7:message name="wired.event.archive" id="10015" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.event.archive" use="required" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.settings.get_settings" id="10016" version="2.0">
 			<p7:documentation>
 				Get settings message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.settings.settings" id="10013" version="2.0">
+		<p7:message name="wired.settings.settings" id="10017" version="2.0">
 			<p7:documentation>
 				Settings message. [field:wired.info.name] may not be the empty string, but
 				[field:wired.info.description] may be.
@@ -2850,7 +2886,7 @@
 			<p7:parameter field="wired.tracker.categories" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.settings.set_settings" id="10014" version="2.0">
+		<p7:message name="wired.settings.set_settings" id="10018" version="2.0">
 			<p7:documentation>
 				Settings message. [field:wired.info.name] may not be the empty string, but
 				[field:wired.info.description] may be.
@@ -2868,14 +2904,14 @@
 			<p7:parameter field="wired.tracker.categories" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.get_bans" id="10015" version="2.0">
+		<p7:message name="wired.banlist.get_bans" id="10019" version="2.0">
 			<p7:documentation>
 				Get bans message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.list" id="10016" version="2.0">
+		<p7:message name="wired.banlist.list" id="10020" version="2.0">
 			<p7:documentation>
 				Ban list item message. [field:wired.banlist.ip] may not be the empty string. If
 				[field:wired.banlist.expiration_date] is not set, the ban does not expire.
@@ -2885,14 +2921,14 @@
 			<p7:parameter field="wired.banlist.expiration_date" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.list.done" id="10017" version="2.0">
+		<p7:message name="wired.banlist.list.done" id="10021" version="2.0">
 			<p7:documentation>
 				Ban list completion message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.add_ban" id="10018" version="2.0">
+		<p7:message name="wired.banlist.add_ban" id="10022" version="2.0">
 			<p7:documentation>
 				Add ban message. [field:wired.banlist.ip] may not be the empty string. If
 				[field:wired.banlist.expiration_date] is not set, the ban does not expire.
@@ -2902,7 +2938,7 @@
 			<p7:parameter field="wired.banlist.expiration_date" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.delete_ban" id="10019" version="2.0">
+		<p7:message name="wired.banlist.delete_ban" id="10023" version="2.0">
 			<p7:documentation>
 				Delete ban message. [field:wired.banlist.ip] may not be the empty string. This should
 				match and delete exactly one ban. [field:wired.banlist.expiration_date] should be filled in
@@ -4492,6 +4528,26 @@
 			</p7:or>
 		</p7:transaction>
 
+		<p7:transaction message="wired.event.get_archives" originator="client" version="2.0">
+			<p7:documentation>
+				[message:wired.error] should be replied with [enum:wired.error.permission_denied]
+				if [field:wired.account.events.view_events] is not set for the user's account.
+				
+				[message:wired.error] should be replied with [enum:wired.error.message_out_of_sequence]
+				if sent before [message:wired.client_info].
+				
+				Otherwise, zero or more [message:wired.event.archive_list] terminated by a single
+				[message:wired.event.archive_list.done] should be replied.
+			</p7:documentation>
+			<p7:or>
+				<p7:and>
+					<p7:reply message="wired.event.archive_list" count="*" use="required" version="2.0" />
+					<p7:reply message="wired.event.archive_list.done" count="1" use="required" version="2.0" />
+				</p7:and>
+				<p7:reply message="wired.error" count="1" use="required" version="2.0" />
+			</p7:or>
+		</p7:transaction>
+		
 		<p7:transaction message="wired.event.get_events" originator="client" version="2.0">
 			<p7:documentation>
 				[message:wired.error] should be replied with [enum:wired.error.permission_denied]
@@ -4500,13 +4556,13 @@
 				[message:wired.error] should be replied with [enum:wired.error.message_out_of_sequence]
 				if sent before [message:wired.client_info].
 				
-				Otherwise, zero or more [message:wired.event.list] terminated by a single
-				[message:wired.event.list.done] should be replied.
+				Otherwise, zero or more [message:wired.event.event_list] terminated by a single
+				[message:wired.event.event_list.done] should be replied.
 			</p7:documentation>
 			<p7:or>
 				<p7:and>
-					<p7:reply message="wired.event.list" count="*" use="required" version="2.0" />
-					<p7:reply message="wired.event.list.done" count="1" use="required" version="2.0" />
+					<p7:reply message="wired.event.event_list" count="*" use="required" version="2.0" />
+					<p7:reply message="wired.event.event_list.done" count="1" use="required" version="2.0" />
 				</p7:and>
 				<p7:reply message="wired.error" count="1" use="required" version="2.0" />
 			</p7:or>
@@ -4521,7 +4577,7 @@
 				if sent before [message:wired.client_info].
 				
 				Otherwise, [message:wired.okay] should be replied. After this, the user may receive
-				[message:wired.event.event] messages.
+				[message:wired.event.event] and [message:wired.event.archive] messages.
 				
 				The subscription may be silently dropped if the user's account loses the
 				[field:wired.account.events.view_events] privilege while subscribed.
@@ -4914,6 +4970,12 @@
 		</p7:broadcast>
 		
 		<p7:broadcast message="wired.event.event" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:broadcast>
+		
+		<p7:broadcast message="wired.event.archive" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>

@@ -117,6 +117,7 @@ static void							wd_message_transfer_upload_directory(wd_user_t *, wi_p7_messag
 static void							wd_message_log_get_log(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_log_subscribe(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_log_unsubscribe(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_event_get_archives(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_event_get_events(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_event_subscribe(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_event_unsubscribe(wd_user_t *, wi_p7_message_t *);
@@ -214,6 +215,7 @@ void wd_messages_initialize(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.get_log"), wd_message_log_get_log);
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.subscribe"), wd_message_log_subscribe);
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.unsubscribe"), wd_message_log_unsubscribe);
+	WD_MESSAGE_HANDLER(WI_STR("wired.event.get_archives"), wd_message_event_get_archives);
 	WD_MESSAGE_HANDLER(WI_STR("wired.event.get_events"), wd_message_event_get_events);
 	WD_MESSAGE_HANDLER(WI_STR("wired.event.subscribe"), wd_message_event_subscribe);
 	WD_MESSAGE_HANDLER(WI_STR("wired.event.unsubscribe"), wd_message_event_unsubscribe);
@@ -2772,16 +2774,32 @@ static void wd_message_log_unsubscribe(wd_user_t *user, wi_p7_message_t *message
 
 
 
-static void wd_message_event_get_events(wd_user_t *user, wi_p7_message_t *message) {
+static void wd_message_event_get_archives(wd_user_t *user, wi_p7_message_t *message) {
 	if(!wd_account_events_view_events(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
 	}
+	
+	wd_events_reply_archives(user, message);
+}
+
+
+
+static void wd_message_event_get_events(wd_user_t *user, wi_p7_message_t *message) {
+	wi_date_t		*archive;
+	
+	if(!wd_account_events_view_events(wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return;
+	}
+	
+	archive = wi_p7_message_date_for_name(message, WI_STR("wired.event.archive"));
 
 	wd_events_add_event(WI_STR("wired.event.events.got_events"), user, NULL);
-
-	wd_events_reply_events(user, message);
+	
+	wd_events_reply_events(archive, user, message);
 }
 
 
