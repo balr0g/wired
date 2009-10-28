@@ -623,11 +623,13 @@ static void wd_server_accept_thread(wi_runtime_instance_t *argument) {
 
 static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 	wi_pool_t			*pool;
-	wi_p7_message_t		*message;
+	wi_socket_t			*socket;
+	wi_p7_message_t		*message, *reply;
 	wi_address_t		*address;
-	wi_cipher_t			*cipher;
-	wi_string_t			*ip;
+	wi_string_t			*ip, *name;
 	wi_data_t			*data;
+	wi_cipher_t			*cipher;
+	wd_server_t			*server;
 	char				buffer[WI_SOCKET_BUFFER_SIZE];
 	wi_integer_t		bytes;
 	
@@ -652,8 +654,9 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 			continue;
 		}
 		
-		data = wi_data_with_bytes(buffer, bytes);
-		cipher = wd_servers_cipher_for_ip(ip);
+		data		= wi_data_with_bytes(buffer, bytes);
+		server		= wd_servers_server_for_ip(ip);
+		cipher		= wd_server_cipher(server);
 		
 		if(cipher) {
 			data = wi_cipher_decrypt(cipher, data);
@@ -669,7 +672,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 		
 		if(!message) {
 			wi_log_error(WI_STR("Could not create message from received data from %@: %m"), ip);
-
+			
 			continue;
 		}
 		
@@ -678,10 +681,58 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 			
 			continue;
 		}
-
-		if(wi_is_equal(wi_p7_message_name(message), WI_STR("wired.tracker.send_update"))) {
-			if(wi_config_bool_for_name(wd_config, WI_STR("enable tracker")))
-				wd_servers_update_server(NULL, message);
+		
+		reply		= NULL;
+		name		= wi_p7_message_name(message);
+		
+		if(wi_is_equal(name, WI_STR("wired.tracker.send_update"))) {
+			if(wi_config_bool_for_name(wd_config, WI_STR("enable tracker"))) {
+				if(!wd_servers_update_server(NULL, message)) {
+					reply = wi_p7_message_with_name(WI_STR("wired.error"), wd_p7_spec);
+					wi_p7_message_set_enum_name_for_name(reply, WI_STR("wired.error.not_registered"), WI_STR("wired.error"));
+				}
+			} else {
+				reply = wi_p7_message_with_name(WI_STR("wired.error"), wd_p7_spec);
+				wi_p7_message_set_enum_name_for_name(reply, WI_STR("wired.error.tracker_not_enabled"), WI_STR("wired.error"));
+			}
+		}
+		else if(wi_is_equal(name, WI_STR("wired.error"))) {
+			wd_trackers_register();
+		}
+		
+		if(reply) {
+			wi_address_set_port(address, wd_server_port(server));
+			
+			socket = wi_autorelease(wi_socket_init_with_address(wi_socket_alloc(), address, WI_SOCKET_UDP));
+			
+			if(!socket) {
+				wi_log_error(WI_STR("Could not create a socket for %@: %m"),
+					ip);
+				
+				continue;
+			}
+			
+			data = wi_p7_message_data_with_serialization(reply, WI_P7_BINARY);
+			
+			if(cipher) {
+				data = wi_cipher_encrypt(cipher, data);
+			
+				if(!data) {
+					wi_log_error(WI_STR("Could not encrypt message for %@: %m"),
+						ip);
+					
+					continue;
+				}
+			}
+			
+			bytes = wi_socket_sendto_data(socket, data);
+			
+			if(bytes < 0) {
+				wi_log_error(WI_STR("Could not send message to \"%@\": %m"),
+					ip);
+				
+				continue;
+			}
 		}
 	}
 	

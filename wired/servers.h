@@ -38,11 +38,15 @@ void								wd_servers_initialize(void);
 void								wd_servers_apply_settings(void);
 void								wd_servers_schedule(void);
 
-wi_cipher_t *						wd_servers_cipher_for_ip(wi_string_t *);
+wd_server_t *						wd_servers_server_for_ip(wi_string_t *);
 
 void								wd_servers_register_server(wd_user_t *, wi_p7_message_t *);
 wi_boolean_t						wd_servers_update_server(wd_user_t *, wi_p7_message_t *);
 void								wd_servers_reply_categories(wd_user_t *, wi_p7_message_t *);
 void								wd_servers_reply_server_list(wd_user_t *, wi_p7_message_t *);
+
+wi_boolean_t						wd_server_is_active(wd_server_t *);
+wi_cipher_t *						wd_server_cipher(wd_server_t *);
+wi_uinteger_t						wd_server_port(wd_server_t *);
 
 #endif /* WD_SERVERS_H */

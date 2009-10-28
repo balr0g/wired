@@ -38,12 +38,14 @@
 #include "settings.h"
 #include "users.h"
 
-#define WD_SERVERS_UPDATE_INTERVAL		60.0
-#define WD_SERVERS_MIN_UPDATE_INTERVAL	300.0
+#define WD_SERVERS_UPDATE_INTERVAL		10.0
+#define WD_SERVERS_MIN_UPDATE_INTERVAL	10.0
 
 
 struct _wd_server {
 	wi_runtime_base_t					base;
+	
+	wi_boolean_t						active;
 	
 	wi_uuid_t							*token;
 	wi_time_interval_t					register_time;
@@ -69,7 +71,7 @@ static void								wd_servers_update_servers(wi_timer_t *);
 static void								wd_servers_add_server(wd_server_t *);
 static void								wd_servers_remove_server(wd_server_t *);
 static wd_server_t *					wd_servers_server_equal_to_server(wd_server_t *);
-static wd_server_t *					wd_servers_server_with_token(wi_uuid_t *);
+static wd_server_t *					wd_servers_server_for_token(wi_uuid_t *);
 static void								wd_servers_add_stats_for_server(wd_server_t *);
 static void								wd_servers_remove_stats_for_server(wd_server_t *);
 
@@ -123,7 +125,6 @@ void wd_servers_schedule(void) {
 
 static void wd_servers_update_servers(wi_timer_t *timer) {
 	wi_enumerator_t		*enumerator;
-	wi_string_t			*token;
 	wd_server_t			*server;
 	wi_time_interval_t	interval, update;
 	wi_boolean_t		changed = false;
@@ -133,25 +134,26 @@ static void wd_servers_update_servers(wi_timer_t *timer) {
 	if(wi_dictionary_count(wd_servers) > 0) {
 		interval = wi_time_interval();
 
-		enumerator = wi_array_data_enumerator(wi_dictionary_all_keys(wd_servers));
+		enumerator = wi_dictionary_data_enumerator(wd_servers);
 		
-		while((token = wi_enumerator_next_data(enumerator))) {
-			server = wi_dictionary_data_for_key(wd_servers, token);
-			update = server->update_time > 0.0 ? server->update_time : server->register_time;
-			
-			if(interval - update > WD_SERVERS_MIN_UPDATE_INTERVAL) {
-				if(server->update_time > 0.0) {
-					wi_log_warn(WI_STR("Removing server \"%@\": Last update was %.0f seconds ago"),
-						server->name, interval - update);
-				} else {
-					wi_log_warn(WI_STR("Removing server \"%@\": Never received received an update"),
-						server->name);
-				}
-
-				wd_servers_remove_stats_for_server(server);
-				wi_mutable_dictionary_remove_data_for_key(wd_servers, token);
+		while((server = wi_enumerator_next_data(enumerator))) {
+			if(server->active) {
+				update = server->update_time > 0.0 ? server->update_time : server->register_time;
 				
-				changed = true;
+				if(interval - update > WD_SERVERS_MIN_UPDATE_INTERVAL) {
+					if(server->update_time > 0.0) {
+						wi_log_warn(WI_STR("Removing server \"%@\": Last update was %.0f seconds ago"),
+							server->name, interval - update);
+					} else {
+						wi_log_warn(WI_STR("Removing server \"%@\": Never received an update"),
+							server->name);
+					}
+
+					wd_servers_remove_stats_for_server(server);
+					
+					server->active	= false;
+					changed			= true;
+				}
 			}
 		}
 	}
@@ -209,7 +211,7 @@ static wd_server_t * wd_servers_server_equal_to_server(wd_server_t *server) {
 
 
 
-static wd_server_t * wd_servers_server_with_token(wi_uuid_t *token) {
+static wd_server_t * wd_servers_server_for_token(wi_uuid_t *token) {
 	wd_server_t		*server;
 	
 	wi_dictionary_rdlock(wd_servers);
@@ -246,18 +248,17 @@ static void wd_servers_remove_stats_for_server(wd_server_t *server) {
 
 #pragma mark -
 
-wi_cipher_t * wd_servers_cipher_for_ip(wi_string_t *ip) {
+wd_server_t * wd_servers_server_for_ip(wi_string_t *ip) {
 	wi_enumerator_t	*enumerator;
-	wi_cipher_t		*cipher = NULL;
-	wd_server_t		*server;
+	wd_server_t		*each_server, *server = NULL;
 
 	wi_dictionary_rdlock(wd_servers);
 	
 	enumerator = wi_dictionary_data_enumerator(wd_servers);
 	
-	while((server = wi_enumerator_next_data(enumerator))) {
-		if(wi_is_equal(server->ip, ip)) {
-			cipher = wi_autorelease(wi_retain(server->cipher));
+	while((each_server = wi_enumerator_next_data(enumerator))) {
+		if(wi_is_equal(each_server->ip, ip)) {
+			server = wi_autorelease(wi_retain(each_server));
 
 			break;
 		}
@@ -265,7 +266,7 @@ wi_cipher_t * wd_servers_cipher_for_ip(wi_string_t *ip) {
 
 	wi_dictionary_unlock(wd_servers);
 
-	return cipher;
+	return server;
 }
 
 
@@ -330,10 +331,10 @@ wi_boolean_t wd_servers_update_server(wd_user_t *user, wi_p7_message_t *message)
 	wi_uuid_t			*token;
 	wd_server_t			*server;
 
-	token = wi_p7_message_uuid_for_name(message, WI_STR("wired.tracker.token"));
-	server = wd_servers_server_with_token(token);
+	token		= wi_p7_message_uuid_for_name(message, WI_STR("wired.tracker.token"));
+	server		= wd_servers_server_for_token(token);
 	
-	if(!server) {
+	if(!server || !server->active) {
 		if(user)
 			wd_user_reply_error(user, WI_STR("wired.error.not_registered"), message);
 		
@@ -382,16 +383,18 @@ void wd_servers_reply_server_list(wd_user_t *user, wi_p7_message_t *message) {
 	enumerator = wi_dictionary_data_enumerator(wd_servers);
 	
 	while((server = wi_enumerator_next_data(enumerator))) {
-		reply = wi_p7_message_with_name(WI_STR("wired.tracker.server_list"), wd_p7_spec);
-		wi_p7_message_set_bool_for_name(reply, server->tracker, WI_STR("wired.tracker.tracker"));
-		wi_p7_message_set_string_for_name(reply, server->category, WI_STR("wired.tracker.category"));
-		wi_p7_message_set_string_for_name(reply, server->url, WI_STR("wired.tracker.url"));
-		wi_p7_message_set_uint32_for_name(reply, server->users, WI_STR("wired.tracker.users"));
-		wi_p7_message_set_string_for_name(reply, server->name, WI_STR("wired.info.name"));
-		wi_p7_message_set_string_for_name(reply, server->description, WI_STR("wired.info.description"));
-		wi_p7_message_set_uint64_for_name(reply, server->files_count, WI_STR("wired.info.files.count"));
-		wi_p7_message_set_uint64_for_name(reply, server->files_size, WI_STR("wired.info.files.size"));
-		wd_user_reply_message(user, reply, message);
+		if(server->active) {
+			reply = wi_p7_message_with_name(WI_STR("wired.tracker.server_list"), wd_p7_spec);
+			wi_p7_message_set_bool_for_name(reply, server->tracker, WI_STR("wired.tracker.tracker"));
+			wi_p7_message_set_string_for_name(reply, server->category, WI_STR("wired.tracker.category"));
+			wi_p7_message_set_string_for_name(reply, server->url, WI_STR("wired.tracker.url"));
+			wi_p7_message_set_uint32_for_name(reply, server->users, WI_STR("wired.tracker.users"));
+			wi_p7_message_set_string_for_name(reply, server->name, WI_STR("wired.info.name"));
+			wi_p7_message_set_string_for_name(reply, server->description, WI_STR("wired.info.description"));
+			wi_p7_message_set_uint64_for_name(reply, server->files_count, WI_STR("wired.info.files.count"));
+			wi_p7_message_set_uint64_for_name(reply, server->files_size, WI_STR("wired.info.files.size"));
+			wd_user_reply_message(user, reply, message);
+		}
 	}
 	
 	wi_dictionary_unlock(wd_servers);
@@ -411,6 +414,7 @@ static wd_server_t * wd_server_alloc(void) {
 
 
 static wd_server_t * wd_server_init_with_message(wd_server_t *server, wi_p7_message_t *message) {
+	server->active			= true;
 	server->token			= wi_uuid_init(wi_uuid_alloc());
 	server->ip				= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.tracker.ip")));
 	server->category		= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.tracker.category")));
@@ -440,4 +444,24 @@ static void wd_server_dealloc(wi_runtime_instance_t *instance) {
 	wi_release(server->url);
 	wi_release(server->name);
 	wi_release(server->description);
+}
+
+
+
+#pragma mark -
+
+wi_boolean_t wd_server_is_active(wd_server_t *server) {
+	return server->active;
+}
+
+
+
+wi_cipher_t * wd_server_cipher(wd_server_t *server) {
+	return server->cipher;
+}
+
+
+
+wi_uinteger_t wd_server_port(wd_server_t *server) {
+	return server->port;
 }

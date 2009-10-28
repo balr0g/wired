@@ -38,7 +38,7 @@
 #include "trackers.h"
 
 #define WD_TRACKERS_REGISTER_INTERVAL	3600.0
-#define WD_TRACKERS_UPDATE_INTERVAL		6.0
+#define WD_TRACKERS_UPDATE_INTERVAL		20.0
 
 
 struct _wd_tracker {
@@ -122,10 +122,16 @@ void wd_trackers_apply_settings(wi_set_t *changes) {
 	wi_string_t			*string;
 	wi_url_t			*url;
 	wd_tracker_t		*tracker;
+	wi_boolean_t		changed = false;
 	
 	if(wi_set_contains_data(changes, WI_STR("tracker"))) {
 		wi_array_wrlock(wd_trackers);
-		wi_mutable_array_remove_all_data(wd_trackers);
+		
+		if(wi_array_count(wd_trackers) > 0) {
+			wi_mutable_array_remove_all_data(wd_trackers);
+			
+			changed = true;
+		}
 		
 		trackers = wi_config_stringlist_for_name(wd_config, WI_STR("tracker"));
 		
@@ -152,9 +158,10 @@ void wd_trackers_apply_settings(wi_set_t *changes) {
 		}
 		
 		wi_array_unlock(wd_trackers);
-		
-		wd_trackers_register();
 	}
+		
+	if(changed)
+		wd_trackers_register();
 }
 
 
