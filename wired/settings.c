@@ -53,6 +53,7 @@ void wd_settings_initialize(void) {
 		WI_INT32(WI_CONFIG_PATH),				WI_STR("files"),
 		WI_INT32(WI_CONFIG_GROUP),				WI_STR("group"),
 		WI_INT32(WI_CONFIG_TIME_INTERVAL),		WI_STR("index time"),
+		WI_INT32(WI_CONFIG_STRING),				WI_STR("ip"),
 		WI_INT32(WI_CONFIG_BOOL),				WI_STR("map port"),
 		WI_INT32(WI_CONFIG_STRING),				WI_STR("name"),
 		WI_INT32(WI_CONFIG_PORT),				WI_STR("port"),
