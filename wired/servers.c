@@ -38,8 +38,8 @@
 #include "settings.h"
 #include "users.h"
 
-#define WD_SERVERS_UPDATE_INTERVAL		10.0
-#define WD_SERVERS_MIN_UPDATE_INTERVAL	10.0
+#define WD_SERVERS_UPDATE_INTERVAL		60.0
+#define WD_SERVERS_MIN_UPDATE_INTERVAL	360.0
 
 
 struct _wd_server {

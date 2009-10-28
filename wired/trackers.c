@@ -38,7 +38,7 @@
 #include "trackers.h"
 
 #define WD_TRACKERS_REGISTER_INTERVAL	3600.0
-#define WD_TRACKERS_UPDATE_INTERVAL		20.0
+#define WD_TRACKERS_UPDATE_INTERVAL		60.0
 
 
 struct _wd_tracker {
