@@ -152,6 +152,8 @@ void wd_trackers_apply_settings(wi_set_t *changes) {
 		}
 		
 		wi_array_unlock(wd_trackers);
+		
+		wd_trackers_register();
 	}
 }
 
