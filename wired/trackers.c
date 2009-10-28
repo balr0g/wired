@@ -402,7 +402,7 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 		tracker->cipher		= wi_retain(wi_p7_socket_cipher(p7_socket));
 		tracker->token		= wi_retain(wi_p7_message_uuid_for_name(message, WI_STR("wired.tracker.token")));
 		tracker->active		= true;
-		tracker->address	= address;
+		tracker->address	= wi_retain(address);
 		
 		wi_log_info(WI_STR("Registered with the tracker \"%@\""),
 			tracker->host);
