@@ -656,7 +656,11 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 		
 		data		= wi_data_with_bytes(buffer, bytes);
 		server		= wd_servers_server_for_ip(ip);
-		cipher		= wd_server_cipher(server);
+		
+		if(!server)
+			continue;
+		
+		cipher = wd_server_cipher(server);
 		
 		if(cipher) {
 			data = wi_cipher_decrypt(cipher, data);
