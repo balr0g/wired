@@ -41,7 +41,7 @@ void								wd_servers_schedule(void);
 wd_server_t *						wd_servers_server_for_ip(wi_string_t *);
 
 void								wd_servers_register_server(wd_user_t *, wi_p7_message_t *);
-wi_boolean_t						wd_servers_update_server(wd_user_t *, wi_p7_message_t *);
+wi_boolean_t						wd_servers_update_server(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 void								wd_servers_reply_categories(wd_user_t *, wi_p7_message_t *);
 void								wd_servers_reply_server_list(wd_user_t *, wi_p7_message_t *);
 

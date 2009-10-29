@@ -226,12 +226,9 @@
 		77D9C3AC10989471004F4F0B /* libnatpmp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libnatpmp.a; sourceTree = "<group>"; };
 		77D9C3AD10989471004F4F0B /* libwired.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libwired.a; sourceTree = "<group>"; };
 		77D9C3AE10989471004F4F0B /* test */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = test; sourceTree = "<group>"; };
-		77D9C3AF10989471004F4F0B /* transfertest */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = transfertest; sourceTree = "<group>"; };
 		77D9C3B010989471004F4F0B /* users */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = users; sourceTree = "<group>"; };
-		77D9C3B110989471004F4F0B /* wired */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = wired; sourceTree = "<group>"; };
 		77D9C3B210989471004F4F0B /* wired.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = wired.html; sourceTree = "<group>"; };
 		77D9C3B310989471004F4F0B /* wired.xml */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = wired.xml; sourceTree = "<group>"; };
-		77D9C3B410989471004F4F0B /* wiredctl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.sh; path = wiredctl; sourceTree = "<group>"; };
 		77D9C3B710989471004F4F0B /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
 		77D9C3BA10989471004F4F0B /* codelength.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = codelength.h; sourceTree = "<group>"; };
 		77D9C3BB10989471004F4F0B /* declspec.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = declspec.h; sourceTree = "<group>"; };
@@ -650,12 +647,9 @@
 				77D9C36810989471004F4F0B /* files */,
 				77D9C37010989471004F4F0B /* groups */,
 				77D9C37110989471004F4F0B /* libwired */,
-				77D9C3AF10989471004F4F0B /* transfertest */,
 				77D9C3B010989471004F4F0B /* users */,
-				77D9C3B110989471004F4F0B /* wired */,
 				77D9C3B210989471004F4F0B /* wired.html */,
 				77D9C3B310989471004F4F0B /* wired.xml */,
-				77D9C3B410989471004F4F0B /* wiredctl */,
 			);
 			path = run;
 			sourceTree = "<group>";
@@ -946,6 +940,22 @@
 		};
 /* End PBXGroup section */
 
+/* Begin PBXLegacyTarget section */
+		77D9E5731099E739004F4F0B /* wired */ = {
+			isa = PBXLegacyTarget;
+			buildArgumentsString = "$(ACTION)";
+			buildConfigurationList = 77D9E57B1099E768004F4F0B /* Build configuration list for PBXLegacyTarget "wired" */;
+			buildPhases = (
+			);
+			buildToolPath = /usr/bin/make;
+			dependencies = (
+			);
+			name = wired;
+			passBuildSettingsInEnvironment = 1;
+			productName = wired;
+		};
+/* End PBXLegacyTarget section */
+
 /* Begin PBXProject section */
 		77C7D06E109892860042BADC /* Project object */ = {
 			isa = PBXProject;
@@ -957,12 +967,19 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				77D9E5731099E739004F4F0B /* wired */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin XCBuildConfiguration section */
 		77C7D06F109892860042BADC /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+			};
+			name = Debug;
+		};
+		77D9E5741099E739004F4F0B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 			};
@@ -975,6 +992,14 @@
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				77C7D06F109892860042BADC /* Debug */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		77D9E57B1099E768004F4F0B /* Build configuration list for PBXLegacyTarget "wired" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				77D9E5741099E739004F4F0B /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;

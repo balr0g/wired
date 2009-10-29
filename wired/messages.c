@@ -3012,6 +3012,6 @@ static void wd_message_tracker_send_update(wd_user_t *user, wi_p7_message_t *mes
 		return;
 	}
 	
-	if(wd_servers_update_server(user, message))
+	if(wd_servers_update_server(wd_user_ip(user), user, message))
 		wd_user_reply_okay(user, message);
 }

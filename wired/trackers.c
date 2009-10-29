@@ -244,6 +244,102 @@ static void wd_trackers_update(void) {
 
 #pragma mark -
 
+static wd_tracker_t * wd_tracker_alloc(void) {
+	return wi_runtime_create_instance(wd_tracker_runtime_id, sizeof(wd_tracker_t));
+}
+
+
+
+static wd_tracker_t * wd_tracker_init_with_url(wd_tracker_t *tracker, wi_url_t *url) {
+	wi_enumerator_t		*enumerator;
+	wi_address_t		*address;
+	wi_string_t			*path, *user, *password;
+	wi_uinteger_t		port;
+	
+	path = wi_url_path(url);
+	
+	if(!path || wi_string_length(path) == 0)
+		path = WI_STR("/");
+	
+	user = wi_url_user(url);
+	
+	if(!user || wi_string_length(user) == 0)
+		user = WI_STR("guest");
+
+	password = wi_url_password(url);
+	
+	if(!password)
+		password = WI_STR("");
+	
+	if(wi_string_length(password) != 40)
+		password = wi_string_sha1(password);
+	
+	tracker->host		= wi_retain(wi_url_host(url));
+	tracker->user		= wi_retain(user);
+	tracker->password	= wi_retain(password);
+	tracker->category	= wi_retain(wi_string_substring_from_index(path, 1));
+	tracker->addresses	= wi_retain(wi_host_addresses(wi_host_with_string(tracker->host)));
+	
+	if(!tracker->addresses) {
+		wi_log_error(WI_STR("Could not resolve \"%@\": %m"), tracker->host);
+		
+		wi_release(tracker);
+		
+		return NULL;
+	}
+	
+	port = wi_url_port(url);
+	
+	if(port == 0)
+		port = WD_SERVER_PORT;
+	
+	enumerator = wi_array_data_enumerator(tracker->addresses);
+	
+	while((address = wi_enumerator_next_data(enumerator)))
+		wi_address_set_port(address, port);
+	
+	tracker->register_lock = wi_lock_init(wi_lock_alloc());
+	
+	return tracker;
+}
+
+
+
+static void wd_tracker_dealloc(wi_runtime_instance_t *instance) {
+	wd_tracker_t		*tracker = instance;
+
+	wi_release(tracker->register_lock);
+
+	wi_release(tracker->cipher);
+	wi_release(tracker->address);
+
+	wi_release(tracker->addresses);
+	
+	wi_release(tracker->host);
+	wi_release(tracker->user);
+	wi_release(tracker->password);
+	wi_release(tracker->category);
+	wi_release(tracker->token);
+}
+
+
+
+static wi_string_t * wd_tracker_description(wi_runtime_instance_t *instance) {
+	wd_tracker_t		*tracker = instance;
+	
+	return wi_string_with_format(WI_STR("<%@ %p>{host = %@, category = %@, active = %d}"),
+		wi_runtime_class_name(tracker),
+		tracker,
+		tracker->host,
+		tracker->category,
+		tracker->active);
+}
+
+
+
+
+#pragma mark -
+
 static void wd_tracker_register(wd_tracker_t *tracker) {
 	wi_pool_t			*pool;
 	wi_enumerator_t		*enumerator;
@@ -498,99 +594,4 @@ static wi_boolean_t wd_tracker_write_message(wd_tracker_t *tracker, wi_p7_socket
 	}
 	
 	return true;
-}
-
-
-
-#pragma mark -
-
-static wd_tracker_t * wd_tracker_alloc(void) {
-	return wi_runtime_create_instance(wd_tracker_runtime_id, sizeof(wd_tracker_t));
-}
-
-
-
-static wd_tracker_t * wd_tracker_init_with_url(wd_tracker_t *tracker, wi_url_t *url) {
-	wi_enumerator_t		*enumerator;
-	wi_address_t		*address;
-	wi_string_t			*path, *user, *password;
-	wi_uinteger_t		port;
-	
-	path = wi_url_path(url);
-	
-	if(!path || wi_string_length(path) == 0)
-		path = WI_STR("/");
-	
-	user = wi_url_user(url);
-	
-	if(!user || wi_string_length(user) == 0)
-		user = WI_STR("guest");
-
-	password = wi_url_password(url);
-	
-	if(!password)
-		password = WI_STR("");
-	
-	if(wi_string_length(password) != 40)
-		password = wi_string_sha1(password);
-	
-	tracker->host		= wi_retain(wi_url_host(url));
-	tracker->user		= wi_retain(user);
-	tracker->password	= wi_retain(password);
-	tracker->category	= wi_retain(wi_string_substring_from_index(path, 1));
-	tracker->addresses	= wi_retain(wi_host_addresses(wi_host_with_string(tracker->host)));
-	
-	if(!tracker->addresses) {
-		wi_log_error(WI_STR("Could not resolve \"%@\": %m"), tracker->host);
-		
-		wi_release(tracker);
-		
-		return NULL;
-	}
-	
-	port = wi_url_port(url);
-	
-	if(port == 0)
-		port = WD_SERVER_PORT;
-	
-	enumerator = wi_array_data_enumerator(tracker->addresses);
-	
-	while((address = wi_enumerator_next_data(enumerator)))
-		wi_address_set_port(address, port);
-	
-	tracker->register_lock = wi_lock_init(wi_lock_alloc());
-	
-	return tracker;
-}
-
-
-
-static void wd_tracker_dealloc(wi_runtime_instance_t *instance) {
-	wd_tracker_t		*tracker = instance;
-
-	wi_release(tracker->register_lock);
-
-	wi_release(tracker->cipher);
-	wi_release(tracker->address);
-
-	wi_release(tracker->addresses);
-	
-	wi_release(tracker->host);
-	wi_release(tracker->user);
-	wi_release(tracker->password);
-	wi_release(tracker->category);
-	wi_release(tracker->token);
-}
-
-
-
-static wi_string_t * wd_tracker_description(wi_runtime_instance_t *instance) {
-	wd_tracker_t		*tracker = instance;
-	
-	return wi_string_with_format(WI_STR("<%@ %p>{host = %@, category = %@, active = %d}"),
-		wi_runtime_class_name(tracker),
-		tracker,
-		tracker->host,
-		tracker->category,
-		tracker->active);
 }

@@ -654,13 +654,16 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 			continue;
 		}
 		
-		data		= wi_data_with_bytes(buffer, bytes);
-		server		= wd_servers_server_for_ip(ip);
+		server = wd_servers_server_for_ip(ip);
 		
-		if(!server)
+		if(!server) {
+			wi_log_error(WI_STR("Could not receive data from %@: No server found"), ip);
+			
 			continue;
+		}
 		
-		cipher = wd_server_cipher(server);
+		data		= wi_data_with_bytes(buffer, bytes);
+		cipher		= wd_server_cipher(server);
 		
 		if(cipher) {
 			data = wi_cipher_decrypt(cipher, data);
@@ -691,7 +694,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 		
 		if(wi_is_equal(name, WI_STR("wired.tracker.send_update"))) {
 			if(wi_config_bool_for_name(wd_config, WI_STR("enable tracker"))) {
-				if(!wd_servers_update_server(NULL, message)) {
+				if(!wd_servers_update_server(ip, NULL, message)) {
 					reply = wi_p7_message_with_name(WI_STR("wired.error"), wd_p7_spec);
 					wi_p7_message_set_enum_name_for_name(reply, WI_STR("wired.error.not_registered"), WI_STR("wired.error"));
 				}

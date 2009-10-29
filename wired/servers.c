@@ -47,6 +47,7 @@ struct _wd_server {
 	
 	wi_boolean_t						active;
 	
+	wi_string_t							*key;
 	wi_uuid_t							*token;
 	wi_time_interval_t					register_time;
 	wi_time_interval_t					update_time;
@@ -67,20 +68,23 @@ struct _wd_server {
 
 
 static void								wd_servers_update_servers(wi_timer_t *);
+static void								wd_servers_write_servers(void);
 
 static void								wd_servers_add_server(wd_server_t *);
 static void								wd_servers_remove_server(wd_server_t *);
-static wd_server_t *					wd_servers_server_equal_to_server(wd_server_t *);
-static wd_server_t *					wd_servers_server_for_token(wi_uuid_t *);
 static void								wd_servers_add_stats_for_server(wd_server_t *);
 static void								wd_servers_remove_stats_for_server(wd_server_t *);
 
 static wd_server_t *					wd_server_alloc(void);
 static wd_server_t *					wd_server_init_with_message(wd_server_t *, wi_p7_message_t *);
+static wd_server_t *					wd_server_init_with_dictionary_representation(wd_server_t *, wi_dictionary_t *);
 static void								wd_server_dealloc(wi_runtime_instance_t *);
 
+static wi_dictionary_t *				wd_server_dictionary_representation(wd_server_t *);
 
-static wi_lock_t						*wd_servers_lock;
+
+static wi_rwlock_t						*wd_servers_lock;
+static wi_string_t						*wd_servers_path;
 static wi_timer_t						*wd_servers_timer;
 
 static wi_mutable_dictionary_t			*wd_servers;
@@ -98,16 +102,35 @@ static wi_runtime_class_t				wd_server_runtime_class = {
 
 
 void wd_servers_initialize(void) {
+	wi_enumerator_t				*enumerator;
+	wi_dictionary_t				*dictionary;
+	wi_runtime_instance_t		*servers;
+	wd_server_t					*server;
+	
 	wd_server_runtime_id = wi_runtime_register_class(&wd_server_runtime_class);
 
 	wd_servers = wi_dictionary_init(wi_mutable_dictionary_alloc());
 	
-	wd_servers_lock = wi_lock_init(wi_lock_alloc());
+	wd_servers_lock = wi_rwlock_init(wi_rwlock_alloc());
+	wd_servers_path	= WI_STR("servers");
 
 	wd_servers_timer = wi_timer_init_with_function(wi_timer_alloc(),
 												   wd_servers_update_servers,
 												   WD_SERVERS_UPDATE_INTERVAL,
 												   true);
+	
+	servers = wi_plist_read_instance_from_file(wd_servers_path);
+	
+	if(servers && wi_runtime_id(servers) == wi_array_runtime_id()) {
+		enumerator = wi_array_data_enumerator(servers);
+		
+		while((dictionary = wi_enumerator_next_data(enumerator))) {
+			server = wi_autorelease(wd_server_init_with_dictionary_representation(wd_server_alloc(), dictionary));
+			
+			if(server)
+				wi_mutable_dictionary_set_data_for_key(wd_servers, server, server->ip);
+		}
+	}
 }
 
 
@@ -129,7 +152,7 @@ static void wd_servers_update_servers(wi_timer_t *timer) {
 	wi_time_interval_t	interval, update;
 	wi_boolean_t		changed = false;
 
-	wi_dictionary_wrlock(wd_servers);
+	wi_dictionary_rdlock(wd_servers);
 		
 	if(wi_dictionary_count(wd_servers) > 0) {
 		interval = wi_time_interval();
@@ -164,7 +187,32 @@ static void wd_servers_update_servers(wi_timer_t *timer) {
 		wi_lock_lock(wd_status_lock);
 		wd_write_status(true);
 		wi_lock_unlock(wd_status_lock);
+	
+		wd_servers_write_servers();
 	}
+}
+
+
+
+static void wd_servers_write_servers(void) {
+	wi_enumerator_t			*enumerator;
+	wi_mutable_array_t		*array;
+	wd_server_t				*server;
+	
+	wi_rwlock_wrlock(wd_servers_lock);
+	wi_dictionary_rdlock(wd_servers);
+	
+	array			= wi_mutable_array();
+	enumerator		= wi_dictionary_data_enumerator(wd_servers);
+	
+	while((server = wi_enumerator_next_data(enumerator)))
+		wi_mutable_array_add_data(array, wd_server_dictionary_representation(server));
+	
+	if(!wi_plist_write_instance_to_file(array, wd_servers_path))
+		wi_log_error(WI_STR("Could not write servers to \"%@\": %m"), wd_servers_path);
+	
+	wi_rwlock_unlock(wd_servers_lock);
+	wi_dictionary_unlock(wd_servers);
 }
 
 
@@ -173,7 +221,7 @@ static void wd_servers_update_servers(wi_timer_t *timer) {
 
 static void wd_servers_add_server(wd_server_t *server) {
 	wi_dictionary_wrlock(wd_servers);
-	wi_mutable_dictionary_set_data_for_key(wd_servers, server, server->token);
+	wi_mutable_dictionary_set_data_for_key(wd_servers, server, server->ip);
 	wi_dictionary_unlock(wd_servers);
 }
 
@@ -181,44 +229,8 @@ static void wd_servers_add_server(wd_server_t *server) {
 
 static void wd_servers_remove_server(wd_server_t *server) {
 	wi_dictionary_wrlock(wd_servers);
-	wi_mutable_dictionary_remove_data_for_key(wd_servers, server->token);
+	wi_mutable_dictionary_remove_data_for_key(wd_servers, server->ip);
 	wi_dictionary_unlock(wd_servers);
-}
-
-
-
-static wd_server_t * wd_servers_server_equal_to_server(wd_server_t *server) {
-	wi_enumerator_t	*enumerator;
-	wd_server_t		*peer, *value = NULL;
-
-	wi_dictionary_rdlock(wd_servers);
-	
-	enumerator = wi_dictionary_data_enumerator(wd_servers);
-	
-	while((peer = wi_enumerator_next_data(enumerator))) {
-		if(wi_is_equal(server->ip, peer->ip) && server->port == peer->port &&
-		   wi_is_equal(server->category, peer->category)) {
-			value = wi_autorelease(wi_retain(peer));
-
-			break;
-		}
-	}
-
-	wi_dictionary_unlock(wd_servers);
-
-	return value;
-}
-
-
-
-static wd_server_t * wd_servers_server_for_token(wi_uuid_t *token) {
-	wd_server_t		*server;
-	
-	wi_dictionary_rdlock(wd_servers);
-	server = wi_autorelease(wi_retain(wi_dictionary_data_for_key(wd_servers, token)));
-	wi_dictionary_unlock(wd_servers);
-	
-	return server;
 }
 
 
@@ -249,23 +261,12 @@ static void wd_servers_remove_stats_for_server(wd_server_t *server) {
 #pragma mark -
 
 wd_server_t * wd_servers_server_for_ip(wi_string_t *ip) {
-	wi_enumerator_t	*enumerator;
-	wd_server_t		*each_server, *server = NULL;
+	wd_server_t		*server;
 
 	wi_dictionary_rdlock(wd_servers);
-	
-	enumerator = wi_dictionary_data_enumerator(wd_servers);
-	
-	while((each_server = wi_enumerator_next_data(enumerator))) {
-		if(wi_is_equal(each_server->ip, ip)) {
-			server = wi_autorelease(wi_retain(each_server));
-
-			break;
-		}
-	}
-
+	server = wi_autorelease(wi_retain(wi_dictionary_data_for_key(wd_servers, ip)));
 	wi_dictionary_unlock(wd_servers);
-
+	
 	return server;
 }
 
@@ -305,8 +306,8 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 	}
 	
 	server->cipher = wi_retain(wi_p7_socket_cipher(wd_user_p7_socket(user)));
-	
-	existing_server = wd_servers_server_equal_to_server(server);
+
+	existing_server = wd_servers_server_for_ip(server->ip);
 	
 	if(existing_server) {
 		wd_servers_remove_server(existing_server);
@@ -323,16 +324,16 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 	wi_lock_lock(wd_status_lock);
 	wd_write_status(true);
 	wi_lock_unlock(wd_status_lock);
+	
+	wd_servers_write_servers();
 }
 
 
 
-wi_boolean_t wd_servers_update_server(wd_user_t *user, wi_p7_message_t *message) {
-	wi_uuid_t			*token;
+wi_boolean_t wd_servers_update_server(wi_string_t *ip, wd_user_t *user, wi_p7_message_t *message) {
 	wd_server_t			*server;
-
-	token		= wi_p7_message_uuid_for_name(message, WI_STR("wired.tracker.token"));
-	server		= wd_servers_server_for_token(token);
+	
+	server = wd_servers_server_for_ip(ip);
 	
 	if(!server || !server->active) {
 		if(user)
@@ -432,6 +433,40 @@ static wd_server_t * wd_server_init_with_message(wd_server_t *server, wi_p7_mess
 
 
 
+static wd_server_t * wd_server_init_with_dictionary_representation(wd_server_t *server, wi_dictionary_t *dictionary) {
+	wi_runtime_instance_t		*ip, *port, *cipher, *key, *iv;
+	
+	ip			= wi_dictionary_data_for_key(dictionary, WI_STR("ip"));
+	port		= wi_dictionary_data_for_key(dictionary, WI_STR("port"));
+	cipher		= wi_dictionary_data_for_key(dictionary, WI_STR("cipher"));
+	key			= wi_dictionary_data_for_key(dictionary, WI_STR("key"));
+	iv			= wi_dictionary_data_for_key(dictionary, WI_STR("iv"));
+	
+	if(ip && wi_runtime_id(ip) == wi_string_runtime_id())
+		server->ip = wi_retain(ip);
+	
+	if(port && wi_runtime_id(port) == wi_number_runtime_id())
+		server->port= wi_number_int32(port);
+
+	if(cipher && wi_runtime_id(cipher) == wi_number_runtime_id() &&
+	   key && wi_runtime_id(key) == wi_data_runtime_id()) {
+		if(iv && wi_runtime_id(iv) == wi_data_runtime_id())
+			server->cipher = wi_cipher_init_with_key(wi_cipher_alloc(), wi_number_int32(cipher), key, iv);
+		else
+			server->cipher = wi_cipher_init_with_key(wi_cipher_alloc(), wi_number_int32(cipher), key, NULL);
+	}
+	
+	if(!server->ip || server->port == 0) {
+		wi_release(server);
+		
+		return NULL;
+	}
+
+	return server;
+}
+
+
+
 static void wd_server_dealloc(wi_runtime_instance_t *instance) {
 	wd_server_t		*server = instance;
 	
@@ -444,6 +479,29 @@ static void wd_server_dealloc(wi_runtime_instance_t *instance) {
 	wi_release(server->url);
 	wi_release(server->name);
 	wi_release(server->description);
+}
+
+
+
+#pragma mark -
+
+static wi_dictionary_t * wd_server_dictionary_representation(wd_server_t *server) {
+	wi_mutable_dictionary_t		*dictionary;
+	
+	dictionary = wi_mutable_dictionary();
+	
+	wi_mutable_dictionary_set_data_for_key(dictionary, server->ip, WI_STR("ip"));
+	wi_mutable_dictionary_set_data_for_key(dictionary, WI_INT32(server->port), WI_STR("port"));
+	
+	if(server->cipher) {
+		wi_mutable_dictionary_set_data_for_key(dictionary, WI_INT32(wi_cipher_type(server->cipher)), WI_STR("cipher"));
+		wi_mutable_dictionary_set_data_for_key(dictionary, wi_cipher_key(server->cipher), WI_STR("key"));
+		
+		if(wi_cipher_iv(server->cipher))
+			wi_mutable_dictionary_set_data_for_key(dictionary, wi_cipher_iv(server->cipher), WI_STR("iv"));
+	}
+	
+	return dictionary;
 }
 
 
