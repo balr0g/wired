@@ -47,8 +47,7 @@ struct _wd_server {
 	
 	wi_boolean_t						active;
 	
-	wi_string_t							*key;
-	wi_uuid_t							*token;
+	wi_string_t							*ip;
 	wi_time_interval_t					register_time;
 	wi_time_interval_t					update_time;
 	
@@ -57,7 +56,7 @@ struct _wd_server {
 	wi_boolean_t						tracker;
 	wi_string_t							*category;
 	wi_mutable_string_t					*url;
-	wi_string_t							*ip;
+	wi_string_t							*display_ip;
 	wi_p7_uint32_t						port;
 	wi_string_t							*name;
 	wi_string_t							*description;
@@ -284,14 +283,15 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 	server					= wi_autorelease(wd_server_init_with_message(wd_server_alloc(), message));
 	server->url				= wi_string_init_with_format(wi_mutable_string_alloc(), WI_STR("wired://"));
 	server->register_time	= wi_time_interval();
+	server->ip				= wi_retain(wi_address_string(address));
 	
-	if(!server->ip)
-		server->ip = wi_retain(wi_address_string(address));
+	if(!server->display_ip)
+		server->display_ip	= wi_retain(server->ip);
 	
 	if(wi_address_family(address) == WI_ADDRESS_IPV6)
-		wi_mutable_string_append_format(server->url, WI_STR("[%@]"), server->ip);
+		wi_mutable_string_append_format(server->url, WI_STR("[%@]"), server->display_ip);
 	else
-		wi_mutable_string_append_string(server->url, server->ip);
+		wi_mutable_string_append_string(server->url, server->display_ip);
 	
 	if(server->port != WD_SERVER_PORT)
 		wi_mutable_string_append_format(server->url, WI_STR(":%u/"), server->port);
@@ -317,8 +317,7 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 	wd_servers_add_server(server);
 	wd_servers_add_stats_for_server(server);
 	
-	reply = wi_p7_message_with_name(WI_STR("wired.tracker.register"), wd_p7_spec);
-	wi_p7_message_set_uuid_for_name(reply, server->token, WI_STR("wired.tracker.token"));
+	reply = wi_p7_message_with_name(WI_STR("wired.okay"), wd_p7_spec);
 	wd_user_reply_message(user, reply, message);
 
 	wi_lock_lock(wd_status_lock);
@@ -416,8 +415,7 @@ static wd_server_t * wd_server_alloc(void) {
 
 static wd_server_t * wd_server_init_with_message(wd_server_t *server, wi_p7_message_t *message) {
 	server->active			= true;
-	server->token			= wi_uuid_init(wi_uuid_alloc());
-	server->ip				= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.tracker.ip")));
+	server->display_ip		= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.tracker.ip")));
 	server->category		= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.tracker.category")));
 	server->name			= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.info.name")));
 	server->description		= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.info.description")));
@@ -446,7 +444,7 @@ static wd_server_t * wd_server_init_with_dictionary_representation(wd_server_t *
 		server->ip = wi_retain(ip);
 	
 	if(port && wi_runtime_id(port) == wi_number_runtime_id())
-		server->port= wi_number_int32(port);
+		server->port = wi_number_int32(port);
 
 	if(cipher && wi_runtime_id(cipher) == wi_number_runtime_id() &&
 	   key && wi_runtime_id(key) == wi_data_runtime_id()) {
@@ -470,12 +468,12 @@ static wd_server_t * wd_server_init_with_dictionary_representation(wd_server_t *
 static void wd_server_dealloc(wi_runtime_instance_t *instance) {
 	wd_server_t		*server = instance;
 	
-	wi_release(server->token);
+	wi_release(server->ip);
 	
 	wi_release(server->cipher);
 	
 	wi_release(server->category);
-	wi_release(server->ip);
+	wi_release(server->display_ip);
 	wi_release(server->url);
 	wi_release(server->name);
 	wi_release(server->description);

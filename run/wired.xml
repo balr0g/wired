@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b49">
+			 version="2.0b50">
 	<p7:documentation>
 		TBD
 		
@@ -1211,18 +1211,13 @@
 				Port of a server when registering with a tracker.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.tracker.token" type="uuid" id="11005" version="2.0">
-			<p7:documentation>
-				Identification of a single server registered with a tracker.
-			</p7:documentation>
-		</p7:field>
-		<p7:field name="wired.tracker.url" type="string" id="11006" version="2.0">
+		<p7:field name="wired.tracker.url" type="string" id="11005" version="2.0">
 			<p7:documentation>
 				URL of a server registered with a tracker. The URL should be in the "wired://server[:port]/Category"
 				format.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.tracker.users" type="uint32" id="11007" version="2.0">
+		<p7:field name="wired.tracker.users" type="uint32" id="11006" version="2.0">
 			<p7:documentation>
 				Number of users currently logged in to a server registered with a tracker.
 			</p7:documentation>
@@ -3016,24 +3011,13 @@
 			<p7:parameter field="wired.info.files.size" use="required" version="2.0" />
 		</p7:message>
 
-		<p7:message name="wired.tracker.register" id="11006" version="2.0">
-			<p7:documentation>
-				Server registered with tracker message. [field:wired.tracker.token] may not be the
-				empty string, and must be unique for a single registration.
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.tracker.token" use="required" version="2.0" />
-		</p7:message>
-
 		<p7:message name="wired.tracker.send_update" id="11007" version="2.0">
 			<p7:documentation>
-				Update server on tracker message. [field:wired.tracker.token] should be set to the value
-				received from [message:wired.tracker.register].
+				Update server on tracker message.
 				
 				This message is intended to be used for periodic updates.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.tracker.token" use="required" version="2.0" />
 			<p7:parameter field="wired.tracker.users" use="required" version="2.0" />
 			<p7:parameter field="wired.info.files.count" use="required" version="2.0" />
 			<p7:parameter field="wired.info.files.size" use="required" version="2.0" />
@@ -4775,7 +4759,7 @@
 				Otherwise, [message:wired.tracker.register] should be replied.
 			</p7:documentation>
 			<p7:or>
-				<p7:reply message="wired.tracker.register" count="1" use="required" version="2.0" />
+				<p7:reply message="wired.okay" count="1" use="required" version="2.0" />
 				<p7:reply message="wired.error" count="1" use="required" version="2.0" />
 			</p7:or>
 		</p7:transaction>

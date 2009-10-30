@@ -57,7 +57,6 @@ struct _wd_tracker {
 	wi_string_t							*user;
 	wi_string_t							*password;
 	wi_string_t							*category;
-	wi_uuid_t							*token;
 };
 typedef struct _wd_tracker				wd_tracker_t;
 
@@ -319,7 +318,6 @@ static void wd_tracker_dealloc(wi_runtime_instance_t *instance) {
 	wi_release(tracker->user);
 	wi_release(tracker->password);
 	wi_release(tracker->category);
-	wi_release(tracker->token);
 }
 
 
@@ -460,7 +458,7 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 			break;
 		}
 		else if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.account.privileges"))) {
-			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received unexpected message \"%@\" (wired.account.privileges)"),
+			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received unexpected message \"%@\" (expected wired.account.privileges)"),
 				tracker->host, wi_p7_message_name(message));
 			
 			break;
@@ -497,15 +495,14 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 			
 			break;
 		}
-		else if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.tracker.register"))) {
-			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received unexpected message \"%@\" (wired.tracker.register)"),
+		else if(!wi_is_equal(wi_p7_message_name(message), WI_STR("wired.okay"))) {
+			wi_log_error(WI_STR("Could not register with tracker \"%@\": Received unexpected message \"%@\" (expected wired.okay)"),
 				tracker->host, wi_p7_message_name(message));
 			
 			break;
 		}
 		
 		tracker->cipher		= wi_retain(wi_p7_socket_cipher(p7_socket));
-		tracker->token		= wi_retain(wi_p7_message_uuid_for_name(message, WI_STR("wired.tracker.token")));
 		tracker->active		= true;
 		tracker->address	= wi_retain(address);
 		
@@ -538,7 +535,6 @@ static void wd_tracker_update(wd_tracker_t *tracker) {
 	}
 	
 	message = wi_p7_message_with_name(WI_STR("wired.tracker.send_update"), wd_p7_spec);
-	wi_p7_message_set_uuid_for_name(message, tracker->token, WI_STR("wired.tracker.token"));
 	wi_p7_message_set_uint32_for_name(message, wi_array_count(wd_chat_users(wd_public_chat)), WI_STR("wired.tracker.users"));
 	wi_p7_message_set_uint64_for_name(message, wd_files_count, WI_STR("wired.info.files.count"));
 	wi_p7_message_set_uint64_for_name(message, wd_files_size, WI_STR("wired.info.files.size"));
@@ -576,8 +572,17 @@ static wi_p7_message_t * wd_tracker_read_message(wd_tracker_t *tracker, wi_p7_so
 	message = wi_p7_socket_read_message(p7_socket, 30.0);
 	
 	if(!message) {
-		wi_log_error(WI_STR("Could not write message to tracker \"%@\": %m"),
+		wi_log_error(WI_STR("Could not read message from tracker \"%@\": %m"),
 			tracker->host);
+		
+		return NULL;
+	}
+	
+	if(!wi_p7_spec_verify_message(wd_p7_spec, message)) {
+		wi_log_error(WI_STR("Could not verify message from tracker \"%@\": %m"),
+			tracker->host);
+		
+		return NULL;
 	}
 	
 	return message;
