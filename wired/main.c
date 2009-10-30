@@ -296,6 +296,7 @@ int main(int argc, const char **argv) {
 	wd_signal_thread(NULL);
 	
 	wd_users_remove_all_users();
+	wd_events_flush_events();
 	wd_cleanup();
 	wi_log_close();
 	wi_release(pool);

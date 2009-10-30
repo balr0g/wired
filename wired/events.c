@@ -73,6 +73,13 @@ void wd_events_initialize(void) {
 
 
 
+void wd_events_flush_events(void) {
+	if(!wi_plist_write_instance_to_file(wd_events, wd_events_current_path))
+		wi_log_error(WI_STR("Could not write events to \"%@\": %m"), wd_events_current_path);
+}
+
+
+
 #pragma mark -
 
 void wd_events_reply_archives(wd_user_t *user, wi_p7_message_t *message) {
@@ -207,10 +214,8 @@ void wd_events_add_event(wi_string_t *event, wd_user_t *user, ...) {
 	
 	wi_mutable_array_add_data(wd_events, dictionary);
 	
-	if(wi_array_count(wd_events) > 0 && wi_array_count(wd_events) % WD_EVENTS_WRITE_EVENTS == 0) {
-		if(!wi_plist_write_instance_to_file(wd_events, wd_events_current_path))
-			wi_log_error(WI_STR("Could not write events to \"%@\": %m"), wd_events_current_path);
-	}
+	if(wi_array_count(wd_events) > 0 && wi_array_count(wd_events) % WD_EVENTS_WRITE_EVENTS == 0)
+		wd_events_flush_events();
 	
 	wi_array_unlock(wd_events);
 	wi_rwlock_unlock(wd_events_lock);

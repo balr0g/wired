@@ -32,6 +32,7 @@
 #include "main.h"
 
 void									wd_events_initialize(void);
+void									wd_events_flush_events(void);
 
 void									wd_events_reply_archives(wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_events_reply_events(wi_date_t *, wd_user_t *, wi_p7_message_t *);
