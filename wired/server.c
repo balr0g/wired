@@ -684,7 +684,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 		}
 		
 		if(!wi_p7_spec_verify_message(wd_p7_spec, message)) {
-			wi_log_error(WI_STR("Could not verify message: %m"));
+			wi_log_error(WI_STR("Could not verify message from received data from %@: %m"), ip);
 			
 			continue;
 		}
