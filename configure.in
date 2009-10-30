@@ -124,8 +124,10 @@ AC_ARG_WITH([fake_prefix])
 
 if test -n "$with_fake_prefix"; then
 	AC_SUBST([fake_prefix], ["$with_fake_prefix"])
+	AC_DEFINE_UNQUOTED([WD_ROOT], ["${with_fake_prefix}/${wireddir}"], [Root directory])
 else
 	AC_SUBST([fake_prefix], ['${prefix}'])
+	AC_DEFINE_UNQUOTED([WD_ROOT], ["/usr/local/${wireddir}"], [Root directory])
 fi
 
 

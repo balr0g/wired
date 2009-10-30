@@ -26,7 +26,7 @@ NATPMPOBJS			= $(addprefix $(objdir)/natpmp/,$(notdir $(patsubst %.c,%.o,$(shell
 MINIUPNPCOBJS		= $(addprefix $(objdir)/miniupnpc/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/thirdparty/miniupnpc -name "[a-z]*.c"))))
 TRANSFERTESTOBJS	= $(addprefix $(objdir)/transfertest/,$(notdir $(patsubst %.c,%.o,$(shell find $(abs_top_srcdir)/test/transfertest -name "[a-z]*.c"))))
 
-DEFS				= @DEFS@ -DWD_ROOT="\"$(fake_prefix)/$(wireddir)\"" -DENABLE_STRNATPMPERR -DMINIUPNPC_SET_SOCKET_TIMEOUT
+DEFS				= @DEFS@ -DENABLE_STRNATPMPERR -DMINIUPNPC_SET_SOCKET_TIMEOUT
 CC					= @CC@
 CFLAGS				= @CFLAGS@
 CPPFLAGS			= @CPPFLAGS@

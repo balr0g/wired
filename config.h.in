@@ -78,6 +78,9 @@
 /* Group name */
 #undef WD_GROUP
 
+/* Root directory */
+#undef WD_ROOT
+
 /* User name */
 #undef WD_USER
 
