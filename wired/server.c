@@ -713,8 +713,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 			socket = wi_autorelease(wi_socket_init_with_address(wi_socket_alloc(), address, WI_SOCKET_UDP));
 			
 			if(!socket) {
-				wi_log_error(WI_STR("Could not create a socket for %@: %m"),
-					ip);
+				wi_log_error(WI_STR("Could not create a socket for %@: %m"), ip);
 				
 				continue;
 			}
@@ -725,8 +724,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 				data = wi_cipher_encrypt(cipher, data);
 			
 				if(!data) {
-					wi_log_error(WI_STR("Could not encrypt message for %@: %m"),
-						ip);
+					wi_log_error(WI_STR("Could not encrypt message for %@: %m"), ip);
 					
 					continue;
 				}
@@ -735,8 +733,7 @@ static void wd_server_receive_thread(wi_runtime_instance_t *argument) {
 			bytes = wi_socket_sendto_data(socket, data);
 			
 			if(bytes < 0) {
-				wi_log_error(WI_STR("Could not send message to \"%@\": %m"),
-					ip);
+				wi_log_error(WI_STR("Could not send message to \"%@\": %m"), ip);
 				
 				continue;
 			}
