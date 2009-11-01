@@ -907,7 +907,8 @@ static wi_string_t * wd_transfer_description(wi_runtime_instance_t *instance) {
 #pragma mark -
 
 static inline void wd_transfer_limit_speed(wd_transfer_t *transfer, wi_uinteger_t totalspeed, wi_uinteger_t accountspeed, wi_uinteger_t totalcount, wi_uinteger_t accountcount, ssize_t bytes, wi_time_interval_t now, wi_time_interval_t then) {
-	wi_uinteger_t	limit, totallimit, accountlimit;
+	wi_uinteger_t		limit, totallimit, accountlimit;
+	wi_time_interval_t	start;
 	
 	if(totalspeed > 0 || accountspeed > 0) {
 		totallimit		= (totalspeed > 0 && totalcount > 0) ? (float) totalspeed / (float) totalcount : 0;
@@ -921,7 +922,9 @@ static inline void wd_transfer_limit_speed(wd_transfer_t *transfer, wi_uinteger_
 			limit = accountlimit;
 
 		if(limit > 0) {
-			while(transfer->speed > limit) {
+			start = now;
+			
+			while(transfer->speed > limit && now - start < 5.0) {
 				usleep(10000);
 				now += 0.01;
 				
