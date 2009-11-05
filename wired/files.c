@@ -217,7 +217,7 @@ wi_boolean_t wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_u
 	wi_fs_statfs_t				sfb;
 	wi_fs_stat_t				dsb, sb, lsb;
 	wi_fsenumerator_status_t	status;
-	wi_file_offset_t			datasize, rsrcsize, available;
+	wi_file_offset_t			datasize, rsrcsize;
 	wd_file_label_t				label;
 	wi_uinteger_t				pathlength, depthlimit, directorycount;
 	wd_file_type_t				type, pathtype;
@@ -228,13 +228,6 @@ wi_boolean_t wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_u
 	realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
 	account		= wd_user_account(user);
 	pathtype	= wd_files_type(realpath);
-	
-	if(pathtype == WD_FILE_TYPE_DROPBOX) {
-		privileges = wd_files_drop_box_privileges(realpath);
-		
-		if(!wd_files_privileges_is_readable_by_account(privileges, account))
-			goto done;
-	}
 	
 	if(!wi_fs_stat_path(realpath, &dsb)) {
 		wi_log_error(WI_STR("Could not read info for \"%@\": %m"), realpath);
@@ -373,22 +366,35 @@ wi_boolean_t wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_u
 		}
 	}
 	
-done:
+	reply = wi_p7_message_with_name(WI_STR("wired.file.file_list.done"), wd_p7_spec);
+	wi_p7_message_set_string_for_name(reply, path, WI_STR("wired.file.path"));
+	
+	if(pathtype == WD_FILE_TYPE_DROPBOX) {
+		privileges	= wd_files_drop_box_privileges(realpath);
+		readable	= wd_files_privileges_is_readable_by_account(privileges, account);
+		writable	= wd_files_privileges_is_writable_by_account(privileges, account);
+		
+		wi_p7_message_set_bool_for_name(reply, readable, WI_STR("wired.file.readable"));
+		wi_p7_message_set_bool_for_name(reply, writable, WI_STR("wired.file.writable"));
+	} else {
+		readable	= false;
+		writable	= false;
+	}
+	
 	if(wd_account_transfer_upload_anywhere(account))
 		upload = true;
-	else if(pathtype == WD_FILE_TYPE_DROPBOX || pathtype == WD_FILE_TYPE_UPLOADS)
+	else if(pathtype == WD_FILE_TYPE_DROPBOX)
+		upload = writable;
+	else if(pathtype == WD_FILE_TYPE_UPLOADS)
 		upload = wd_account_transfer_upload_files(account);
 	else
 		upload = false;
 
 	if(upload && wi_fs_statfs_path(realpath, &sfb))
-		available = (wi_file_offset_t) sfb.bavail * (wi_file_offset_t) sfb.frsize;
+		wi_p7_message_set_uint64_for_name(reply, (wi_file_offset_t) sfb.bavail * (wi_file_offset_t) sfb.frsize, WI_STR("wired.file.available"));
 	else
-		available = 0;
+		wi_p7_message_set_uint64_for_name(reply, 0, WI_STR("wired.file.available"));
 	
-	reply = wi_p7_message_with_name(WI_STR("wired.file.file_list.done"), wd_p7_spec);
-	wi_p7_message_set_string_for_name(reply, path, WI_STR("wired.file.path"));
-	wi_p7_message_set_uint64_for_name(reply, available, WI_STR("wired.file.available"));
 	wd_user_reply_message(user, reply, message);
 	
 	return true;

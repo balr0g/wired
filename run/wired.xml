@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b50">
+			 version="2.0b51">
 	<p7:documentation>
 		TBD
 		
@@ -2122,10 +2122,15 @@
 		<p7:message name="wired.file.file_list.done" id="7002" version="2.0">
 			<p7:documentation>
 				File list completion message.
+				
+				If [field:wired.file.type] is [enum:wired.file.type.dropbox], [field:wired.file.readable]
+				and [field:wired.file.writable] should be set.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 			<p7:parameter field="wired.file.path" use="required" version="2.0" />
 			<p7:parameter field="wired.file.available" use="required" version="2.0" />
+			<p7:parameter field="wired.file.readable" version="2.0" />
+			<p7:parameter field="wired.file.writable" version="2.0" />
 		</p7:message>
 
 		<p7:message name="wired.file.get_info" id="7003" version="2.0">
