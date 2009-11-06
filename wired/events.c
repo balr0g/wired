@@ -174,23 +174,22 @@ wi_boolean_t wd_events_reply_events(wi_date_t *archive, wd_user_t *user, wi_p7_m
 void wd_events_add_event(wi_string_t *event, wd_user_t *user, ...) {
 	wi_enumerator_t				*enumerator;
 	wi_mutable_dictionary_t		*dictionary;
+	wi_mutable_array_t			*lastevents;
 	wi_array_t					*parameters;
-	wi_string_t					*lastevent, *nick, *login, *ip;
+	wi_string_t					*nick, *login, *ip;
 	wi_p7_message_t				*message;
 	wd_user_t					*peer;
 	va_list						ap;
 	
 	wi_dictionary_rdlock(wd_events_last_events);
 	
-	lastevent = wi_autorelease(wi_retain(wi_dictionary_data_for_key(wd_events_last_events, wi_number_with_integer(wd_user_id(user)))));
+	lastevents = wi_dictionary_data_for_key(wd_events_last_events, wi_number_with_integer(wd_user_id(user)));
 	
 	wi_dictionary_unlock(wd_events_last_events);
 	
-	if(lastevent) {
-		if(wi_is_equal(lastevent, event)) {
-			if(wi_is_equal(event, WI_STR("wired.event.user.got_users")) || wi_is_equal(event, WI_STR("wired.event.user.got_info")))
-			   return;
-		}
+	if(lastevents && wi_array_contains_data(lastevents, event)) {
+		if(wi_is_equal(event, WI_STR("wired.event.user.got_users")) || wi_is_equal(event, WI_STR("wired.event.user.got_info")))
+			return;
 	}
 	
 	va_start(ap, user);
@@ -240,7 +239,15 @@ void wd_events_add_event(wi_string_t *event, wd_user_t *user, ...) {
 
 	wi_dictionary_wrlock(wd_events_last_events);
 	
-	wi_mutable_dictionary_set_data_for_key(wd_events_last_events, event, wi_number_with_integer(wd_user_id(user)));
+	if(!lastevents)
+		lastevents = wi_mutable_array();
+	
+	wi_mutable_array_add_data(lastevents, event);
+		
+	if(wi_array_count(lastevents) > 5)
+		wi_mutable_array_remove_data_at_index(lastevents, 0);
+	
+	wi_mutable_dictionary_set_data_for_key(wd_events_last_events, lastevents, wi_number_with_integer(wd_user_id(user)));
 	
 	wi_dictionary_unlock(wd_events_last_events);
 }
