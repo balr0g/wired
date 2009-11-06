@@ -114,7 +114,6 @@ static wi_string_t *									wd_files_privileges_description(wi_runtime_instance
 static void												wd_files_privileges_dealloc(wi_runtime_instance_t *);
 
 static wd_files_privileges_t *							wd_files_privileges_with_string(wi_string_t *);
-static wd_files_privileges_t *							wd_files_privileges_default_privileges(void);
 static wd_files_privileges_t *							wd_files_privileges_default_drop_box_privileges(void);
 
 static wi_string_t *									wd_files_privileges_string(wd_files_privileges_t *);
@@ -2034,7 +2033,7 @@ wd_files_privileges_t * wd_files_privileges(wi_string_t *path, wd_user_t *user) 
 	realpath = wd_files_drop_box_path_in_path(path, user);
 	
 	if(!realpath)
-		return wd_files_privileges_default_privileges();
+		return NULL;
 	
 	return wd_files_drop_box_privileges(realpath);
 }
@@ -2172,13 +2171,11 @@ static wd_files_privileges_t * wd_files_drop_box_privileges(wi_string_t *path) {
 
 static wi_string_t * wd_files_drop_box_path_in_path(wi_string_t *path, wd_user_t *user) {
 	wi_mutable_string_t		*realpath;
-	wi_string_t				*dirpath;
 	wi_array_t				*array;
 	wi_uinteger_t			i, count;
 	
 	realpath	= wi_autorelease(wi_mutable_copy(wi_string_by_resolving_aliases_in_path(wd_files_real_path(WI_STR("/"), user))));
-	dirpath		= wi_string_by_deleting_last_path_component(path);
-	array		= wi_string_path_components(dirpath);
+	array		= wi_string_path_components(path);
 	count		= wi_array_count(array);
 	
 	for(i = 0; i < count; i++) {
@@ -2346,19 +2343,6 @@ static wd_files_privileges_t * wd_files_privileges_with_string(wi_string_t *stri
 	privileges->owner	= wi_retain(WI_ARRAY(array, 0));
 	privileges->group	= wi_retain(WI_ARRAY(array, 1));
 	privileges->mode	= wi_string_uint32(WI_ARRAY(array, 2));
-	
-	return wi_autorelease(privileges);
-}
-
-
-
-static wd_files_privileges_t * wd_files_privileges_default_privileges(void) {
-	wd_files_privileges_t	*privileges;
-	
-	privileges			= wd_files_privileges_alloc();
-	privileges->owner	= wi_retain(WI_STR(""));
-	privileges->group	= wi_retain(WI_STR(""));
-	privileges->mode	= WD_FILE_EVERYONE_WRITE | WD_FILE_EVERYONE_READ;
 	
 	return wi_autorelease(privileges);
 }
