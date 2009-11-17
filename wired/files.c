@@ -1629,11 +1629,8 @@ wi_boolean_t wd_files_set_type(wi_string_t *path, wd_file_type_t type, wd_user_t
 wd_file_type_t wd_files_type(wi_string_t *path) {
 	wi_fs_stat_t	sb;
 	
-	if(!wi_fs_stat_path(path, &sb)) {
-		wi_log_error(WI_STR("Could not read info for \"%@\": %m"), path);
-		
+	if(!wi_fs_stat_path(path, &sb))
 		return WD_FILE_TYPE_FILE;
-	}
 	
 	return wd_files_type_with_stat(path, &sb);
 }
