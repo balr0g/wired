@@ -691,14 +691,14 @@ wd_transfer_t * wd_transfer_download_transfer(wi_string_t *path, wi_file_offset_
 	}
 	
 	realrsrcpath = wi_fs_resource_fork_path_for_path(realdatapath);
-	
+		
 	if(wd_user_supports_rsrc(user) && realrsrcpath) {
 		if(wi_fs_stat_path(realrsrcpath, &sb))
 			rsrcsize = sb.size;
 		else
 			rsrcsize = 0;
 		
-		rsrcfd = open(wi_string_cstring(realdatapath), O_RDONLY, 0);
+		rsrcfd = open(wi_string_cstring(realrsrcpath), O_RDONLY, 0);
 		
 		if(rsrcfd >= 0) {
 			if(lseek(rsrcfd, rsrcoffset, SEEK_SET) < 0) {
