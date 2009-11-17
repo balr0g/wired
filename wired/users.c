@@ -914,11 +914,38 @@ wi_set_t * wd_user_subscribed_paths(wd_user_t *user) {
 
 
 
-wi_string_t * wd_user_subscribed_virtual_path_for_path(wd_user_t *user, wi_string_t *path) {
-	if(wi_is_equal(wi_string_last_path_component(path), WI_STR(WD_FILES_META_PATH)))
-		path = wi_string_by_deleting_last_path_component(path);
+wi_array_t * wd_user_subscribed_virtual_paths_for_path(wd_user_t *user, wi_string_t *path) {
+	wi_mutable_array_t		*array;
+	wi_string_t				*virtualpath;
 	
-	WD_USER_RETURN_INSTANCE(user, wi_dictionary_data_for_key(user->subscribed_virtualpaths, path));
+	array = wi_mutable_array();
+	
+	wi_recursive_lock_lock(user->user_lock);
+	
+	if(wi_is_equal(wi_string_last_path_component(path), WI_STR(WD_FILES_META_PATH))) {
+		path			= wi_string_by_deleting_last_path_component(path);
+		virtualpath		= wi_dictionary_data_for_key(user->subscribed_virtualpaths, path);
+		
+		if(virtualpath)
+			wi_mutable_array_add_data(array, virtualpath);
+		
+		if(!wi_is_equal(path, WI_STR("/"))) {
+			path			= wi_string_by_deleting_last_path_component(path);
+			virtualpath		= wi_dictionary_data_for_key(user->subscribed_virtualpaths, path);
+			
+			if(virtualpath)
+				wi_mutable_array_add_data(array, virtualpath);
+		}
+	} else {
+		virtualpath = wi_dictionary_data_for_key(user->subscribed_virtualpaths, path);
+		
+		if(virtualpath)
+			wi_mutable_array_add_data(array, virtualpath);
+	}
+	
+	wi_recursive_lock_unlock(user->user_lock);
+	
+	return array;
 }
 
 

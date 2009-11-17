@@ -1544,7 +1544,7 @@ static void wd_files_fsevents_thread(wi_runtime_instance_t *instance) {
 
 static void wd_files_fsevents_callback(wi_string_t *path) {
 	wi_pool_t			*pool;
-	wi_enumerator_t		*enumerator;
+	wi_enumerator_t		*enumerator, *pathenumerator;
 	wi_p7_message_t		*message;
 	wi_string_t			*virtualpath;
 	wd_user_t			*user;
@@ -1562,15 +1562,17 @@ static void wd_files_fsevents_callback(wi_string_t *path) {
 	
 	while((user = wi_enumerator_next_data(enumerator))) {
 		if(wd_user_state(user) == WD_USER_LOGGED_IN && wi_set_contains_data(wd_user_subscribed_paths(user), path)) {
-			virtualpath = wd_user_subscribed_virtual_path_for_path(user, path);
+			pathenumerator = wi_array_data_enumerator(wd_user_subscribed_virtual_paths_for_path(user, path));
 			
-			if(exists)
-				message = wi_p7_message_with_name(WI_STR("wired.file.directory_changed"), wd_p7_spec);
-			else
-				message = wi_p7_message_with_name(WI_STR("wired.file.directory_deleted"), wd_p7_spec);
-			
-			wi_p7_message_set_string_for_name(message, virtualpath, WI_STR("wired.file.path"));
-			wd_user_send_message(user, message);
+			while((virtualpath = wi_enumerator_next_data(pathenumerator))) {
+				if(exists)
+					message = wi_p7_message_with_name(WI_STR("wired.file.directory_changed"), wd_p7_spec);
+				else
+					message = wi_p7_message_with_name(WI_STR("wired.file.directory_deleted"), wd_p7_spec);
+				
+				wi_p7_message_set_string_for_name(message, virtualpath, WI_STR("wired.file.path"));
+				wd_user_send_message(user, message);
+			}
 			
 			if(!exists)
 				wd_user_unsubscribe_path(user, path);
@@ -1617,8 +1619,6 @@ wi_boolean_t wd_files_set_type(wi_string_t *path, wd_file_type_t type, wd_user_t
 			
 			return false;
 		}
-		
-		(void) rmdir(wi_string_cstring(metapath));
 	}
 	
 	return true;
@@ -1736,16 +1736,14 @@ wi_boolean_t wd_files_set_comment(wi_string_t *path, wi_string_t *comment, wd_us
 	metapath		= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_PATH));
 	commentspath	= wi_string_by_appending_path_component(realdirpath, WI_STR(WD_FILES_META_COMMENTS_PATH));
 	
-	if(comment && wi_string_length(comment) > 0) {
-		if(!wi_fs_create_directory(metapath, 0777)) {
-			if(wi_error_code() != EEXIST) {
-				wi_log_error(WI_STR("Could not create \"%@\": %m"), metapath);
-				
-				if(user)
-					wd_user_reply_file_errno(user, message);
-				
-				return false;
-			}
+	if(!wi_fs_create_directory(metapath, 0777)) {
+		if(wi_error_code() != EEXIST) {
+			wi_log_error(WI_STR("Could not create \"%@\": %m"), metapath);
+			
+			if(user)
+				wd_user_reply_file_errno(user, message);
+			
+			return false;
 		}
 	}
 	
@@ -1799,6 +1797,9 @@ void wd_files_move_comment(wi_string_t *frompath, wi_string_t *topath, wd_user_t
 
 wi_boolean_t wd_files_remove_comment(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
 	wi_runtime_instance_t	*instance;
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	wi_string_t				*realpath;
+#endif
 	wi_string_t				*name, *dirpath, *realdirpath, *metapath, *commentspath;
 	
 	name			= wi_string_last_path_component(path);
@@ -1830,11 +1831,22 @@ wi_boolean_t wd_files_remove_comment(wi_string_t *path, wd_user_t *user, wi_p7_m
 				
 				return false;
 			}
-
-			(void) rmdir(wi_string_cstring(metapath));
 		}
 	}
 	
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	realpath = wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, user));
+
+	if(wi_fs_path_exists(realpath, NULL)) {
+		if(!wi_fs_set_finder_comment_for_path(WI_STR(""), realpath)) {
+			wi_log_error(WI_STR("Could not set Finder comment: %m"));
+			wd_user_reply_internal_error(user, wi_error_string(), message);
+			
+			return false;
+		}
+	}
+#endif
+
 	return true;
 }
 
@@ -1956,8 +1968,6 @@ wi_boolean_t wd_files_remove_label(wi_string_t *path, wd_user_t *user, wi_p7_mes
 				
 				return false;
 			}
-			
-			(void) rmdir(wi_string_cstring(metapath));
 		}
 	}
 	
