@@ -177,6 +177,7 @@ WI_INCLUDE_EXTRA_LIBRARY_PATHS
 
 WI_CHECK_LIBWIRED
 WI_INCLUDE_LIBWIRED_LIBRARIES
+WI_INCLUDE_SQLITE3_LIBRARY
 WI_INCLUDE_P7_LIBRARIES
 WI_INCLUDE_PTHREADS
 
@@ -209,7 +210,7 @@ AC_ARG_WITH([libwired], , [
 ])
 
 if test "$wd_libwired"; then
-	ac_configure_args="$ac_configure_args --enable-pthreads --enable-libxml2 --enable-p7 --with-rundir=$wd_libwired_rundir --with-objdir=$wd_libwired_objdir"
+	ac_configure_args="$ac_configure_args --enable-pthreads --enable-libxml2 --enable-sqlite3 --enable-p7 --with-rundir=$wd_libwired_rundir --with-objdir=$wd_libwired_objdir"
 	AC_CONFIG_SUBDIRS([libwired])
 fi
 
