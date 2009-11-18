@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXFileReference section */
+		77AA641410B398E9008996EB /* wi-libxml2.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wi-libxml2.c"; sourceTree = "<group>"; };
+		77AA641510B398E9008996EB /* wi-libxml2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-libxml2.h"; sourceTree = "<group>"; };
+		77AA641610B398E9008996EB /* wi-sqlite3.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wi-sqlite3.c"; sourceTree = "<group>"; };
+		77AA641710B398E9008996EB /* wi-sqlite3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-sqlite3.h"; sourceTree = "<group>"; };
+		77AFE0C210B3156300529537 /* config.m4 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = config.m4; sourceTree = "<group>"; };
 		77D9C1E510989471004F4F0B /* config.log */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = config.log; sourceTree = "<group>"; };
 		77D9C1E910989471004F4F0B /* configure.in */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = configure.in; sourceTree = "<group>"; };
 		77D9C1EE10989471004F4F0B /* INSTALL */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = INSTALL; sourceTree = "<group>"; };
@@ -78,8 +83,6 @@
 		77D9C24110989471004F4F0B /* wi-settings.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-settings.h"; sourceTree = "<group>"; };
 		77D9C24210989471004F4F0B /* wi-test.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wi-test.c"; sourceTree = "<group>"; };
 		77D9C24310989471004F4F0B /* wi-test.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-test.h"; sourceTree = "<group>"; };
-		77D9C24410989471004F4F0B /* wi-xml.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wi-xml.c"; sourceTree = "<group>"; };
-		77D9C24510989471004F4F0B /* wi-xml.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-xml.h"; sourceTree = "<group>"; };
 		77D9C24710989471004F4F0B /* wi-address.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wi-address.c"; sourceTree = "<group>"; };
 		77D9C24810989471004F4F0B /* wi-address.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-address.h"; sourceTree = "<group>"; };
 		77D9C24910989471004F4F0B /* wi-host.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wi-host.c"; sourceTree = "<group>"; };
@@ -291,6 +294,17 @@
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
+		77AA641310B398E9008996EB /* thirdparty */ = {
+			isa = PBXGroup;
+			children = (
+				77AA641410B398E9008996EB /* wi-libxml2.c */,
+				77AA641510B398E9008996EB /* wi-libxml2.h */,
+				77AA641610B398E9008996EB /* wi-sqlite3.c */,
+				77AA641710B398E9008996EB /* wi-sqlite3.h */,
+			);
+			path = thirdparty;
+			sourceTree = "<group>";
+		};
 		77C7D06C109892860042BADC = {
 			isa = PBXGroup;
 			children = (
@@ -322,6 +336,7 @@
 			isa = PBXGroup;
 			children = (
 				77D9C1F410989471004F4F0B /* config.log */,
+				77AFE0C210B3156300529537 /* config.m4 */,
 				77D9C1F910989471004F4F0B /* configure.in */,
 				77D9C1FB10989471004F4F0B /* libwired */,
 				77D9C27110989471004F4F0B /* LICENSE */,
@@ -346,6 +361,7 @@
 				77D9C24610989471004F4F0B /* net */,
 				77D9C25310989471004F4F0B /* p7 */,
 				77D9C25C10989471004F4F0B /* system */,
+				77AA641310B398E9008996EB /* thirdparty */,
 				77D9C26910989471004F4F0B /* thread */,
 				77D9C27010989471004F4F0B /* wired.h */,
 			);
@@ -456,8 +472,6 @@
 				77D9C24110989471004F4F0B /* wi-settings.h */,
 				77D9C24210989471004F4F0B /* wi-test.c */,
 				77D9C24310989471004F4F0B /* wi-test.h */,
-				77D9C24410989471004F4F0B /* wi-xml.c */,
-				77D9C24510989471004F4F0B /* wi-xml.h */,
 			);
 			path = misc;
 			sourceTree = "<group>";
