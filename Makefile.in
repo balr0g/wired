@@ -234,6 +234,8 @@ dist:
 clean: clean-recursive
 	rm -f $(objdir)/wired/*.o
 	rm -f $(objdir)/wired/*.d
+	rm -f $(objdir)/transfertest/*.o
+	rm -f $(objdir)/transfertest/*.d
 	rm -f $(objdir)/natpmp/*.o
 	rm -f $(objdir)/natpmp/*.d
 	rm -f $(objdir)/miniupnpc/*.o
