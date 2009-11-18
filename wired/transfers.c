@@ -291,8 +291,8 @@ static wi_boolean_t wd_transfers_wait_until_ready(wd_transfer_t *transfer, wd_us
 					wi_p7_message_set_uint32_for_name(reply, transaction, WI_STR("wired.transaction"));
 				
 				if(!wd_user_write_message(user, 30.0, reply)) {
-					wi_log_error(WI_STR("Could not write message to %@: %m"),
-						wd_user_identifier(user));
+					wi_log_error(WI_STR("Could not write message \"%@\" to %@: %m"),
+						wi_p7_message_name(reply), wd_user_identifier(user));
 					
 					return false;
 				}
@@ -324,8 +324,8 @@ static wi_boolean_t wd_transfers_run_download(wd_transfer_t *transfer, wd_user_t
 		wi_p7_message_set_uint32_for_name(reply, transaction, WI_STR("wired.transaction"));
 
 	if(!wd_user_write_message(user, 30.0, reply)) {
-		wi_log_error(WI_STR("Could not write message to %@: %m"),
-			wd_user_identifier(user));
+		wi_log_error(WI_STR("Could not write message \"%@\" to %@: %m"),
+			wi_p7_message_name(reply), wd_user_identifier(user));
 
 		return false;
 	}
@@ -361,8 +361,8 @@ static wi_boolean_t wd_transfers_run_upload(wd_transfer_t *transfer, wd_user_t *
 		wi_p7_message_set_uint32_for_name(reply, transaction, WI_STR("wired.transaction"));
 	
 	if(!wd_user_write_message(user, 30.0, reply)) {
-		wi_log_error(WI_STR("Could not write message to %@: %m"),
-			wd_user_identifier(user));
+		wi_log_error(WI_STR("Could not write message \"%@\" to %@: %m"),
+			wi_p7_message_name(reply), wd_user_identifier(user));
 
 		return false;
 	}

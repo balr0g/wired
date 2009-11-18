@@ -862,8 +862,8 @@ void wd_user_send_message(wd_user_t *user, wi_p7_message_t *message) {
 		if(!wd_user_write_message(user, 0.0, message)) {
 			wd_user_set_state(user, WD_USER_DISCONNECTED);
 			
-			wi_log_error(WI_STR("Could not write message to %@: %m"),
-				wd_user_identifier(user));
+			wi_log_error(WI_STR("Could not write message \"%@\" to %@: %m"),
+				wi_p7_message_name(message), wd_user_identifier(user));
 		}
 	}
 }
