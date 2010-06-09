@@ -1564,6 +1564,7 @@ static wi_boolean_t wd_accounts_convert_accounts_from_2_0b1(wi_string_t *path, w
 
 static wi_boolean_t wd_accounts_convert_accounts_from_2_0b2(wi_string_t *path, wi_string_t *table, wi_uinteger_t accounttype) {
 	wi_enumerator_t				*enumerator;
+	wi_dictionary_t				*results;
 	wi_string_t					*name, *string;
 	wi_runtime_instance_t		*instance;
 	wd_account_t				*account;
@@ -1585,13 +1586,23 @@ static wi_boolean_t wd_accounts_convert_accounts_from_2_0b2(wi_string_t *path, w
 	enumerator = wi_dictionary_key_enumerator(instance);
 	
 	while((name = wi_enumerator_next_data(enumerator))) {
-		account		= wi_autorelease(wd_account_init_with_name_and_values(wd_account_alloc(), name, wi_dictionary_data_for_key(instance, name)));
-		string		= wd_account_sqlite3_insert_string(account, accounttype);
+		results = wi_sqlite3_execute_statement(wd_database, wi_string_with_format(WI_STR("SELECT name FROM %@ WHERE name = ?"), table), name, NULL);
 		
-		if(!wi_sqlite3_execute_statement(wd_database, wi_string_with_format(WI_STR("INSERT INTO %@ %@"), table, string), NULL)) {
+		if(!results) {
 			wi_log_error(WI_STR("Could not execute database statement: %m"));
 			
 			return false;
+		}
+		
+		if(wi_dictionary_count(results) == 0) {
+			account		= wi_autorelease(wd_account_init_with_name_and_values(wd_account_alloc(), name, wi_dictionary_data_for_key(instance, name)));
+			string		= wd_account_sqlite3_insert_string(account, accounttype);
+			
+			if(!wi_sqlite3_execute_statement(wd_database, wi_string_with_format(WI_STR("INSERT INTO %@ %@"), table, string), NULL)) {
+				wi_log_error(WI_STR("Could not execute database statement: %m"));
+				
+				return false;
+			}
 		}
 	}
 	
