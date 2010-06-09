@@ -1980,37 +1980,39 @@ static wi_string_t * wd_account_sqlite3_insert_string(wd_account_t *account, wi_
 	while((name = wi_enumerator_next_data(enumerator))) {
 		field = wi_dictionary_data_for_key(wd_account_fields_by_protocol_name, name);
 		
-		if(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_ACCOUNT))) & accounttype) {
-			type		= wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)));
-			tablename	= wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TABLE_NAME));
-			value		= wi_dictionary_data_for_key(account->values, name);
-			
-			if(wi_string_length(sqlcolumns) > 0)
-				wi_mutable_string_append_string(sqlcolumns, WI_STR(", "));
-			
-			wi_mutable_string_append_format(sqlcolumns, WI_STR("`%@`"), tablename);
-			
-			if(wi_string_length(sqlvalues) > 0)
-				wi_mutable_string_append_string(sqlvalues, WI_STR(", "));
-			
-			switch(type) {
-				case WD_ACCOUNT_FIELD_STRING:
-					wi_mutable_string_append_format(sqlvalues, WI_STR("'%q'"), value);
-					break;
-					
-				case WD_ACCOUNT_FIELD_DATE:
-					wi_mutable_string_append_format(sqlvalues, WI_STR("'%q'"), wi_date_sqlite3_string(value));
-					break;
-					
-				case WD_ACCOUNT_FIELD_NUMBER:
-				case WD_ACCOUNT_FIELD_BOOLEAN:
-				case WD_ACCOUNT_FIELD_ENUM:
-					wi_mutable_string_append_format(sqlvalues, WI_STR("%u"), wi_number_integer(value));
-					break;
-					
-				case WD_ACCOUNT_FIELD_LIST:
-					wi_mutable_string_append_format(sqlvalues, WI_STR("'%q'"), wi_array_components_joined_by_string(value, WI_STR("\34")));
-					break;
+		if(field) {
+			if(wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_ACCOUNT))) & accounttype) {
+				type		= wi_number_int32(wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TYPE)));
+				tablename	= wi_dictionary_data_for_key(field, WI_STR(WD_ACCOUNT_FIELD_TABLE_NAME));
+				value		= wi_dictionary_data_for_key(account->values, name);
+				
+				if(wi_string_length(sqlcolumns) > 0)
+					wi_mutable_string_append_string(sqlcolumns, WI_STR(", "));
+				
+				wi_mutable_string_append_format(sqlcolumns, WI_STR("`%@`"), tablename);
+				
+				if(wi_string_length(sqlvalues) > 0)
+					wi_mutable_string_append_string(sqlvalues, WI_STR(", "));
+				
+				switch(type) {
+					case WD_ACCOUNT_FIELD_STRING:
+						wi_mutable_string_append_format(sqlvalues, WI_STR("'%q'"), value);
+						break;
+						
+					case WD_ACCOUNT_FIELD_DATE:
+						wi_mutable_string_append_format(sqlvalues, WI_STR("'%q'"), wi_date_sqlite3_string(value));
+						break;
+						
+					case WD_ACCOUNT_FIELD_NUMBER:
+					case WD_ACCOUNT_FIELD_BOOLEAN:
+					case WD_ACCOUNT_FIELD_ENUM:
+						wi_mutable_string_append_format(sqlvalues, WI_STR("%u"), wi_number_integer(value));
+						break;
+						
+					case WD_ACCOUNT_FIELD_LIST:
+						wi_mutable_string_append_format(sqlvalues, WI_STR("'%q'"), wi_array_components_joined_by_string(value, WI_STR("\34")));
+						break;
+				}
 			}
 		}
 	}
