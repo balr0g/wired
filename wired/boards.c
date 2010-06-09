@@ -92,10 +92,47 @@ static wi_runtime_class_t						wd_board_privileges_runtime_class = {
 
 
 void wd_boards_initialize(void) {
+	wi_dictionary_t		*results;
+	
 	wd_board_privileges_runtime_id = wi_runtime_register_class(&wd_board_privileges_runtime_class);
 	
 	wd_boards_create_tables();
 	wd_boards_convert_boards();
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT COUNT(*) AS count FROM boards"), NULL);
+	
+	if(!results)
+		wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+	
+	if(wi_number_integer(wi_dictionary_data_for_key(results, WI_STR("count"))) == 0) {
+		if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO boards (board, owner, `group`, mode) VALUES (?, ?, ?, ?)"),
+										 WI_STR("General"),
+										 WI_STR("admin"),
+										 WI_STR(""),
+										 WI_INT32(WD_BOARD_OWNER_READ    | WD_BOARD_OWNER_WRITE |
+												  WD_BOARD_GROUP_READ    | WD_BOARD_GROUP_WRITE |
+												  WD_BOARD_EVERYONE_READ | WD_BOARD_EVERYONE_WRITE),
+										 NULL)) {
+			wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+		}
+		
+		if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO threads "
+															 "(thread, board, subject, `text`, post_date, nick, login, ip, icon) "
+															 "VALUES "
+															 "(?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+										 wi_uuid_string(wi_uuid()),
+										 WI_STR("General"),
+										 WI_STR("Welcome to Wired"),
+										 WI_STR("Welcome to your Wired server. To learn more about administrating your server, please see the [url=http://www.zankasoftware.com/wired/manual/]manual[/url]."),
+										 wi_date_sqlite3_string(wi_date()),
+										 WI_STR("morris"),
+										 WI_STR("admin"),
+										 WI_STR("127.0.0.1"),
+										 WI_STR(""),
+										 NULL)) {
+			wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+		}
+	}
 }
 
 
