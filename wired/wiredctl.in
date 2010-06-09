@@ -3,10 +3,10 @@
 # The path to your config file
 CONFIGFILE="@wireddir@/etc/wired.conf"
 
-# The path to your pid file, should be the same as in your wired.conf
+# The path to your pid file
 PIDFILE="@wireddir@/wired.pid"
 
-# The path to your status file, should be the same as in your wired.conf
+# The path to your status file
 STATUSFILE="@wireddir@/wired.status"
 
 # The path to your wired binary
@@ -18,16 +18,6 @@ WIREDFLAGS="-d @wireddir@"
 # Begin script
 PROG=$(basename $0)
 CMD=$1
-
-if [ "$CMD" ]; then
-	shift
-	WIREDFLAGS="$WIREDFLAGS $*"
-fi
-
-if [ -f "@wireddir@/etc/wired.flags" ]; then
-	STARTUPFLAGS=$(cat "@wireddir@/etc/wired.flags")
-	WIREDFLAGS="$WIREDFLAGS $STARTUPFLAGS"
-fi
 
 checkpid() {
 	RUNNING=0

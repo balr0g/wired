@@ -1,7 +1,7 @@
 /* $Id$ */
 
 /*
- *  Copyright (c) 2008 Axel Andersson
+ *  Copyright (c) 2008-2009 Axel Andersson
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -31,46 +31,36 @@
 
 #include "users.h"
 
-enum _wd_board_permissions {
-	WD_BOARD_OWNER_WRITE				= (2 << 6),
-	WD_BOARD_OWNER_READ					= (4 << 6),
-	WD_BOARD_GROUP_WRITE				= (2 << 3),
-	WD_BOARD_GROUP_READ					= (4 << 3),
-	WD_BOARD_EVERYONE_WRITE				= (2 << 0),
-	WD_BOARD_EVERYONE_READ				= (4 << 0)
-};
-typedef enum _wd_board_permissions		wd_board_permissions_t;
-
-typedef struct _wd_board_privileges		wd_board_privileges_t;
-
-
 void									wd_boards_initialize(void);
 
-void									wd_boards_rename_owner(wi_string_t *, wi_string_t *);
-void									wd_boards_rename_group(wi_string_t *, wi_string_t *);
-															  
-void									wd_boards_reply_boards(wd_user_t *, wi_p7_message_t *);
-void									wd_boards_reply_posts(wd_user_t *, wi_p7_message_t *);
+void									wd_boards_renamed_user(wi_string_t *, wi_string_t *);
+void									wd_boards_renamed_group(wi_string_t *, wi_string_t *);
+void									wd_boards_reload_account(wd_user_t *, wd_account_t *, wd_account_t *);
 
-wi_boolean_t							wd_boards_add_board(wi_string_t *, wd_board_privileges_t *, wd_user_t *, wi_p7_message_t *);
+void									wd_boards_reply_boards(wd_user_t *, wi_p7_message_t *);
+void									wd_boards_reply_threads(wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_boards_reply_thread(wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
+
+wi_boolean_t							wd_boards_has_board_with_name(wi_string_t *);
+wi_string_t *							wd_boards_subject_for_thread(wi_uuid_t *);
+wi_string_t *							wd_boards_board_for_thread(wi_uuid_t *);
+wi_string_t *							wd_boards_subject_for_post(wi_uuid_t *);
+wi_string_t *							wd_boards_board_for_post(wi_uuid_t *);
+
+wi_boolean_t							wd_boards_add_board(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_boards_rename_board(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_boards_move_board(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-wi_boolean_t							wd_boards_set_board_privileges(wi_string_t *, wd_board_privileges_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_boards_delete_board(wi_string_t *, wd_user_t *, wi_p7_message_t *);
-
-wi_boolean_t							wd_boards_board_is_valid(wi_string_t *);
+wi_boolean_t							wd_boards_get_board_info(wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_boards_set_board_info(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
 wi_boolean_t							wd_boards_add_thread(wi_string_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-wi_boolean_t							wd_boards_move_thread(wi_string_t *, wi_uuid_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-wi_boolean_t							wd_boards_delete_thread(wi_string_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_boards_edit_thread(wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_boards_move_thread(wi_uuid_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_boards_delete_thread(wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
 
-wi_boolean_t							wd_boards_add_post(wi_string_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-wi_boolean_t							wd_boards_edit_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
-wi_boolean_t							wd_boards_delete_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
-
-wi_string_t *							wd_boards_subject_for_thread(wi_string_t *, wi_uuid_t *);
-wi_string_t *							wd_boards_subject_for_post(wi_string_t *, wi_uuid_t *, wi_uuid_t *);
-
-wd_board_privileges_t *					wd_board_privileges_with_message(wi_p7_message_t *);
+wi_boolean_t							wd_boards_add_post(wi_uuid_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_boards_edit_post(wi_uuid_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_boards_delete_post(wi_uuid_t *, wd_user_t *, wi_p7_message_t *);
 
 #endif /* WD_BOARD_H */

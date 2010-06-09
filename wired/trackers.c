@@ -32,6 +32,7 @@
 
 #include "accounts.h"
 #include "files.h"
+#include "index.h"
 #include "main.h"
 #include "server.h"
 #include "settings.h"
@@ -471,8 +472,8 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 		wi_p7_message_set_uint32_for_name(message, wi_array_count(wd_chat_users(wd_public_chat)), WI_STR("wired.tracker.users"));
 		wi_p7_message_set_string_for_name(message, wi_config_string_for_name(wd_config, WI_STR("name")), WI_STR("wired.info.name"));
 		wi_p7_message_set_string_for_name(message, wi_config_string_for_name(wd_config, WI_STR("description")), WI_STR("wired.info.description"));
-		wi_p7_message_set_uint64_for_name(message, wd_files_count, WI_STR("wired.info.files.count"));
-		wi_p7_message_set_uint64_for_name(message, wd_files_size, WI_STR("wired.info.files.size"));
+		wi_p7_message_set_uint64_for_name(message, wd_index_files_count, WI_STR("wired.info.files.count"));
+		wi_p7_message_set_uint64_for_name(message, wd_index_files_size, WI_STR("wired.info.files.size"));
 		
 		string = wi_config_string_for_name(wd_config, WI_STR("ip"));
 		
@@ -502,12 +503,16 @@ static void wd_tracker_register(wd_tracker_t *tracker) {
 			break;
 		}
 		
-		tracker->cipher		= wi_retain(wi_p7_socket_cipher(p7_socket));
-		tracker->active		= true;
-		tracker->address	= wi_retain(address);
+		wi_release(tracker->cipher);
+		tracker->cipher = wi_retain(wi_p7_socket_cipher(p7_socket));
+		
+		wi_release(tracker->address);
+		tracker->address = wi_retain(address);
 		
 		wi_log_info(WI_STR("Registered with the tracker \"%@\""),
 			tracker->host);
+		
+		tracker->active = true;
 		
 		break;
 	}
@@ -536,8 +541,8 @@ static void wd_tracker_update(wd_tracker_t *tracker) {
 	
 	message = wi_p7_message_with_name(WI_STR("wired.tracker.send_update"), wd_p7_spec);
 	wi_p7_message_set_uint32_for_name(message, wi_array_count(wd_chat_users(wd_public_chat)), WI_STR("wired.tracker.users"));
-	wi_p7_message_set_uint64_for_name(message, wd_files_count, WI_STR("wired.info.files.count"));
-	wi_p7_message_set_uint64_for_name(message, wd_files_size, WI_STR("wired.info.files.size"));
+	wi_p7_message_set_uint64_for_name(message, wd_index_files_count, WI_STR("wired.info.files.count"));
+	wi_p7_message_set_uint64_for_name(message, wd_index_files_size, WI_STR("wired.info.files.size"));
 
 	data = wi_p7_message_data_with_serialization(message, WI_P7_BINARY);
 	

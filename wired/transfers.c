@@ -37,6 +37,7 @@
 #include <wired/wired.h>
 
 #include "files.h"
+#include "index.h"
 #include "main.h"
 #include "messages.h"
 #include "server.h"
@@ -418,7 +419,7 @@ static wi_boolean_t wd_transfers_run_upload(wd_transfer_t *transfer, wd_user_t *
 			if(wi_data_length(transfer->finderinfo) > 0)
 				wi_fs_set_finder_info_for_path(transfer->finderinfo, path);
 			
-			wd_files_index_add_file(path);
+			wd_index_add_file(path);
 		} else {
 			wi_log_error(WI_STR("Could not move \"%@\" to \"%@\": %m"),
 				transfer->realdatapath, path);

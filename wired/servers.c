@@ -66,8 +66,9 @@ struct _wd_server {
 };
 
 
+static void								wd_servers_create_tables(void);
+static void								wd_servers_load_servers(void);
 static void								wd_servers_update_servers(wi_timer_t *);
-static void								wd_servers_write_servers(void);
 
 static void								wd_servers_add_server(wd_server_t *);
 static void								wd_servers_remove_server(wd_server_t *);
@@ -75,15 +76,11 @@ static void								wd_servers_add_stats_for_server(wd_server_t *);
 static void								wd_servers_remove_stats_for_server(wd_server_t *);
 
 static wd_server_t *					wd_server_alloc(void);
+static wd_server_t *					wd_server_init_with_sqlite3_results(wd_server_t *, wi_dictionary_t *);
 static wd_server_t *					wd_server_init_with_message(wd_server_t *, wi_p7_message_t *);
-static wd_server_t *					wd_server_init_with_dictionary_representation(wd_server_t *, wi_dictionary_t *);
 static void								wd_server_dealloc(wi_runtime_instance_t *);
 
-static wi_dictionary_t *				wd_server_dictionary_representation(wd_server_t *);
 
-
-static wi_rwlock_t						*wd_servers_lock;
-static wi_string_t						*wd_servers_path;
 static wi_timer_t						*wd_servers_timer;
 
 static wi_mutable_dictionary_t			*wd_servers;
@@ -101,46 +98,76 @@ static wi_runtime_class_t				wd_server_runtime_class = {
 
 
 void wd_servers_initialize(void) {
-	wi_enumerator_t				*enumerator;
-	wi_dictionary_t				*dictionary;
-	wi_runtime_instance_t		*servers;
-	wd_server_t					*server;
+	wd_servers_create_tables();
+	
+	wi_fs_delete_path(WI_STR("servers"));
 	
 	wd_server_runtime_id = wi_runtime_register_class(&wd_server_runtime_class);
 
 	wd_servers = wi_dictionary_init(wi_mutable_dictionary_alloc());
 	
-	wd_servers_lock = wi_rwlock_init(wi_rwlock_alloc());
-	wd_servers_path	= WI_STR("servers");
-
 	wd_servers_timer = wi_timer_init_with_function(wi_timer_alloc(),
 												   wd_servers_update_servers,
 												   WD_SERVERS_UPDATE_INTERVAL,
 												   true);
 	
-	servers = wi_plist_read_instance_from_file(wd_servers_path);
-	
-	if(servers && wi_runtime_id(servers) == wi_array_runtime_id()) {
-		enumerator = wi_array_data_enumerator(servers);
-		
-		while((dictionary = wi_enumerator_next_data(enumerator))) {
-			server = wi_autorelease(wd_server_init_with_dictionary_representation(wd_server_alloc(), dictionary));
-			
-			if(server)
-				wi_mutable_dictionary_set_data_for_key(wd_servers, server, server->ip);
-		}
-	}
-}
-
-
-
-void wd_servers_apply_settings(void) {
+	wd_servers_load_servers();
 }
 
 
 
 void wd_servers_schedule(void) {
 	wi_timer_schedule(wd_servers_timer);
+}
+
+
+
+#pragma mark -
+
+static void wd_servers_create_tables(void) {
+	wi_uinteger_t		version;
+	
+	version = wd_database_version_for_table(WI_STR("servers"));
+	
+	switch(version) {
+		case 0:
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TABLE servers ( "
+																 "ip TEXT PRIMARY KEY NOT NULL, "
+																 "port INTEGER NOT NULL, "
+																 "cipher INTEGER, "
+																 "key BLOB, "
+																 "iv BLOB "
+																 ")"),
+											 NULL)) {
+				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+			}
+			break;
+	}
+	
+	wd_database_set_version_for_table(1, WI_STR("servers"));
+}
+
+
+
+static void wd_servers_load_servers(void) {
+	wi_sqlite3_statement_t		*statement;
+	wi_dictionary_t				*results;
+	wd_server_t					*server;
+	
+	statement = wi_sqlite3_prepare_statement(wd_database, WI_STR("SELECT ip, port, cipher, key, iv FROM servers"), NULL);
+	
+	if(!statement)
+		wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+	
+	while((results = wi_sqlite3_fetch_statement_results(wd_database, statement)) && wi_dictionary_count(results) > 0) {
+		server = wi_autorelease(wd_server_init_with_sqlite3_results(wd_server_alloc(), results));
+
+		if(server)
+			wi_mutable_dictionary_set_data_for_key(wd_servers, server, server->ip);
+	}
+	
+	if(!results)
+		wi_log_fatal(WI_STR("Could not execute database statement: %m"));
 }
 
 
@@ -186,32 +213,7 @@ static void wd_servers_update_servers(wi_timer_t *timer) {
 		wi_lock_lock(wd_status_lock);
 		wd_write_status(true);
 		wi_lock_unlock(wd_status_lock);
-	
-		wd_servers_write_servers();
 	}
-}
-
-
-
-static void wd_servers_write_servers(void) {
-	wi_enumerator_t			*enumerator;
-	wi_mutable_array_t		*array;
-	wd_server_t				*server;
-	
-	wi_rwlock_wrlock(wd_servers_lock);
-	wi_dictionary_rdlock(wd_servers);
-	
-	array			= wi_mutable_array();
-	enumerator		= wi_dictionary_data_enumerator(wd_servers);
-	
-	while((server = wi_enumerator_next_data(enumerator)))
-		wi_mutable_array_add_data(array, wd_server_dictionary_representation(server));
-	
-	if(!wi_plist_write_instance_to_file(array, wd_servers_path))
-		wi_log_error(WI_STR("Could not write servers to \"%@\": %m"), wd_servers_path);
-	
-	wi_rwlock_unlock(wd_servers_lock);
-	wi_dictionary_unlock(wd_servers);
 }
 
 
@@ -274,10 +276,11 @@ wd_server_t * wd_servers_server_for_ip(wi_string_t *ip) {
 #pragma mark -
 
 void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t		*reply;
-	wi_address_t		*address;
-	wi_array_t			*categories;
-	wd_server_t			*server, *existing_server;
+	wi_p7_message_t			*reply;
+	wi_address_t			*address;
+	wi_array_t				*categories;
+	wi_dictionary_t			*results;
+	wd_server_t				*server, *existing_server;
 	
 	address					= wi_socket_address(wd_user_socket(user));
 	server					= wi_autorelease(wd_server_init_with_message(wd_server_alloc(), message));
@@ -319,12 +322,24 @@ void wd_servers_register_server(wd_user_t *user, wi_p7_message_t *message) {
 	
 	reply = wi_p7_message_with_name(WI_STR("wired.okay"), wd_p7_spec);
 	wd_user_reply_message(user, reply, message);
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("DELETE FROM servers WHERE ip = ?"), server->ip, NULL))
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO servers (ip, port, cipher, key, iv) VALUES (?, ?, ?, ?, ?)"),
+										   server->ip,
+										   WI_INT32(server->port),
+										   server->cipher ? WI_INT32(wi_cipher_type(server->cipher)) : wi_null(),
+										   server->cipher ? wi_cipher_key(server->cipher) : wi_null(),
+										   server->cipher && wi_cipher_iv(server->cipher) ? wi_cipher_iv(server->cipher) : wi_null(),
+										   NULL);
+	
+	if(!results)
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
 
 	wi_lock_lock(wd_status_lock);
 	wd_write_status(true);
 	wi_lock_unlock(wd_status_lock);
-	
-	wd_servers_write_servers();
 }
 
 
@@ -413,6 +428,24 @@ static wd_server_t * wd_server_alloc(void) {
 
 
 
+static wd_server_t * wd_server_init_with_sqlite3_results(wd_server_t *server, wi_dictionary_t *results) {
+	wi_runtime_instance_t		*cipher, *key, *iv;
+	
+	server->ip		= wi_retain(wi_dictionary_data_for_key(results, WI_STR("ip")));
+	server->port	= wi_number_integer(wi_dictionary_data_for_key(results, WI_STR("port")));
+	
+	cipher			= wi_dictionary_data_for_key(results, WI_STR("cipher"));
+	key				= wi_dictionary_data_for_key(results, WI_STR("key"));
+	iv				= wi_dictionary_data_for_key(results, WI_STR("iv"));
+	
+	if(cipher != wi_null())
+		server->cipher = wi_cipher_init_with_key(wi_cipher_alloc(), wi_number_integer(cipher), key, iv == wi_null() ? NULL : iv);
+	
+	return server;
+}
+
+
+
 static wd_server_t * wd_server_init_with_message(wd_server_t *server, wi_p7_message_t *message) {
 	server->active			= true;
 	server->display_ip		= wi_retain(wi_p7_message_string_for_name(message, WI_STR("wired.tracker.ip")));
@@ -431,40 +464,6 @@ static wd_server_t * wd_server_init_with_message(wd_server_t *server, wi_p7_mess
 
 
 
-static wd_server_t * wd_server_init_with_dictionary_representation(wd_server_t *server, wi_dictionary_t *dictionary) {
-	wi_runtime_instance_t		*ip, *port, *cipher, *key, *iv;
-	
-	ip			= wi_dictionary_data_for_key(dictionary, WI_STR("ip"));
-	port		= wi_dictionary_data_for_key(dictionary, WI_STR("port"));
-	cipher		= wi_dictionary_data_for_key(dictionary, WI_STR("cipher"));
-	key			= wi_dictionary_data_for_key(dictionary, WI_STR("key"));
-	iv			= wi_dictionary_data_for_key(dictionary, WI_STR("iv"));
-	
-	if(ip && wi_runtime_id(ip) == wi_string_runtime_id())
-		server->ip = wi_retain(ip);
-	
-	if(port && wi_runtime_id(port) == wi_number_runtime_id())
-		server->port = wi_number_int32(port);
-
-	if(cipher && wi_runtime_id(cipher) == wi_number_runtime_id() &&
-	   key && wi_runtime_id(key) == wi_data_runtime_id()) {
-		if(iv && wi_runtime_id(iv) == wi_data_runtime_id())
-			server->cipher = wi_cipher_init_with_key(wi_cipher_alloc(), wi_number_int32(cipher), key, iv);
-		else
-			server->cipher = wi_cipher_init_with_key(wi_cipher_alloc(), wi_number_int32(cipher), key, NULL);
-	}
-	
-	if(!server->ip || server->port == 0) {
-		wi_release(server);
-		
-		return NULL;
-	}
-
-	return server;
-}
-
-
-
 static void wd_server_dealloc(wi_runtime_instance_t *instance) {
 	wd_server_t		*server = instance;
 	
@@ -477,29 +476,6 @@ static void wd_server_dealloc(wi_runtime_instance_t *instance) {
 	wi_release(server->url);
 	wi_release(server->name);
 	wi_release(server->description);
-}
-
-
-
-#pragma mark -
-
-static wi_dictionary_t * wd_server_dictionary_representation(wd_server_t *server) {
-	wi_mutable_dictionary_t		*dictionary;
-	
-	dictionary = wi_mutable_dictionary();
-	
-	wi_mutable_dictionary_set_data_for_key(dictionary, server->ip, WI_STR("ip"));
-	wi_mutable_dictionary_set_data_for_key(dictionary, WI_INT32(server->port), WI_STR("port"));
-	
-	if(server->cipher) {
-		wi_mutable_dictionary_set_data_for_key(dictionary, WI_INT32(wi_cipher_type(server->cipher)), WI_STR("cipher"));
-		wi_mutable_dictionary_set_data_for_key(dictionary, wi_cipher_key(server->cipher), WI_STR("key"));
-		
-		if(wi_cipher_iv(server->cipher))
-			wi_mutable_dictionary_set_data_for_key(dictionary, wi_cipher_iv(server->cipher), WI_STR("iv"));
-	}
-	
-	return dictionary;
 }
 
 

@@ -43,6 +43,7 @@
 #include "boards.h"
 #include "events.h"
 #include "files.h"
+#include "index.h"
 #include "main.h"
 #include "messages.h"
 #include "portmap.h"
@@ -60,6 +61,9 @@ static void						wd_write_pid(void);
 static void						wd_delete_pid(void);
 static void						wd_delete_status(void);
 
+static void						wd_database_open(void);
+static void						wd_database_close(void);
+
 static void						wd_signals_init(void);
 static void						wd_block_signals(void);
 static int						wd_wait_signals(void);
@@ -75,6 +79,8 @@ wi_boolean_t					wd_running = true;
 wi_address_family_t				wd_address_family = WI_ADDRESS_NULL;
 
 wi_string_t						*wd_config_path;
+
+wi_sqlite3_database_t			*wd_database;
 
 wi_lock_t						*wd_status_lock;
 wi_date_t						*wd_start_date;
@@ -233,6 +239,8 @@ int main(int argc, const char **argv) {
 	
 	wi_log_open();
 	
+	wd_database_open();
+	
 	wd_server_initialize();
 
 	wd_accounts_initialize();
@@ -241,6 +249,7 @@ int main(int argc, const char **argv) {
 	wd_users_initialize();
 	wd_events_initialize();
 	wd_files_initialize();
+	wd_index_initialize();
 	wd_messages_initialize();
 	wd_portmap_initialize();
 	wd_banlist_initialize();
@@ -289,14 +298,13 @@ int main(int argc, const char **argv) {
 	wd_write_pid();
 	wd_write_status(true);
 	
-	wd_files_index(true);
+	wd_index_index_files(true);
 	
 	wi_pool_drain(pool);
 	
 	wd_signal_thread(NULL);
 	
 	wd_users_remove_all_users();
-	wd_events_flush_events();
 	wd_cleanup();
 	wi_log_close();
 	wi_release(pool);
@@ -307,6 +315,7 @@ int main(int argc, const char **argv) {
 
 
 static void wd_cleanup(void) {
+	wd_database_close();
 	wd_server_cleanup();
 	wd_delete_pid();
 	wd_delete_status();
@@ -426,6 +435,72 @@ static void wd_delete_status(void) {
 
 #pragma mark -
 
+static void wd_database_open(void) {
+	wd_database = wi_retain(wi_sqlite3_open_database_with_path(WI_STR("database.sqlite3")));
+	
+	if(!wd_database)
+		wi_log_fatal(WI_STR("Could not open \"database.sqlite3\": %m"));
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TABLE IF NOT EXISTS versions ( "
+														 "name TEXT PRIMARY KEY NOT NULL, "
+														 "version INTEGER NOT NULL "
+														 ")"),
+									 NULL)) {
+		wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+	}
+}
+
+
+
+static void wd_database_close(void) {
+	wi_release(wd_database);
+}
+
+
+
+void wd_database_set_version_for_table(wi_uinteger_t version, wi_string_t *table) {
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("DELETE FROM versions WHERE name = ?"),
+									 table,
+									 NULL)) {
+		wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+	}
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO versions (name, version) VALUES (?, ?)"),
+									 table,
+									 wi_number_with_integer(version),
+									 NULL)) {
+		wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+	}
+}
+
+
+
+wi_uinteger_t wd_database_version_for_table(wi_string_t *table) {
+	wi_dictionary_t		*results;
+	
+	if(!wi_sqlite3_execute_statement(wd_database,
+									 wi_string_with_format(WI_STR("SELECT * FROM `%@` WHERE 1 = 2"), table),
+									 NULL)) {
+		return 0;
+	}
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT version FROM versions WHERE name = ?"),
+										   table,
+										   NULL);
+	
+	if(!results)
+		wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+	
+	if(wi_dictionary_count(results) == 0)
+		return 0;
+
+	return wi_number_integer(wi_dictionary_data_for_key(results, WI_STR("version")));
+}
+
+
+
+#pragma mark -
+
 static void wd_signals_init(void) {
 	signal(SIGILL, wd_signal_crash);
 	signal(SIGABRT, wd_signal_crash);
@@ -478,7 +553,7 @@ void wd_signal_thread(wi_runtime_instance_t *arg) {
 
 			case SIGUSR2:
 				wi_log_info(WI_STR("Signal USR2 received, indexing files"));
-				wd_files_index(false);
+				wd_index_index_files(false);
 				break;
 
 			case SIGINT:

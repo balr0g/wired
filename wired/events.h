@@ -32,13 +32,10 @@
 #include "main.h"
 
 void									wd_events_initialize(void);
-void									wd_events_flush_events(void);
 
-void									wd_events_reply_archives(wd_user_t *, wi_p7_message_t *);
-wi_boolean_t							wd_events_reply_events(wi_date_t *, wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_events_reply_first_time(wd_user_t *, wi_p7_message_t *);
+wi_boolean_t							wd_events_reply_events(wi_date_t *, wi_uinteger_t, wi_uinteger_t, wd_user_t *, wi_p7_message_t *);
 
 void									wd_events_add_event(wi_string_t *, wd_user_t *, ...);
-
-void									wd_events_remove_user(wd_user_t *);
 
 #endif // WD_EVENTS_H

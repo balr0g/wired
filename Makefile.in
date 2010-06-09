@@ -143,16 +143,6 @@ install-wired:
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/etc/wired.conf $(installdir)/etc/; \
 	fi
 	
-	if [ -f $(installdir)/events ]; then \
-		rm -f $(installdir)/events; \
-	fi
-
-	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/events/
-
-	if [ ! -f $(installdir)/events/current ]; then \
-		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/events/current $(installdir)/events/; \
-	fi
-
 	if [ ! -d $(installdir)/files ]; then \
 		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/files/; \
 		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/files/Uploads/; \
@@ -164,20 +154,8 @@ install-wired:
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/files/Drop\ Box/.wired/permissions $(installdir)/files/Drop\ Box/.wired/; \
 	fi
 
-	if [ ! -f $(installdir)/banlist ]; then \
-		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/banlist $(installdir)/; \
-	fi
-
 	if [ ! -f $(installdir)/banner.png ]; then \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/banner.png $(installdir)/; \
-	fi
-
-	if [ ! -f $(installdir)/groups ]; then \
-		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/groups $(installdir)/; \
-	fi
-
-	if [ ! -f $(installdir)/users ]; then \
-		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/users $(installdir)/; \
 	fi
 
 	$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/wired.xml $(installdir)/

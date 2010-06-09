@@ -35,7 +35,6 @@ typedef struct _wd_server			wd_server_t;
 
 
 void								wd_servers_initialize(void);
-void								wd_servers_apply_settings(void);
 void								wd_servers_schedule(void);
 
 wd_server_t *						wd_servers_server_for_ip(wi_string_t *);

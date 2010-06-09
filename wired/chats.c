@@ -55,8 +55,12 @@ struct _wd_topic {
 	wi_string_t						*topic;
 	wi_date_t						*date;
 	wi_string_t						*nick;
+	wi_string_t						*login;
+	wi_string_t						*ip;
 };
 
+
+static void							wd_chats_create_tables(void);
 
 static wd_chat_t *					wd_chat_alloc(void);
 static wd_chat_t *					wd_chat_init(wd_chat_t *);
@@ -68,11 +72,8 @@ static wi_string_t *				wd_chat_description(wi_runtime_instance_t *);
 static wd_cid_t						wd_chat_next_id(void);
 
 static wd_topic_t *					wd_topic_alloc(void);
-static wd_topic_t *					wd_topic_init_with_user_and_string(wd_topic_t *, wd_user_t *, wi_string_t *);
-static wd_topic_t *					wd_topic_init_with_dictionary(wd_topic_t *, wi_dictionary_t *);
+static wd_topic_t *					wd_topic_init_with_string(wd_topic_t *, wi_string_t *, wi_date_t *, wi_string_t *, wi_string_t *, wi_string_t *);
 static void							wd_topic_dealloc(wi_runtime_instance_t *);
-
-static wi_dictionary_t *			wd_topic_dictionary(wd_topic_t *topic);
 
 
 wd_chat_t							*wd_public_chat;
@@ -81,8 +82,6 @@ static wd_uid_t						wd_chats_current_id;
 static wi_lock_t					*wd_chats_id_lock;
 
 static wi_mutable_dictionary_t		*wd_chats;
-
-static wi_string_t					*wd_topic_path;
 
 static wi_runtime_id_t				wd_chat_runtime_id = WI_RUNTIME_ID_NULL;
 static wi_runtime_class_t			wd_chat_runtime_class = {
@@ -107,7 +106,11 @@ static wi_runtime_class_t			wd_topic_runtime_class = {
 
 
 void wd_chats_initialize(void) {
-	wi_runtime_instance_t	*instance;
+	wi_dictionary_t		*results;
+	
+	wd_chats_create_tables();
+	
+	wi_fs_delete_path(WI_STR("topic"));
 	
 	wd_chat_runtime_id = wi_runtime_register_class(&wd_chat_runtime_class);
 	wd_topic_runtime_id = wi_runtime_register_class(&wd_topic_runtime_class);
@@ -118,15 +121,23 @@ void wd_chats_initialize(void) {
 	
 	wd_chats_current_id = WD_PUBLIC_CHAT_ID;
 	
-	wd_topic_path = WI_STR("topic");
-
 	wd_public_chat = wd_chat_init_public_chat(wd_chat_alloc());
 	wd_chats_add_chat(wd_public_chat);
 	
-	instance = wi_plist_read_instance_from_file(wd_topic_path);
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT topic, time, nick, login, ip FROM topic"), NULL);
 	
-	if(instance && wi_runtime_id(instance) == wi_dictionary_runtime_id())
-		wd_public_chat->topic = wd_topic_init_with_dictionary(wd_topic_alloc(), instance);
+	if(results) {
+		if(wi_dictionary_count(results) > 0) {
+			wd_public_chat->topic = wd_topic_init_with_string(wd_topic_alloc(),
+				wi_dictionary_data_for_key(results, WI_STR("topic")),
+				wi_dictionary_data_for_key(results, WI_STR("time")),
+				wi_dictionary_data_for_key(results, WI_STR("nick")),
+				wi_dictionary_data_for_key(results, WI_STR("login")),
+				wi_dictionary_data_for_key(results, WI_STR("ip")));
+		}
+	} else {
+		wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+	}
 }
 
 
@@ -197,6 +208,33 @@ void wd_chats_remove_user(wd_user_t *user) {
 	}
 	
 	wi_dictionary_unlock(wd_chats);
+}
+
+
+
+#pragma mark -
+
+void wd_chats_create_tables(void) {
+	wi_uinteger_t		version;
+	
+	version = wd_database_version_for_table(WI_STR("topic"));
+	
+	switch(version) {
+		case 0:
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TABLE topic ( "
+																 "topic TEXT NOT NULL, "
+																 "time TEXT NOT NULL, "
+																 "nick TEXT NOT NULL, "
+																 "login TEXT NOT NULL, "
+																 "ip TEXT NOT NULL "
+																 ")"),
+											 NULL)) {
+				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+			}
+			break;
+	}
+	
+	wd_database_set_version_for_table(1, WI_STR("topic"));
 }
 
 
@@ -404,15 +442,34 @@ wi_p7_message_t * wd_chat_topic_message(wd_chat_t *chat) {
 #pragma mark -
 
 void wd_chat_set_topic(wd_chat_t *chat, wd_topic_t *topic) {
+	wi_dictionary_t		*results;
+	
 	wi_recursive_lock_lock(chat->lock);
+	
 	wi_retain(topic);
 	wi_release(chat->topic);
+
 	chat->topic = topic;
+	
 	wi_recursive_lock_unlock(chat->lock);
 	
 	if(chat->id == WD_PUBLIC_CHAT_ID) {
-		if(!wi_plist_write_instance_to_file(wd_topic_dictionary(topic), wd_topic_path))
-			wi_log_error(WI_STR("Could not write to \"%@\": %m"), wd_topic_path);
+		if(!wi_sqlite3_execute_statement(wd_database, WI_STR("DELETE FROM topic"), NULL))
+			wi_log_error(WI_STR("Could not execute database statement: %m"));
+
+		results = wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO topic "
+																   "(topic, time, nick, login, ip) "
+																   "VALUES "
+																   "(?, ?, ?, ?, ?)"),
+											   topic->topic,
+											   topic->date,
+											   topic->nick,
+											   topic->login,
+											   topic->ip,
+											   NULL);
+		
+		if(!results)
+			wi_log_error(WI_STR("Could not execute database statement: %m"));
 	}
 }
 
@@ -476,8 +533,8 @@ void wd_chat_remove_invitation_for_user(wd_chat_t *chat, wd_user_t *user) {
 
 #pragma mark -
 
-wd_topic_t * wd_topic_with_user_and_string(wd_user_t *user, wi_string_t *string) {
-	return wi_autorelease(wd_topic_init_with_user_and_string(wd_topic_alloc(), user, string));
+wd_topic_t * wd_topic_with_string(wi_string_t *string, wi_date_t *time, wi_string_t *nick, wi_string_t *login, wi_string_t *ip) {
+	return wi_autorelease(wd_topic_init_with_string(wd_topic_alloc(), string, time, nick, login, ip));
 }
 
 
@@ -490,26 +547,12 @@ static wd_topic_t * wd_topic_alloc(void) {
 
 
 
-static wd_topic_t * wd_topic_init_with_user_and_string(wd_topic_t *topic, wd_user_t *user, wi_string_t *string) {
+static wd_topic_t * wd_topic_init_with_string(wd_topic_t *topic, wi_string_t *string, wi_date_t *time, wi_string_t *nick, wi_string_t *login, wi_string_t *ip) {
 	topic->topic	= wi_retain(string);
-	topic->date		= wi_date_init(wi_date_alloc());
-	topic->nick		= wi_copy(wd_user_nick(user));
-	
-	return topic;
-}
-
-
-
-static wd_topic_t * wd_topic_init_with_dictionary(wd_topic_t *topic, wi_dictionary_t *dictionary) {
-	topic->topic	= wi_retain(wi_dictionary_data_for_key(dictionary, WI_STR("wired.chat.topic.topic")));
-	topic->date		= wi_retain(wi_dictionary_data_for_key(dictionary, WI_STR("wired.chat.topic.time")));
-	topic->nick		= wi_retain(wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.nick")));
-	
-	if(!topic->topic || !topic->date || !topic->nick) {
-		wi_release(topic);
-		
-		return NULL;
-	}
+	topic->date		= wi_retain(time);
+	topic->nick		= wi_copy(nick);
+	topic->login	= wi_copy(login);
+	topic->ip		= wi_copy(ip);
 	
 	return topic;
 }
@@ -522,16 +565,6 @@ static void wd_topic_dealloc(wi_runtime_instance_t *instance) {
 	wi_release(topic->topic);
 	wi_release(topic->date);
 	wi_release(topic->nick);
-}
-
-
-
-#pragma mark -
-
-static wi_dictionary_t * wd_topic_dictionary(wd_topic_t *topic) {
-	return wi_dictionary_with_data_and_keys(
-		topic->topic,	WI_STR("wired.chat.topic.topic"),
-		topic->date,	WI_STR("wired.chat.topic.time"),
-		topic->nick,	WI_STR("wired.user.nick"),
-		NULL);
+	wi_release(topic->login);
+	wi_release(topic->ip);
 }

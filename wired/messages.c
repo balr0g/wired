@@ -35,6 +35,7 @@
 #include "chats.h"
 #include "events.h"
 #include "files.h"
+#include "index.h"
 #include "main.h"
 #include "messages.h"
 #include "server.h"
@@ -69,13 +70,16 @@ static void							wd_message_chat_kick_user(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_message_send_message(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_message_send_broadcast(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_get_boards(wd_user_t *, wi_p7_message_t *);
-static void							wd_message_board_get_posts(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_get_threads(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_get_thread(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_add_board(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_rename_board(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_move_board(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_delete_board(wd_user_t *, wi_p7_message_t *);
-static void							wd_message_board_set_permissions(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_get_board_info(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_set_board_info(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_add_thread(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_board_edit_thread(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_move_thread(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_delete_thread(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_board_add_post(wd_user_t *, wi_p7_message_t *);
@@ -117,7 +121,7 @@ static void							wd_message_transfer_upload_directory(wd_user_t *, wi_p7_messag
 static void							wd_message_log_get_log(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_log_subscribe(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_log_unsubscribe(wd_user_t *, wi_p7_message_t *);
-static void							wd_message_event_get_archives(wd_user_t *, wi_p7_message_t *);
+static void							wd_message_event_get_first_time(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_event_get_events(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_event_subscribe(wd_user_t *, wi_p7_message_t *);
 static void							wd_message_event_unsubscribe(wd_user_t *, wi_p7_message_t *);
@@ -167,13 +171,16 @@ void wd_messages_initialize(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.message.send_message"), wd_message_message_send_message);
 	WD_MESSAGE_HANDLER(WI_STR("wired.message.send_broadcast"), wd_message_message_send_broadcast);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_boards"), wd_message_board_get_boards);
-	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_posts"), wd_message_board_get_posts);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_threads"), wd_message_board_get_threads);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_thread"), wd_message_board_get_thread);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.add_board"), wd_message_board_add_board);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.rename_board"), wd_message_board_rename_board);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.move_board"), wd_message_board_move_board);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.delete_board"), wd_message_board_delete_board);
-	WD_MESSAGE_HANDLER(WI_STR("wired.board.set_permissions"), wd_message_board_set_permissions);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.get_board_info"), wd_message_board_get_board_info);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.set_board_info"), wd_message_board_set_board_info);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.add_thread"), wd_message_board_add_thread);
+	WD_MESSAGE_HANDLER(WI_STR("wired.board.edit_thread"), wd_message_board_edit_thread);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.move_thread"), wd_message_board_move_thread);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.delete_thread"), wd_message_board_delete_thread);
 	WD_MESSAGE_HANDLER(WI_STR("wired.board.add_post"), wd_message_board_add_post);
@@ -215,7 +222,7 @@ void wd_messages_initialize(void) {
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.get_log"), wd_message_log_get_log);
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.subscribe"), wd_message_log_subscribe);
 	WD_MESSAGE_HANDLER(WI_STR("wired.log.unsubscribe"), wd_message_log_unsubscribe);
-	WD_MESSAGE_HANDLER(WI_STR("wired.event.get_archives"), wd_message_event_get_archives);
+	WD_MESSAGE_HANDLER(WI_STR("wired.event.get_first_time"), wd_message_event_get_first_time);
 	WD_MESSAGE_HANDLER(WI_STR("wired.event.get_events"), wd_message_event_get_events);
 	WD_MESSAGE_HANDLER(WI_STR("wired.event.subscribe"), wd_message_event_subscribe);
 	WD_MESSAGE_HANDLER(WI_STR("wired.event.unsubscribe"), wd_message_event_unsubscribe);
@@ -866,7 +873,7 @@ static void wd_message_chat_set_topic(wd_user_t *user, wi_p7_message_t *message)
 	
 	topic = wi_p7_message_string_for_name(message, WI_STR("wired.chat.topic.topic"));
 	
-	wd_chat_set_topic(chat, wd_topic_with_user_and_string(user, topic));
+	wd_chat_set_topic(chat, wd_topic_with_string(topic, wi_date(), wd_user_nick(user), wd_user_login(user), wd_user_ip(user)));
 	wd_chat_broadcast_message(chat, wd_chat_topic_message(chat));
 	
 	wd_user_reply_okay(user, message);
@@ -1114,23 +1121,55 @@ static void wd_message_board_get_boards(wd_user_t *user, wi_p7_message_t *messag
 
 
 
-static void wd_message_board_get_posts(wd_user_t *user, wi_p7_message_t *message) {
+static void wd_message_board_get_threads(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*board;
+	
 	if(!wd_account_board_read_boards(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
 	}
 	
-	wd_boards_reply_posts(user, message);
+	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
+	
+	if(board && !wd_boards_has_board_with_name(board)) {
+		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+		
+		return;
+	}
+	
+	wd_boards_reply_threads(board, user, message);
 
-	wd_events_add_event(WI_STR("wired.event.board.got_posts"), user, NULL);
+	wd_events_add_event(WI_STR("wired.event.board.got_threads"), user, NULL);
+}
+
+
+
+static void wd_message_board_get_thread(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*board, *subject;
+	wi_uuid_t		*thread;
+	
+	if(!wd_account_board_read_boards(wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return;
+	}
+	
+	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
+	
+	if(wd_boards_reply_thread(thread, user, message)) {
+		board		= wd_boards_board_for_thread(thread);
+		subject		= wd_boards_board_for_thread(thread);
+		
+		wd_events_add_event(WI_STR("wired.event.board.got_thread"), user,
+			subject, board, NULL);
+	}
 }
 
 
 
 static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*board;
-	wd_board_privileges_t	*privileges;
+	wi_string_t		*board;
 	
 	if(!wd_account_board_add_boards(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -1140,15 +1179,13 @@ static void wd_message_board_add_board(wd_user_t *user, wi_p7_message_t *message
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_boards_board_is_valid(board)) {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+	if(wd_boards_has_board_with_name(board)) {
+		wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
 		
 		return;
 	}
 	
-	privileges = wd_board_privileges_with_message(message);
-	
-	if(wd_boards_add_board(board, privileges, user, message)) {
+	if(wd_boards_add_board(board, user, message)) {
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.added_board"), user,
@@ -1170,8 +1207,14 @@ static void wd_message_board_rename_board(wd_user_t *user, wi_p7_message_t *mess
 	oldboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	newboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.new_board"));
 	
-	if(!wd_boards_board_is_valid(oldboard) || !wd_boards_board_is_valid(newboard)) {
+	if(!wd_boards_has_board_with_name(oldboard)) {
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+		
+		return;
+	}
+	
+	if(wd_boards_has_board_with_name(newboard)) {
+		wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
 		
 		return;
 	}
@@ -1204,8 +1247,14 @@ static void wd_message_board_move_board(wd_user_t *user, wi_p7_message_t *messag
 	oldboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	newboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.new_board"));
 	
-	if(!wd_boards_board_is_valid(oldboard) || !wd_boards_board_is_valid(newboard)) {
+	if(!wd_boards_has_board_with_name(oldboard)) {
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+		
+		return;
+	}
+	
+	if(wd_boards_has_board_with_name(newboard)) {
+		wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
 		
 		return;
 	}
@@ -1231,7 +1280,7 @@ static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *mess
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_boards_board_is_valid(board)) {
+	if(!wd_boards_has_board_with_name(board)) {
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -1247,11 +1296,10 @@ static void wd_message_board_delete_board(wd_user_t *user, wi_p7_message_t *mess
 
 
 
-static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t				*board;
-	wd_board_privileges_t	*privileges;
+static void wd_message_board_get_board_info(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*board;
 	
-	if(!wd_account_board_set_permissions(wd_user_account(user))) {
+	if(!wd_account_board_get_board_info(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
@@ -1259,18 +1307,41 @@ static void wd_message_board_set_permissions(wd_user_t *user, wi_p7_message_t *m
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_boards_board_is_valid(board)) {
+	if(!wd_boards_has_board_with_name(board)) {
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
 	}
 	
-	privileges = wd_board_privileges_with_message(message);
+	if(wd_boards_get_board_info(board, user, message)) {
+		wd_events_add_event(WI_STR("wired.event.board.got_board_info"), user,
+			board, NULL);
+	}
+}
 
-	if(wd_boards_set_board_privileges(board, privileges, user, message)) {
+
+
+static void wd_message_board_set_board_info(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*board;
+	
+	if(!wd_account_board_set_board_info(wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return;
+	}
+	
+	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
+	
+	if(!wd_boards_has_board_with_name(board)) {
+		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+		
+		return;
+	}
+	
+	if(wd_boards_set_board_info(board, user, message)) {
 		wd_user_reply_okay(user, message);
 
-		wd_events_add_event(WI_STR("wired.event.board.set_permissions"), user,
+		wd_events_add_event(WI_STR("wired.event.board.set_board_info"), user,
 			board, NULL);
 	}
 }
@@ -1288,7 +1359,7 @@ static void wd_message_board_add_thread(wd_user_t *user, wi_p7_message_t *messag
 	
 	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	
-	if(!wd_boards_board_is_valid(board)) {
+	if(!wd_boards_has_board_with_name(board)) {
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -1307,8 +1378,37 @@ static void wd_message_board_add_thread(wd_user_t *user, wi_p7_message_t *messag
 
 
 
+static void wd_message_board_edit_thread(wd_user_t *user, wi_p7_message_t *message) {
+	wi_string_t		*subject, *text, *board;
+	wi_uuid_t		*thread;
+	wd_account_t	*account;
+	
+	account = wd_user_account(user);
+	
+	if(!wd_account_board_edit_own_threads_and_posts(account) && !wd_account_board_edit_all_threads_and_posts(account)) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return;
+	}
+	
+	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
+	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
+	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
+	
+	if(wd_boards_edit_thread(thread, subject, text, user, message)) {
+		board = wd_boards_board_for_post(thread);
+		
+		wd_user_reply_okay(user, message);
+
+		wd_events_add_event(WI_STR("wired.event.board.edited_thread"), user,
+			subject, board, NULL);
+	}
+}
+
+
+
 static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*oldboard, *newboard, *subject;
+	wi_string_t		*newboard, *oldboard, *subject;
 	wi_uuid_t		*thread;
 	
 	if(!wd_account_board_move_threads(wd_user_account(user))) {
@@ -1317,10 +1417,9 @@ static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *messa
 		return;
 	}
 	
-	oldboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
 	newboard = wi_p7_message_string_for_name(message, WI_STR("wired.board.new_board"));
 	
-	if(!wd_boards_board_is_valid(oldboard) || !wd_boards_board_is_valid(newboard)) {
+	if(!wd_boards_has_board_with_name(newboard)) {
 		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
 		
 		return;
@@ -1328,51 +1427,49 @@ static void wd_message_board_move_thread(wd_user_t *user, wi_p7_message_t *messa
 	
 	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	
-	if(wd_boards_move_thread(oldboard, thread, newboard, user, message)) {
-		subject = wd_boards_subject_for_thread(newboard, thread);
-		
+	if(wd_boards_move_thread(thread, newboard, user, message)) {
+		oldboard	= wd_boards_board_for_thread(thread);
+		subject		= wd_boards_subject_for_thread(thread);
+
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.moved_thread"), user,
-			subject ? subject : WI_STR(""), oldboard, newboard, NULL);
+			subject, oldboard, newboard, NULL);
 	}
 }
 
 
 
 static void wd_message_board_delete_thread(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*board, *subject;
+	wi_string_t		*subject, *board;
 	wi_uuid_t		*thread;
+	wd_account_t	*account;
 	
-	if(!wd_account_board_delete_threads(wd_user_account(user))) {
+	account = wd_user_account(user);
+	
+	if(!wd_account_board_delete_own_threads_and_posts(account) && !wd_account_board_delete_all_threads_and_posts(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
 	}
 	
-	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
+	thread = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	
-	if(!wd_boards_board_is_valid(board)) {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+	if(wd_boards_delete_thread(thread, user, message)) {
+		board		= wd_boards_board_for_thread(thread);
+		subject		= wd_boards_subject_for_thread(thread);
 		
-		return;
-	}
-	
-	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
-	subject		= wd_boards_subject_for_thread(board, thread);
-	
-	if(wd_boards_delete_thread(board, thread, user, message)) {
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.deleted_thread"), user,
-			subject ? subject : WI_STR(""), board, NULL);
+			subject, board, NULL);
 	}
 }
 
 
 
 static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*board, *subject, *text;
+	wi_string_t		*subject, *text, *board;
 	wi_uuid_t		*thread;
 	
 	if(!wd_account_board_add_posts(wd_user_account(user))) {
@@ -1381,19 +1478,13 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 		return;
 	}
 	
-	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
-	
-	if(!wd_boards_board_is_valid(board)) {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
-		
-		return;
-	}
-	
 	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
-	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
 	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 
-	if(wd_boards_add_post(board, thread, subject, text, user, message)) {
+	if(wd_boards_add_post(thread, text, user, message)) {
+		board		= wd_boards_board_for_thread(thread);
+		subject		= wd_boards_subject_for_thread(thread);
+
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.added_post"), user,
@@ -1404,32 +1495,25 @@ static void wd_message_board_add_post(wd_user_t *user, wi_p7_message_t *message)
 
 
 static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*board, *subject, *text;
-	wi_uuid_t		*thread, *post;
+	wi_string_t		*subject, *text, *board;
+	wi_uuid_t		*post;
 	wd_account_t	*account;
 	
 	account = wd_user_account(user);
 	
-	if(!wd_account_board_edit_own_posts(account) && !wd_account_board_edit_all_posts(account)) {
+	if(!wd_account_board_edit_own_threads_and_posts(account) && !wd_account_board_edit_all_threads_and_posts(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
 	}
 	
-	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
+	post = wi_p7_message_uuid_for_name(message, WI_STR("wired.board.post"));
+	text = wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
 	
-	if(!wd_boards_board_is_valid(board)) {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
+	if(wd_boards_edit_post(post, text, user, message)) {
+		board		= wd_boards_board_for_post(post);
+		subject		= wd_boards_subject_for_post(post);
 		
-		return;
-	}
-	
-	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
-	post		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.post"));
-	subject		= wi_p7_message_string_for_name(message, WI_STR("wired.board.subject"));
-	text		= wi_p7_message_string_for_name(message, WI_STR("wired.board.text"));
-	
-	if(wd_boards_edit_post(board, thread, post, subject, text, user, message)) {
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.edited_post"), user,
@@ -1440,35 +1524,27 @@ static void wd_message_board_edit_post(wd_user_t *user, wi_p7_message_t *message
 
 
 static void wd_message_board_delete_post(wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t		*board, *subject;
-	wi_uuid_t		*thread, *post;
+	wi_string_t		*subject, *board;
+	wi_uuid_t		*post;
 	wd_account_t	*account;
 	
 	account = wd_user_account(user);
 
-	if(!wd_account_board_edit_own_posts(account) && !wd_account_board_edit_all_posts(account)) {
+	if(!wd_account_board_delete_own_threads_and_posts(account) && !wd_account_board_delete_all_threads_and_posts(account)) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
 	}
 	
-	board = wi_p7_message_string_for_name(message, WI_STR("wired.board.board"));
-	
-	if(!wd_boards_board_is_valid(board)) {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
-		
-		return;
-	}
-	
-	thread		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.thread"));
 	post		= wi_p7_message_uuid_for_name(message, WI_STR("wired.board.post"));
-	subject		= wd_boards_subject_for_post(board, thread, post);;
+	board		= wd_boards_board_for_post(post);
+	subject		= wd_boards_subject_for_post(post);
 	
-	if(wd_boards_delete_post(board, thread, post, user, message)) {
+	if(wd_boards_delete_post(post, user, message)) {
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.board.deleted_post"), user,
-			subject ? subject : WI_STR(""), board, NULL);
+			subject, board, NULL);
 	}
 }
 
@@ -2062,7 +2138,7 @@ static void wd_message_file_search(wd_user_t *user, wi_p7_message_t *message) {
 
 	query = wi_p7_message_string_for_name(message, WI_STR("wired.file.query"));
 	
-	if(wd_files_search(query, user, message)) {
+	if(wd_index_search(query, user, message)) {
 		wd_events_add_event(WI_STR("wired.event.file.searched"), user,
 			query, NULL);
 	}
@@ -2386,9 +2462,6 @@ static void wd_message_account_edit_user(wd_user_t *user, wi_p7_message_t *messa
 	}
 
 	if(wd_accounts_edit_user(account, user, message)) {
-		if(newname)
-			wd_boards_rename_owner(name, newname);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.account.edited_user"), user,
@@ -2438,9 +2511,6 @@ static void wd_message_account_edit_group(wd_user_t *user, wi_p7_message_t *mess
 	}
 
 	if(wd_accounts_edit_group(account, user, message)) {
-		if(newname)
-			wd_boards_rename_group(name, newname);
-		
 		wd_user_reply_okay(user, message);
 
 		wd_events_add_event(WI_STR("wired.event.account.edited_group"), user,
@@ -2819,20 +2889,21 @@ static void wd_message_log_unsubscribe(wd_user_t *user, wi_p7_message_t *message
 
 
 
-static void wd_message_event_get_archives(wd_user_t *user, wi_p7_message_t *message) {
+static void wd_message_event_get_first_time(wd_user_t *user, wi_p7_message_t *message) {
 	if(!wd_account_events_view_events(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
 		
 		return;
 	}
 	
-	wd_events_reply_archives(user, message);
+	wd_events_reply_first_time(user, message);
 }
 
 
 
 static void wd_message_event_get_events(wd_user_t *user, wi_p7_message_t *message) {
-	wi_date_t		*archive;
+	wi_date_t		*fromtime;
+	wi_p7_uint32_t	numberofdays, lasteventcount;
 	
 	if(!wd_account_events_view_events(wd_user_account(user))) {
 		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
@@ -2840,11 +2911,17 @@ static void wd_message_event_get_events(wd_user_t *user, wi_p7_message_t *messag
 		return;
 	}
 	
-	archive = wi_p7_message_date_for_name(message, WI_STR("wired.event.archive"));
+	fromtime = wi_p7_message_date_for_name(message, WI_STR("wired.event.from_time"));
+	
+	if(!wi_p7_message_get_uint32_for_name(message, &numberofdays, WI_STR("wired.event.number_of_days")))
+		numberofdays = 0;
+	
+	if(!wi_p7_message_get_uint32_for_name(message, &lasteventcount, WI_STR("wired.event.last_event_count")))
+		lasteventcount = 0;
 
 	wd_events_add_event(WI_STR("wired.event.events.got_events"), user, NULL);
 	
-	wd_events_reply_events(archive, user, message);
+	wd_events_reply_events(fromtime, numberofdays, lasteventcount, user, message);
 }
 
 

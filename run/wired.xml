@@ -3,7 +3,7 @@
 			 xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
 			 xsi:schemaLocation="http://www.zankasoftware.com/P7/Specification p7-specification.xsd"
 			 name="Wired"
-			 version="2.0b51">
+			 version="2.0b53">
 	<p7:documentation>
 		TBD
 		
@@ -64,7 +64,9 @@
 			<p7:enum name="wired.error.ban_exists" value="22" version="2.0" />
 			<p7:enum name="wired.error.board_not_found" value="23" version="2.0" />
 			<p7:enum name="wired.error.board_exists" value="24" version="2.0" />
-			<p7:enum name="wired.error.rsrc_not_supported" value="25" version="2.0" />
+			<p7:enum name="wired.error.thread_not_found" value="25" version="2.0" />
+			<p7:enum name="wired.error.post_not_found" value="26" version="2.0" />
+			<p7:enum name="wired.error.rsrc_not_supported" value="27" version="2.0" />
 		</p7:field>
 		
 		<p7:field name="wired.error.string" type="string" id="1002" version="2.0">
@@ -384,9 +386,39 @@
 				Indicates whether everyone can post threads and posts on the board.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.board.own_post" type="bool" id="6016" version="2.0">
+		<p7:field name="wired.board.readable" type="bool" id="6016" version="2.0">
 			<p7:documentation>
-				Indicates whether this post was created by the currently logged in account.
+				TBD
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.board.writable" type="bool" id="6017" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.board.own_thread" type="bool" id="6018" version="2.0">
+			<p7:documentation>
+				Indicates whether the thread was created by the currently logged in account.
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.board.replies" type="uint32" id="6019" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.board.latest_reply" type="uuid" id="6020" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.board.latest_reply_date" type="date" id="6021" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.board.own_post" type="bool" id="6022" version="2.0">
+			<p7:documentation>
+				Indicates whether the post was created by the currently logged in account.
 			</p7:documentation>
 		</p7:field>
 
@@ -731,24 +763,24 @@
 				Indicates whether the account gives the privilege of deleting boards.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.set_permissions" type="bool" id="8034" version="2.0">
+		<p7:field name="wired.account.board.get_board_info" type="bool" id="8034" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of change board permissions.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.add_threads" type="bool" id="8035" version="2.0">
+		<p7:field name="wired.account.board.set_board_info" type="bool" id="8035" version="2.0">
+			<p7:documentation>
+				Indicates whether the account gives the privilege of change board permissions.
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.account.board.add_threads" type="bool" id="8036" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of creating new threads.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.move_threads" type="bool" id="8036" version="2.0">
+		<p7:field name="wired.account.board.move_threads" type="bool" id="8037" version="2.0">
 			<p7:documentation>
 				Indicates whether the account gives the privilege of moving threads.
-			</p7:documentation>
-		</p7:field>
-		<p7:field name="wired.account.board.delete_threads" type="bool" id="8037" version="2.0">
-			<p7:documentation>
-				Indicates whether the account gives the privilege of deleting threads.
 			</p7:documentation>
 		</p7:field>
 		<p7:field name="wired.account.board.add_posts" type="bool" id="8038" version="2.0">
@@ -756,24 +788,24 @@
 				Indicates whether the account gives the privilege of creating new posts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.edit_own_posts" type="bool" id="8039" version="2.0">
+		<p7:field name="wired.account.board.edit_own_threads_and_posts" type="bool" id="8039" version="2.0">
 			<p7:documentation>
-				Indicates whether the account gives the privilege of editing own posts.
+				Indicates whether the account gives the privilege of editing own threads and posts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.edit_all_posts" type="bool" id="8040" version="2.0">
+		<p7:field name="wired.account.board.edit_all_threads_and_posts" type="bool" id="8040" version="2.0">
 			<p7:documentation>
-				Indicates whether the account gives the privilege of editing all posts.
+				Indicates whether the account gives the privilege of editing all threads and posts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.delete_own_posts" type="bool" id="8041" version="2.0">
+		<p7:field name="wired.account.board.delete_own_threads_and_posts" type="bool" id="8041" version="2.0">
 			<p7:documentation>
-				Indicates whether the account gives the privilege of deleting own posts.
+				Indicates whether the account gives the privilege of deleting own threads and posts.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.account.board.delete_all_posts" type="bool" id="8042" version="2.0">
+		<p7:field name="wired.account.board.delete_all_threads_and_posts" type="bool" id="8042" version="2.0">
 			<p7:documentation>
-				Indicates whether the account gives the privilege of deleting all posts.
+				Indicates whether the account gives the privilege of deleting all threads and posts.
 			</p7:documentation>
 		</p7:field>
 		<p7:field name="wired.account.file.list_files" type="bool" id="8043" version="2.0">
@@ -1076,12 +1108,27 @@
 				Message of a log entry.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.event.archive" type="date" id="10003" version="2.0">
+		<p7:field name="wired.event.first_time" type="date" id="10003" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.event.event" type="enum" id="10004" version="2.0">
+		<p7:field name="wired.event.from_time" type="date" id="10004" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.event.number_of_days" type="uint32" id="10005" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.event.last_event_count" type="uint32" id="10006" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:field>
+		<p7:field name="wired.event.event" type="enum" id="10007" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -1120,66 +1167,69 @@
 			<p7:enum name="wired.event.message.sent" value="32" version="2.0" />
 			<p7:enum name="wired.event.message.broadcasted" value="33" version="2.0" />
 			<p7:enum name="wired.event.board.got_boards" value="34" version="2.0" />
-			<p7:enum name="wired.event.board.got_posts" value="35" version="2.0" />
-			<p7:enum name="wired.event.board.added_board" value="36" version="2.0" />
-			<p7:enum name="wired.event.board.renamed_board" value="37" version="2.0" />
-			<p7:enum name="wired.event.board.moved_board" value="38" version="2.0" />
-			<p7:enum name="wired.event.board.deleted_board" value="39" version="2.0" />
-			<p7:enum name="wired.event.board.set_permissions" value="40" version="2.0" />
-			<p7:enum name="wired.event.board.added_thread" value="41" version="2.0" />
-			<p7:enum name="wired.event.board.moved_thread" value="42" version="2.0" />
-			<p7:enum name="wired.event.board.deleted_thread" value="43" version="2.0" />
-			<p7:enum name="wired.event.board.added_post" value="44" version="2.0" />
-			<p7:enum name="wired.event.board.edited_post" value="45" version="2.0" />
-			<p7:enum name="wired.event.board.deleted_post" value="46" version="2.0" />
-			<p7:enum name="wired.event.transfer.started_file_download" value="47" version="2.0" />
-			<p7:enum name="wired.event.transfer.stopped_file_download" value="48" version="2.0" />
-			<p7:enum name="wired.event.transfer.completed_file_download" value="49" version="2.0" />
-			<p7:enum name="wired.event.transfer.started_file_upload" value="50" version="2.0" />
-			<p7:enum name="wired.event.transfer.stopped_file_upload" value="51" version="2.0" />
-			<p7:enum name="wired.event.transfer.completed_file_upload" value="52" version="2.0" />
-			<p7:enum name="wired.event.transfer.completed_directory_upload" value="53" version="2.0" />
-			<p7:enum name="wired.event.log.got_log" value="54" version="2.0" />
-			<p7:enum name="wired.event.events.got_events" value="55" version="2.0" />
-			<p7:enum name="wired.event.settings.got_settings" value="56" version="2.0" />
-			<p7:enum name="wired.event.settings.set_settings" value="57" version="2.0" />
-			<p7:enum name="wired.event.banlist.got_bans" value="58" version="2.0" />
-			<p7:enum name="wired.event.banlist.added_ban" value="59" version="2.0" />
-			<p7:enum name="wired.event.banlist.deleted_ban" value="60" version="2.0" />
-			<p7:enum name="wired.event.tracker.got_categories" value="61" version="2.0" />
-			<p7:enum name="wired.event.tracker.got_servers" value="62" version="2.0" />
-			<p7:enum name="wired.event.tracker.registered_server" value="63" version="2.0" />
+			<p7:enum name="wired.event.board.got_threads" value="35" version="2.0" />
+			<p7:enum name="wired.event.board.got_thread" value="36" version="2.0" />
+			<p7:enum name="wired.event.board.added_board" value="37" version="2.0" />
+			<p7:enum name="wired.event.board.renamed_board" value="38" version="2.0" />
+			<p7:enum name="wired.event.board.moved_board" value="39" version="2.0" />
+			<p7:enum name="wired.event.board.deleted_board" value="40" version="2.0" />
+			<p7:enum name="wired.event.board.got_board_info" value="41" version="2.0" />
+			<p7:enum name="wired.event.board.set_board_info" value="42" version="2.0" />
+			<p7:enum name="wired.event.board.added_thread" value="43" version="2.0" />
+			<p7:enum name="wired.event.board.edited_thread" value="44" version="2.0" />
+			<p7:enum name="wired.event.board.moved_thread" value="45" version="2.0" />
+			<p7:enum name="wired.event.board.deleted_thread" value="46" version="2.0" />
+			<p7:enum name="wired.event.board.added_post" value="47" version="2.0" />
+			<p7:enum name="wired.event.board.edited_post" value="48" version="2.0" />
+			<p7:enum name="wired.event.board.deleted_post" value="49" version="2.0" />
+			<p7:enum name="wired.event.transfer.started_file_download" value="50" version="2.0" />
+			<p7:enum name="wired.event.transfer.stopped_file_download" value="51" version="2.0" />
+			<p7:enum name="wired.event.transfer.completed_file_download" value="52" version="2.0" />
+			<p7:enum name="wired.event.transfer.started_file_upload" value="53" version="2.0" />
+			<p7:enum name="wired.event.transfer.stopped_file_upload" value="54" version="2.0" />
+			<p7:enum name="wired.event.transfer.completed_file_upload" value="55" version="2.0" />
+			<p7:enum name="wired.event.transfer.completed_directory_upload" value="56" version="2.0" />
+			<p7:enum name="wired.event.log.got_log" value="57" version="2.0" />
+			<p7:enum name="wired.event.events.got_events" value="58" version="2.0" />
+			<p7:enum name="wired.event.settings.got_settings" value="59" version="2.0" />
+			<p7:enum name="wired.event.settings.set_settings" value="60" version="2.0" />
+			<p7:enum name="wired.event.banlist.got_bans" value="61" version="2.0" />
+			<p7:enum name="wired.event.banlist.added_ban" value="62" version="2.0" />
+			<p7:enum name="wired.event.banlist.deleted_ban" value="63" version="2.0" />
+			<p7:enum name="wired.event.tracker.got_categories" value="64" version="2.0" />
+			<p7:enum name="wired.event.tracker.got_servers" value="65" version="2.0" />
+			<p7:enum name="wired.event.tracker.registered_server" value="66" version="2.0" />
 		</p7:field>
-		<p7:field name="wired.event.time" type="date" id="10005" version="2.0">
+		<p7:field name="wired.event.time" type="date" id="10008" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.event.parameters" type="list" listtype="string" id="10006" version="2.0">
+		<p7:field name="wired.event.parameters" type="list" listtype="string" id="10009" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.settings.register_with_trackers" type="bool" id="10007" version="2.0">
+		<p7:field name="wired.settings.register_with_trackers" type="bool" id="10010" version="2.0">
 			<p7:documentation>
 				Indicates whether the server should register with the trackers listed in
 				[field:wired.setting.trackers].
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.settings.trackers" type="list" listtype="string" id="10008" version="2.0">
+		<p7:field name="wired.settings.trackers" type="list" listtype="string" id="10011" version="2.0">
 			<p7:documentation>
 				URLs of trackers the server should register with if [field:wired.settings.register_with_trackers]
 				is on. The URLs should be in the "wired://server[:port]/Category" format.
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.banlist.ip" type="string" id="10009" version="2.0">
+		<p7:field name="wired.banlist.ip" type="string" id="10012" version="2.0">
 			<p7:documentation>
 				An entry in the banlist. Should be set to the string representation of either an IPv4
 				address, e.g. "127.0.0.1", or an IPv6 address, e.g. "::1". It can also be a netblock, such as
 				"127.0.0.1/8", or a wildcard string, such as "127.0.0.*".
 			</p7:documentation>
 		</p7:field>
-		<p7:field name="wired.banlist.expiration_date" type="date" id="10010" version="2.0">
+		<p7:field name="wired.banlist.expiration_date" type="date" id="10013" version="2.0">
 			<p7:documentation>
 				Expiration date of an entry in the banlist.
 			</p7:documentation>
@@ -1281,15 +1331,15 @@
 			<p7:member field="wired.account.board.move_boards" />
 			<p7:member field="wired.account.board.rename_boards" />
 			<p7:member field="wired.account.board.delete_boards" />
-			<p7:member field="wired.account.board.set_permissions" />
+			<p7:member field="wired.account.board.set_board_info" />
+			<p7:member field="wired.account.board.get_board_info" />
 			<p7:member field="wired.account.board.add_threads" />
 			<p7:member field="wired.account.board.move_threads" />
-			<p7:member field="wired.account.board.delete_threads" />
 			<p7:member field="wired.account.board.add_posts" />
-			<p7:member field="wired.account.board.edit_own_posts" />
-			<p7:member field="wired.account.board.edit_all_posts" />
-			<p7:member field="wired.account.board.delete_own_posts" />
-			<p7:member field="wired.account.board.delete_all_posts" />
+			<p7:member field="wired.account.board.edit_own_threads_and_posts" />
+			<p7:member field="wired.account.board.edit_all_threads_and_posts" />
+			<p7:member field="wired.account.board.delete_own_threads_and_posts" />
+			<p7:member field="wired.account.board.delete_all_threads_and_posts" />
 			<p7:member field="wired.account.file.list_files" />
 			<p7:member field="wired.account.file.get_info" />
 			<p7:member field="wired.account.file.create_directories" />
@@ -1802,14 +1852,8 @@
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner.write" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group.write" use="required" version="2.0" />
-			<p7:parameter field="wired.board.everyone.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.everyone.write" use="required" version="2.0" />
+			<p7:parameter field="wired.board.readable" use="required" version="2.0" />
+			<p7:parameter field="wired.board.writable" use="required" version="2.0" />
 		</p7:message>
 
 		<p7:message name="wired.board.board_list.done" id="6002" version="2.0">
@@ -1819,19 +1863,61 @@
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 
-		<p7:message name="wired.board.get_posts" id="6003" version="2.0">
+		<p7:message name="wired.board.get_threads" id="6003" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.board" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.board.post_list" id="6004" version="2.0">
+		<p7:message name="wired.board.thread_list" id="6004" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
+			<p7:parameter field="wired.board.post_date" use="required" version="2.0" />
+			<p7:parameter field="wired.board.edit_date" version="2.0" />
+			<p7:parameter field="wired.board.own_thread" use="required" version="2.0" />
+			<p7:parameter field="wired.board.replies" use="required" version="2.0" />
+			<p7:parameter field="wired.board.latest_reply" version="2.0" />
+			<p7:parameter field="wired.board.latest_reply_date" version="2.0" />
+			<p7:parameter field="wired.board.subject" use="required" version="2.0" />
+			<p7:parameter field="wired.user.nick" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.thread_list.done" id="6005" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.get_thread" id="6006" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.board.thread" id="6007" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
+			<p7:parameter field="wired.board.text" use="required" version="2.0" />
+			<p7:parameter field="wired.user.icon" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.post_list" id="6008" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
 			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
 			<p7:parameter field="wired.board.post" use="required" version="2.0" />
 			<p7:parameter field="wired.board.post_date" use="required" version="2.0" />
@@ -1839,252 +1925,264 @@
 			<p7:parameter field="wired.user.nick" use="required" version="2.0" />
 			<p7:parameter field="wired.user.icon" use="required" version="2.0" />
 			<p7:parameter field="wired.board.own_post" use="required" version="2.0" />
+			<p7:parameter field="wired.board.text" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.post_list.done" id="6009" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.add_board" id="6010" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner.write" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group.write" use="required" version="2.0" />
+			<p7:parameter field="wired.board.everyone.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.everyone.write" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.board_added" id="6011" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.readable" use="required" version="2.0" />
+			<p7:parameter field="wired.board.writable" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.rename_board" id="6012" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.board.board_renamed" id="6013" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.board.move_board" id="6014" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.board.board_moved" id="6015" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.board.delete_board" id="6016" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.board.board_deleted" id="6017" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.board.get_board_info" id="6018" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner.write" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group.write" use="required" version="2.0" />
+			<p7:parameter field="wired.board.everyone.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.everyone.write" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.board_info" id="6019" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner.write" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group.write" use="required" version="2.0" />
+			<p7:parameter field="wired.board.everyone.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.everyone.write" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.set_board_info" id="6020" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.owner.write" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.group.write" use="required" version="2.0" />
+			<p7:parameter field="wired.board.everyone.read" use="required" version="2.0" />
+			<p7:parameter field="wired.board.everyone.write" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.board_info_changed" id="6021" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
+			<p7:parameter field="wired.board.readable" use="required" version="2.0" />
+			<p7:parameter field="wired.board.writable" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.add_thread" id="6022" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.board" use="required" version="2.0" />
 			<p7:parameter field="wired.board.subject" use="required" version="2.0" />
 			<p7:parameter field="wired.board.text" use="required" version="2.0" />
 		</p7:message>
 
-		<p7:message name="wired.board.post_list.done" id="6005" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.add_board" id="6006" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner.write" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group.write" use="required" version="2.0" />
-			<p7:parameter field="wired.board.everyone.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.everyone.write" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.board_added" id="6007" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner.write" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group.write" use="required" version="2.0" />
-			<p7:parameter field="wired.board.everyone.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.everyone.write" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.rename_board" id="6008" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
-		</p7:message>
-		
-		<p7:message name="wired.board.board_renamed" id="6009" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
-		</p7:message>
-		
-		<p7:message name="wired.board.move_board" id="6010" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
-		</p7:message>
-		
-		<p7:message name="wired.board.board_moved" id="6011" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
-		</p7:message>
-		
-		<p7:message name="wired.board.delete_board" id="6012" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-		</p7:message>
-		
-		<p7:message name="wired.board.board_deleted" id="6013" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-		</p7:message>
-		
-		<p7:message name="wired.board.set_permissions" id="6014" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner.write" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group.write" use="required" version="2.0" />
-			<p7:parameter field="wired.board.everyone.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.everyone.write" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.permissions_changed" id="6015" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.owner.write" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.group.write" use="required" version="2.0" />
-			<p7:parameter field="wired.board.everyone.read" use="required" version="2.0" />
-			<p7:parameter field="wired.board.everyone.write" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.add_thread" id="6016" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.subject" use="required" version="2.0" />
-			<p7:parameter field="wired.board.text" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.move_thread" id="6017" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.thread_moved" id="6018" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.delete_thread" id="6019" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.thread_deleted" id="6020" version="2.0">
+		<p7:message name="wired.board.thread_added" id="6023" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.board.board" use="required" version="2.0" />
 			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.add_post" id="6021" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
-			<p7:parameter field="wired.board.subject" use="required" version="2.0" />
-			<p7:parameter field="wired.board.text" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.post_added" id="6022" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
-			<p7:parameter field="wired.board.post" use="required" version="2.0" />
 			<p7:parameter field="wired.board.post_date" use="required" version="2.0" />
+			<p7:parameter field="wired.board.edit_date" version="2.0" />
+			<p7:parameter field="wired.board.own_thread" use="required" version="2.0" />
+			<p7:parameter field="wired.board.subject" use="required" version="2.0" />
+			<p7:parameter field="wired.board.replies" use="required" version="2.0" />
+			<p7:parameter field="wired.board.latest_reply" version="2.0" />
+			<p7:parameter field="wired.board.latest_reply_date" version="2.0" />
 			<p7:parameter field="wired.user.nick" use="required" version="2.0" />
 			<p7:parameter field="wired.user.icon" use="required" version="2.0" />
-			<p7:parameter field="wired.board.own_post" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.edit_thread" id="6024" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
+			<p7:parameter field="wired.board.subject" use="required" version="2.0" />
+			<p7:parameter field="wired.board.text" use="required" version="2.0" />
+		</p7:message>
+		
+		<p7:message name="wired.board.thread_changed" id="6025" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
+			<p7:parameter field="wired.board.subject" use="required" version="2.0" />
+			<p7:parameter field="wired.board.edit_date" version="2.0" />
+			<p7:parameter field="wired.board.replies" use="required" version="2.0" />
+			<p7:parameter field="wired.board.latest_reply_date" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.move_thread" id="6026" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
+			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.thread_moved" id="6027" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
+			<p7:parameter field="wired.board.new_board" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.delete_thread" id="6028" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.thread_deleted" id="6029" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
+		</p7:message>
+
+		<p7:message name="wired.board.add_post" id="6030" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
 			<p7:parameter field="wired.board.subject" use="required" version="2.0" />
 			<p7:parameter field="wired.board.text" use="required" version="2.0" />
 		</p7:message>
 
-		<p7:message name="wired.board.edit_post" id="6023" version="2.0">
+		<p7:message name="wired.board.edit_post" id="6031" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
 			<p7:parameter field="wired.board.post" use="required" version="2.0" />
 			<p7:parameter field="wired.board.subject" use="required" version="2.0" />
 			<p7:parameter field="wired.board.text" use="required" version="2.0" />
 		</p7:message>
 
-		<p7:message name="wired.board.post_edited" id="6024" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
-			<p7:parameter field="wired.board.post" use="required" version="2.0" />
-			<p7:parameter field="wired.board.edit_date" use="required" version="2.0" />
-			<p7:parameter field="wired.board.subject" use="required" version="2.0" />
-			<p7:parameter field="wired.board.text" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.delete_post" id="6025" version="2.0">
+		<p7:message name="wired.board.delete_post" id="6032" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
 			<p7:parameter field="wired.board.post" use="required" version="2.0" />
 		</p7:message>
 
-		<p7:message name="wired.board.post_deleted" id="6026" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.board.board" use="required" version="2.0" />
-			<p7:parameter field="wired.board.thread" use="required" version="2.0" />
-			<p7:parameter field="wired.board.post" use="required" version="2.0" />
-		</p7:message>
-
-		<p7:message name="wired.board.subscribe_boards" id="6027" version="2.0">
+		<p7:message name="wired.board.subscribe_boards" id="6033" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 
-		<p7:message name="wired.board.unsubscribe_boards" id="6028" version="2.0">
+		<p7:message name="wired.board.unsubscribe_boards" id="6034" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -2777,37 +2875,32 @@
 			<p7:parameter field="wired.log.message" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.get_archives" id="10006" version="2.0">
+		<p7:message name="wired.event.get_first_time" id="10006" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.archive_list" id="10007" version="2.0">
+		<p7:message name="wired.event.first_time" id="10007" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.event.archive" use="required" version="2.0" />
+			<p7:parameter field="wired.event.first_time" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.archive_list.done" id="10008" version="2.0">
+		<p7:message name="wired.event.get_events" id="10008" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
+			<p7:parameter field="wired.event.from_time" version="2.0" />
+			<p7:parameter field="wired.event.number_of_days" version="2.0" />
+			<p7:parameter field="wired.event.last_event_count" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.get_events" id="10009" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.transaction" version="2.0" />
-			<p7:parameter field="wired.event.archive" version="2.0" />
-		</p7:message>
-		
-		<p7:message name="wired.event.event_list" id="10010" version="2.0">
+		<p7:message name="wired.event.event_list" id="10009" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -2815,34 +2908,33 @@
 			<p7:parameter field="wired.event.event" use="required" version="2.0" />
 			<p7:parameter field="wired.event.time" use="required" version="2.0" />
 			<p7:parameter field="wired.event.parameters" version="2.0" />
-			<p7:parameter field="wired.event.archive" version="2.0" />
 			<p7:parameter field="wired.user.nick" use="required" version="2.0" />
 			<p7:parameter field="wired.user.login" use="required" version="2.0" />
 			<p7:parameter field="wired.user.ip" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.event_list.done" id="10011" version="2.0">
+		<p7:message name="wired.event.event_list.done" id="10010" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.subscribe" id="10012" version="2.0">
+		<p7:message name="wired.event.subscribe" id="10011" version="2.0">
 			<p7:documentation>
 				Subscribe to events message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.unsubscribe" id="10013" version="2.0">
+		<p7:message name="wired.event.unsubscribe" id="10012" version="2.0">
 			<p7:documentation>
 				Unsubscribe from events message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.event" id="10014" version="2.0">
+		<p7:message name="wired.event.event" id="10013" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -2854,21 +2946,14 @@
 			<p7:parameter field="wired.user.ip" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.event.archive" id="10015" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-			<p7:parameter field="wired.event.archive" use="required" version="2.0" />
-		</p7:message>
-		
-		<p7:message name="wired.settings.get_settings" id="10016" version="2.0">
+		<p7:message name="wired.settings.get_settings" id="10014" version="2.0">
 			<p7:documentation>
 				Get settings message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.settings.settings" id="10017" version="2.0">
+		<p7:message name="wired.settings.settings" id="10015" version="2.0">
 			<p7:documentation>
 				Settings message. [field:wired.info.name] may not be the empty string, but
 				[field:wired.info.description] may be.
@@ -2886,7 +2971,7 @@
 			<p7:parameter field="wired.tracker.categories" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.settings.set_settings" id="10018" version="2.0">
+		<p7:message name="wired.settings.set_settings" id="10016" version="2.0">
 			<p7:documentation>
 				Settings message. [field:wired.info.name] may not be the empty string, but
 				[field:wired.info.description] may be.
@@ -2904,14 +2989,14 @@
 			<p7:parameter field="wired.tracker.categories" use="required" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.get_bans" id="10019" version="2.0">
+		<p7:message name="wired.banlist.get_bans" id="10017" version="2.0">
 			<p7:documentation>
 				Get bans message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.list" id="10020" version="2.0">
+		<p7:message name="wired.banlist.list" id="10018" version="2.0">
 			<p7:documentation>
 				Ban list item message. [field:wired.banlist.ip] may not be the empty string. If
 				[field:wired.banlist.expiration_date] is not set, the ban does not expire.
@@ -2921,14 +3006,14 @@
 			<p7:parameter field="wired.banlist.expiration_date" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.list.done" id="10021" version="2.0">
+		<p7:message name="wired.banlist.list.done" id="10019" version="2.0">
 			<p7:documentation>
 				Ban list completion message.
 			</p7:documentation>
 			<p7:parameter field="wired.transaction" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.add_ban" id="10022" version="2.0">
+		<p7:message name="wired.banlist.add_ban" id="10020" version="2.0">
 			<p7:documentation>
 				Add ban message. [field:wired.banlist.ip] may not be the empty string. If
 				[field:wired.banlist.expiration_date] is not set, the ban does not expire.
@@ -2938,7 +3023,7 @@
 			<p7:parameter field="wired.banlist.expiration_date" version="2.0" />
 		</p7:message>
 		
-		<p7:message name="wired.banlist.delete_ban" id="10023" version="2.0">
+		<p7:message name="wired.banlist.delete_ban" id="10021" version="2.0">
 			<p7:documentation>
 				Delete ban message. [field:wired.banlist.ip] may not be the empty string. This should
 				match and delete exactly one ban. [field:wired.banlist.expiration_date] should be filled in
@@ -3548,19 +3633,33 @@
 			</p7:or>
 		</p7:transaction>
 		
-		<p7:transaction message="wired.board.get_posts" originator="client" version="2.0">
+		<p7:transaction message="wired.board.get_threads" originator="client" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
 			<p7:or>
 				<p7:and>
+					<p7:reply message="wired.board.thread_list" count="*" use="required" version="2.0" />
+					<p7:reply message="wired.board.thread_list.done" count="1" use="required" version="2.0" />
+				</p7:and>
+				<p7:reply message="wired.error" count="1" use="required" version="2.0" />
+			</p7:or>
+		</p7:transaction>
+		
+		<p7:transaction message="wired.board.get_thread" originator="client" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:or>
+				<p7:and>
+					<p7:reply message="wired.board.thread" count="1" use="required" version="2.0" />
 					<p7:reply message="wired.board.post_list" count="*" use="required" version="2.0" />
 					<p7:reply message="wired.board.post_list.done" count="1" use="required" version="2.0" />
 				</p7:and>
 				<p7:reply message="wired.error" count="1" use="required" version="2.0" />
 			</p7:or>
 		</p7:transaction>
-		
+
 		<p7:transaction message="wired.board.add_board" originator="client" version="2.0">
 			<p7:documentation>
 				TBD
@@ -3591,7 +3690,7 @@
 			</p7:or>
 		</p7:transaction>
 
-		<p7:transaction message="wired.board.set_permissions" originator="client" version="2.0">
+		<p7:transaction message="wired.board.delete_board" originator="client" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -3601,7 +3700,17 @@
 			</p7:or>
 		</p7:transaction>
 
-		<p7:transaction message="wired.board.delete_board" originator="client" version="2.0">
+		<p7:transaction message="wired.board.get_board_info" originator="client" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+			<p7:or>
+				<p7:reply message="wired.board.board_info" count="1" use="required" version="2.0" />
+				<p7:reply message="wired.error" count="1" use="required" version="2.0" />
+			</p7:or>
+		</p7:transaction>
+		
+		<p7:transaction message="wired.board.set_board_info" originator="client" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -4517,7 +4626,7 @@
 			</p7:or>
 		</p7:transaction>
 
-		<p7:transaction message="wired.event.get_archives" originator="client" version="2.0">
+		<p7:transaction message="wired.event.get_first_time" originator="client" version="2.0">
 			<p7:documentation>
 				[message:wired.error] should be replied with [enum:wired.error.permission_denied]
 				if [field:wired.account.events.view_events] is not set for the user's account.
@@ -4525,14 +4634,10 @@
 				[message:wired.error] should be replied with [enum:wired.error.message_out_of_sequence]
 				if sent before [message:wired.client_info].
 				
-				Otherwise, zero or more [message:wired.event.archive_list] terminated by a single
-				[message:wired.event.archive_list.done] should be replied.
+				Otherwise, [message:wired.event.first_time] should be replied.
 			</p7:documentation>
 			<p7:or>
-				<p7:and>
-					<p7:reply message="wired.event.archive_list" count="*" use="required" version="2.0" />
-					<p7:reply message="wired.event.archive_list.done" count="1" use="required" version="2.0" />
-				</p7:and>
+				<p7:reply message="wired.event.first_time" count="1" use="required" version="2.0" />
 				<p7:reply message="wired.error" count="1" use="required" version="2.0" />
 			</p7:or>
 		</p7:transaction>
@@ -4898,6 +5003,18 @@
 			</p7:documentation>
 		</p7:broadcast>
 
+		<p7:broadcast message="wired.board.board_info_changed" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:broadcast>
+
+		<p7:broadcast message="wired.board.thread_added" version="2.0">
+			<p7:documentation>
+				TBD
+			</p7:documentation>
+		</p7:broadcast>
+
 		<p7:broadcast message="wired.board.thread_moved" version="2.0">
 			<p7:documentation>
 				TBD
@@ -4910,19 +5027,7 @@
 			</p7:documentation>
 		</p7:broadcast>
 
-		<p7:broadcast message="wired.board.post_added" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-		</p7:broadcast>
-
-		<p7:broadcast message="wired.board.post_edited" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-		</p7:broadcast>
-
-		<p7:broadcast message="wired.board.post_deleted" version="2.0">
+		<p7:broadcast message="wired.board.thread_changed" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>
@@ -4959,12 +5064,6 @@
 		</p7:broadcast>
 		
 		<p7:broadcast message="wired.event.event" version="2.0">
-			<p7:documentation>
-				TBD
-			</p7:documentation>
-		</p7:broadcast>
-		
-		<p7:broadcast message="wired.event.archive" version="2.0">
 			<p7:documentation>
 				TBD
 			</p7:documentation>

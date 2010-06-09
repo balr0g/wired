@@ -41,6 +41,7 @@
 #include "portmap.h"
 #include "server.h"
 
+static wi_lock_t				*wd_portmap_natpmp_lock;
 static wi_lock_t				*wd_portmap_upnp_lock;
 
 static struct UPNPUrls			wd_portmap_upnp_urls;
@@ -48,6 +49,7 @@ static struct IGDdatas			wd_portmap_upnp_data;
 
 
 void wd_portmap_initialize(void) {
+	wd_portmap_natpmp_lock = wi_lock_init(wi_lock_alloc());
 	wd_portmap_upnp_lock = wi_lock_init(wi_lock_alloc());
 }
 
@@ -61,16 +63,21 @@ void wd_portmap_map_natpmp(void) {
 	natpmpresp_t		response;
 	fd_set				fds;
 	struct timeval		tv;
+	wi_time_interval_t	timeout;
 	wi_uinteger_t		i;
 	int					r;
 	
+	wi_lock_lock(wd_portmap_natpmp_lock);
+	
 	if(initnatpmp(&natpmp) == 0) {
 		if(sendpublicaddressrequest(&natpmp)) {
-			while(true) {
+			do {
 				FD_ZERO(&fds);
 				FD_SET(natpmp.s, &fds);
 				
 				getnatpmprequesttimeout(&natpmp, &tv);
+				
+				timeout = wi_tvtod(tv);
 				
 				select(natpmp.s, &fds, NULL, NULL, &tv);
 				
@@ -82,7 +89,7 @@ void wd_portmap_map_natpmp(void) {
 					
 					break;
 				}
-			}
+			} while(timeout < 30.0);
 		}
 		
 		closenatpmp(&natpmp);
@@ -95,11 +102,13 @@ void wd_portmap_map_natpmp(void) {
 										 wd_port,
 										 wd_port,
 										 365 * 24 * 60 * 60)) {
-				while(true) {
+				do {
 					FD_ZERO(&fds);
 					FD_SET(natpmp.s, &fds);
 					
 					getnatpmprequesttimeout(&natpmp, &tv);
+					
+					timeout = wi_tvtod(tv);
 					
 					select(natpmp.s, &fds, NULL, NULL, &tv);
 					
@@ -116,12 +125,14 @@ void wd_portmap_map_natpmp(void) {
 						
 						break;
 					}
-				}
+				} while(timeout < 30.0);
 			}
 			
 			closenatpmp(&natpmp);
 		}
 	}
+
+	wi_lock_unlock(wd_portmap_natpmp_lock);
 }
 
 
@@ -131,40 +142,47 @@ void wd_portmap_unmap_natpmp(void) {
 	natpmpresp_t		response;
 	fd_set				fds;
 	struct timeval		tv;
+	wi_time_interval_t	timeout;
 	wi_uinteger_t		i;
 	int					r;
 	
-	for(i = 0; i < 2; i++) {
-		if(initnatpmp(&natpmp) == 0) {
-			if(sendnewportmappingrequest(&natpmp,
-										 (i == 0) ? NATPMP_PROTOCOL_TCP : NATPMP_PROTOCOL_UDP,
-										 wd_port,
-										 wd_port,
-										 0)) {
-				while(true) {
-					FD_ZERO(&fds);
-					FD_SET(natpmp.s, &fds);
-					
-					getnatpmprequesttimeout(&natpmp, &tv);
-					
-					select(natpmp.s, &fds, NULL, NULL, &tv);
-					
-					r = readnatpmpresponseorretry(&natpmp, &response);
-					
-					if(r != NATPMP_TRYAGAIN) {
-						if(r == 0) {
-							wi_log_info(WI_STR("Unmapped internal %@ port %u using NAT-PMP"),
-								(response.type == NATPMP_RESPTYPE_TCPPORTMAPPING) ? WI_STR("TCP") : WI_STR("UDP"),
-								wd_port);
-						}
+	if(wi_lock_trylock(wd_portmap_natpmp_lock)) {
+		for(i = 0; i < 2; i++) {
+			if(initnatpmp(&natpmp) == 0) {
+				if(sendnewportmappingrequest(&natpmp,
+											 (i == 0) ? NATPMP_PROTOCOL_TCP : NATPMP_PROTOCOL_UDP,
+											 wd_port,
+											 wd_port,
+											 0)) {
+					do {
+						FD_ZERO(&fds);
+						FD_SET(natpmp.s, &fds);
 						
-						break;
-					}
+						getnatpmprequesttimeout(&natpmp, &tv);
+						
+						timeout = wi_tvtod(tv);
+						
+						select(natpmp.s, &fds, NULL, NULL, &tv);
+						
+						r = readnatpmpresponseorretry(&natpmp, &response);
+						
+						if(r != NATPMP_TRYAGAIN) {
+							if(r == 0) {
+								wi_log_info(WI_STR("Unmapped internal %@ port %u using NAT-PMP"),
+									(response.type == NATPMP_RESPTYPE_TCPPORTMAPPING) ? WI_STR("TCP") : WI_STR("UDP"),
+									wd_port);
+							}
+							
+							break;
+						}
+					} while(timeout < 10.0);
 				}
+				
+				closenatpmp(&natpmp);
 			}
-			
-			closenatpmp(&natpmp);
 		}
+		
+		wi_lock_unlock(wd_portmap_natpmp_lock);
 	}
 }
 

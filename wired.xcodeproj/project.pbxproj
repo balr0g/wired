@@ -7,10 +7,14 @@
 	objects = {
 
 /* Begin PBXFileReference section */
+		777D30F710D26B1500699D7C /* index.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = index.c; sourceTree = "<group>"; };
+		777D30F810D26B1500699D7C /* index.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = index.h; sourceTree = "<group>"; };
 		77AA641410B398E9008996EB /* wi-libxml2.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wi-libxml2.c"; sourceTree = "<group>"; };
 		77AA641510B398E9008996EB /* wi-libxml2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-libxml2.h"; sourceTree = "<group>"; };
 		77AA641610B398E9008996EB /* wi-sqlite3.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wi-sqlite3.c"; sourceTree = "<group>"; };
 		77AA641710B398E9008996EB /* wi-sqlite3.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-sqlite3.h"; sourceTree = "<group>"; };
+		77AA6C6B10B44331008996EB /* wi-null.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = "wi-null.c"; sourceTree = "<group>"; };
+		77AA6C6C10B44331008996EB /* wi-null.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-null.h"; sourceTree = "<group>"; };
 		77AFE0C210B3156300529537 /* config.m4 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = config.m4; sourceTree = "<group>"; };
 		77D9C1E510989471004F4F0B /* config.log */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = config.log; sourceTree = "<group>"; };
 		77D9C1E910989471004F4F0B /* configure.in */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = configure.in; sourceTree = "<group>"; };
@@ -161,7 +165,6 @@
 		77D9C2A110989471004F4F0B /* wiredctl.1 */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.man; path = wiredctl.1; sourceTree = "<group>"; };
 		77D9C2A210989471004F4F0B /* NEWS */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = NEWS; sourceTree = "<group>"; };
 		77D9C35A10989471004F4F0B /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
-		77D9C35C10989471004F4F0B /* banlist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = banlist; sourceTree = "<group>"; };
 		77D9C35D10989471004F4F0B /* banner.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = banner.png; sourceTree = "<group>"; };
 		77D9C36110989471004F4F0B /* permissions */ = {isa = PBXFileReference; lastKnownFileType = file; path = permissions; sourceTree = "<group>"; };
 		77D9C36310989471004F4F0B /* AD70D7CB-F789-4030-A92F-40D546DBE1D9.WiredPost */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = "AD70D7CB-F789-4030-A92F-40D546DBE1D9.WiredPost"; sourceTree = "<group>"; };
@@ -424,6 +427,8 @@
 				77D9C21D10989471004F4F0B /* wi-data.h */,
 				77D9C21E10989471004F4F0B /* wi-date.c */,
 				77D9C21F10989471004F4F0B /* wi-date.h */,
+				77AA6C6B10B44331008996EB /* wi-null.c */,
+				77AA6C6C10B44331008996EB /* wi-null.h */,
 				77D9C22010989471004F4F0B /* wi-number.c */,
 				77D9C22110989471004F4F0B /* wi-number.h */,
 				77D9C22210989471004F4F0B /* wi-plist.c */,
@@ -653,7 +658,6 @@
 		77D9C35B10989471004F4F0B /* run */ = {
 			isa = PBXGroup;
 			children = (
-				77D9C35C10989471004F4F0B /* banlist */,
 				77D9C35D10989471004F4F0B /* banner.png */,
 				77D9C35E10989471004F4F0B /* board */,
 				77D9C36410989471004F4F0B /* etc */,
@@ -928,6 +932,8 @@
 				77D9C3DF10989471004F4F0B /* events.h */,
 				77D9C3E010989471004F4F0B /* files.c */,
 				77D9C3E110989471004F4F0B /* files.h */,
+				777D30F710D26B1500699D7C /* index.c */,
+				777D30F810D26B1500699D7C /* index.h */,
 				77D9C3E210989471004F4F0B /* main.c */,
 				77D9C3E310989471004F4F0B /* main.h */,
 				77D9C3E410989471004F4F0B /* messages.c */,

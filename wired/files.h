@@ -74,6 +74,7 @@ void									wd_files_apply_settings(wi_set_t *);
 void									wd_files_schedule(void);
 
 wi_boolean_t							wd_files_reply_list(wi_string_t *, wi_boolean_t, wd_user_t *, wi_p7_message_t *);
+wi_file_offset_t						wd_files_count_path(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_files_reply_info(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_files_reply_preview(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_files_create_path(wi_string_t *, wd_file_type_t, wd_user_t *, wi_p7_message_t *);
@@ -81,14 +82,9 @@ wi_boolean_t							wd_files_delete_path(wi_string_t *, wd_user_t *, wi_p7_messag
 wi_boolean_t							wd_files_move_path(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_files_link_path(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
-wi_boolean_t							wd_files_search(wi_string_t *, wd_user_t *, wi_p7_message_t *);
-
-void									wd_files_index(wi_boolean_t);
-void									wd_files_index_add_file(wi_string_t *);
-void									wd_files_index_delete_file(wi_string_t *);
-
 wi_boolean_t							wd_files_set_type(wi_string_t *, wd_file_type_t, wd_user_t *, wi_p7_message_t *);
 wd_file_type_t							wd_files_type(wi_string_t *);
+wd_file_type_t							wd_files_type_with_stat(wi_string_t *, wi_fs_stat_t *);
 
 wi_boolean_t							wd_files_set_executable(wi_string_t *, wi_boolean_t, wd_user_t *, wi_p7_message_t *);
 
@@ -97,11 +93,13 @@ void									wd_files_move_comment(wi_string_t *, wi_string_t *, wd_user_t *, wi
 wi_boolean_t							wd_files_remove_comment(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
 wi_boolean_t							wd_files_set_label(wi_string_t *, wd_file_label_t, wd_user_t *, wi_p7_message_t *);
+wd_file_label_t							wd_files_label(wi_string_t *path);
 void									wd_files_move_label(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
 wi_boolean_t							wd_files_remove_label(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 
 wi_boolean_t							wd_files_set_privileges(wi_string_t *, wd_files_privileges_t *, wd_user_t *, wi_p7_message_t *);
 wd_files_privileges_t *					wd_files_privileges(wi_string_t *, wd_user_t *);
+wd_files_privileges_t *					wd_files_drop_box_privileges(wi_string_t *);
 
 wi_boolean_t							wd_files_path_is_valid(wi_string_t *);
 wi_string_t *							wd_files_virtual_path(wi_string_t *, wd_user_t *);
@@ -116,10 +114,8 @@ wi_boolean_t							wd_files_privileges_is_readable_by_account(wd_files_privilege
 wi_boolean_t							wd_files_privileges_is_writable_by_account(wd_files_privileges_t *, wd_account_t *);
 wi_boolean_t							wd_files_privileges_is_readable_and_writable_by_account(wd_files_privileges_t *, wd_account_t *);
 
+extern wi_string_t						*wd_files;
+extern wi_uinteger_t					wd_files_root_volume;
 extern wi_fsevents_t					*wd_files_fsevents;
-
-extern wi_uinteger_t					wd_files_count;
-extern wi_uinteger_t					wd_folders_count;
-extern wi_file_offset_t					wd_files_size;
 
 #endif /* WD_FILES_H */

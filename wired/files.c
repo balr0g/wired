@@ -28,18 +28,14 @@
 
 #include "config.h"
 
-#ifdef HAVE_CORESERVICES_CORESERVICES_H
-#import <CoreFoundation/CoreFoundation.h>
-#endif
-
 #include <string.h>
-#include <unistd.h>
 #include <errno.h>
 #include <wired/wired.h>
 
 #include "accounts.h"
 #include "events.h"
 #include "files.h"
+#include "index.h"
 #include "main.h"
 #include "server.h"
 #include "settings.h"
@@ -57,20 +53,6 @@
 #define WD_FILES_OLDSTYLE_COMMENT_FIELD_SEPARATOR		"\34"
 #define WD_FILES_OLDSTYLE_COMMENT_SEPARATOR				"\35"
 
-#define WD_FILES_MAX_LEVEL								20
-
-#define WD_FILES_INDEX_MAGIC							"WDIX"
-#define WD_FILES_INDEX_VERSION							7
-
-
-struct _wd_files_index_header {
-	char												magic[4];
-	uint32_t											version;
-	uint32_t											files_count;
-	uint32_t											directories_count;
-	uint64_t											files_size;
-};
-typedef struct _wd_files_index_header					wd_files_index_header_t;
 
 struct _wd_files_privileges {
 	wi_runtime_base_t									base;
@@ -81,33 +63,17 @@ struct _wd_files_privileges {
 };
 
 
-static wi_file_offset_t									wd_files_count_path(wi_string_t *, wd_user_t *, wi_p7_message_t *);
 static void												wd_files_delete_path_callback(wi_string_t *);
 static void												wd_files_move_path_copy_callback(wi_string_t *, wi_string_t *);
 static void												wd_files_move_path_delete_callback(wi_string_t *);
 static void												wd_files_move_thread(wi_runtime_instance_t *);
 
-static wi_uinteger_t									wd_files_search_replace_privileges_for_account(char *, wi_uinteger_t, wi_string_t *, wd_account_t *);
-static wi_uinteger_t									wd_files_search_replace_path_with_path(char *, wi_uinteger_t, wi_string_t *, wi_string_t *);
-
-static void												wd_files_index_update(wi_timer_t *);
-static wi_boolean_t										wd_files_index_update_size(void);
-static void												wd_files_index_thread(wi_runtime_instance_t *);
-static void												wd_files_index_path_to_file(wi_string_t *, wi_file_t *, wi_string_t *);
-static void												wd_files_index_write_entry(wi_file_t *, wi_string_t *, wd_file_type_t, uint64_t, uint64_t, uint32_t, wi_time_interval_t, wi_time_interval_t, wi_boolean_t, wi_boolean_t, uint32_t, uint32_t);
-
 static void												wd_files_fsevents_thread(wi_runtime_instance_t *);
 static void												wd_files_fsevents_callback(wi_string_t *);
 
-static wd_file_type_t									wd_files_type_with_stat(wi_string_t *, wi_fs_stat_t *);
-
 static wi_string_t *									wd_files_comment(wi_string_t *);
 
-static wd_file_label_t									wd_files_label(wi_string_t *);
-
-static wd_files_privileges_t *							wd_files_drop_box_privileges(wi_string_t *);
 static wi_string_t *									wd_files_drop_box_path_in_path(wi_string_t *, wd_user_t *);
-static wi_boolean_t										wd_files_name_matches_query(wi_string_t *, wi_string_t *);
 
 static wd_files_privileges_t *							wd_files_privileges_alloc(void);
 static wi_string_t *									wd_files_privileges_description(wi_runtime_instance_t *instance);
@@ -119,20 +85,6 @@ static wd_files_privileges_t *							wd_files_privileges_default_drop_box_privil
 static wi_string_t *									wd_files_privileges_string(wd_files_privileges_t *);
 
 
-static wi_string_t										*wd_files;
-
-static wi_time_interval_t								wd_files_index_time;
-static wi_string_t										*wd_files_index_path;
-static wi_timer_t										*wd_files_index_timer;
-static wi_rwlock_t										*wd_files_index_lock;
-static wi_lock_t										*wd_files_indexer_lock;
-static wi_uinteger_t									wd_files_index_level;
-static wi_mutable_dictionary_t							*wd_files_index_dictionary;
-static wi_mutable_dictionary_t							*wd_files_index_added_files;
-static wi_mutable_set_t									*wd_files_index_deleted_files;
-
-static uint32_t											wd_files_root_volume;
-
 static wi_runtime_id_t									wd_files_privileges_runtime_id = WI_RUNTIME_ID_NULL;
 static wi_runtime_class_t								wd_files_privileges_runtime_class = {
 	"wd_files_privileges_t",
@@ -143,26 +95,14 @@ static wi_runtime_class_t								wd_files_privileges_runtime_class = {
 	NULL
 };
 
+wi_string_t												*wd_files;
+wi_uinteger_t											wd_files_root_volume;
 wi_fsevents_t											*wd_files_fsevents;
-
-wi_uinteger_t											wd_files_count;
-wi_uinteger_t											wd_directories_count;
-wi_file_offset_t										wd_files_size;
 
 
 
 void wd_files_initialize(void) {
-	wd_files_index_path				= WI_STR("index");
-	wd_files_index_lock				= wi_rwlock_init(wi_rwlock_alloc());
-	wd_files_indexer_lock			= wi_lock_init(wi_lock_alloc());
-	wd_files_index_timer			= wi_timer_init_with_function(wi_timer_alloc(),
-																  wd_files_index_update,
-																  0.0,
-																  true);
-	wd_files_index_added_files		= wi_dictionary_init(wi_mutable_dictionary_alloc());
-	wd_files_index_deleted_files	= wi_set_init(wi_mutable_set_alloc());
-	
-	wd_files_fsevents				= wi_fsevents_init(wi_fsevents_alloc());
+	wd_files_fsevents = wi_fsevents_init(wi_fsevents_alloc());
 	
 	if(wd_files_fsevents)
 		wi_fsevents_set_callback(wd_files_fsevents, wd_files_fsevents_callback);
@@ -190,13 +130,6 @@ void wd_files_apply_settings(wi_set_t *changes) {
 
 
 void wd_files_schedule(void) {
-	wd_files_index_time = wi_config_time_interval_for_name(wd_config, WI_STR("index time"));
-	
-	if(wd_files_index_time > 0.0)
-		wi_timer_reschedule(wd_files_index_timer, wd_files_index_time);
-	else
-		wi_timer_invalidate(wd_files_index_timer);
-	
 	if(wd_files_fsevents) {
 		if(!wi_thread_create_thread(wd_files_fsevents_thread, NULL))
 			wi_log_error(WI_STR("Could not create an fsevents thread: %m"));
@@ -401,7 +334,7 @@ wi_boolean_t wd_files_reply_list(wi_string_t *path, wi_boolean_t recursive, wd_u
 
 
 
-static wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
+wi_file_offset_t wd_files_count_path(wi_string_t *path, wd_user_t *user, wi_p7_message_t *message) {
 	wi_mutable_string_t		*filepath;
 	DIR						*dir;
 	struct dirent			*de, *dep;
@@ -620,7 +553,7 @@ wi_boolean_t wd_files_create_path(wi_string_t *path, wd_file_type_t type, wd_use
 	if(type != WD_FILE_TYPE_DIR)
 		wd_files_set_type(path, type, user, message);
 	
-	wd_files_index_add_file(realpath);
+	wd_index_add_file(realpath);
 	
 	return true;
 }
@@ -655,7 +588,7 @@ wi_boolean_t wd_files_delete_path(wi_string_t *path, wd_user_t *user, wi_p7_mess
 
 
 static void wd_files_delete_path_callback(wi_string_t *path) {
-	wd_files_index_delete_file(path);
+	wd_index_delete_file(path);
 }
 
 
@@ -714,8 +647,8 @@ wi_boolean_t wd_files_move_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 		wd_files_move_comment(frompath, topath, user, message);
 		wd_files_move_label(frompath, topath, user, message);
 		
-		wd_files_index_delete_file(realfrompath);
-		wd_files_index_add_file(realtopath);
+		wd_index_delete_file(realfrompath);
+		wd_index_add_file(realtopath);
 	} else {
 		if(wi_error_code() == EXDEV) {
 			array = wi_array_init_with_data(wi_array_alloc(),
@@ -772,13 +705,13 @@ static void wd_files_move_thread(wi_runtime_instance_t *argument) {
 
 
 static void wd_files_move_path_copy_callback(wi_string_t *frompath, wi_string_t *topath) {
-	wd_files_index_add_file(topath);
+	wd_index_add_file(topath);
 }
 
 
 
 static void wd_files_move_path_delete_callback(wi_string_t *path) {
-	wd_files_index_delete_file(path);
+	wd_index_delete_file(path);
 }
 
 
@@ -826,7 +759,7 @@ wi_boolean_t wd_files_link_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 		return false;
 	}
 	
-	wd_files_index_add_file(realtopath);
+	wd_index_add_file(realtopath);
 	
 	return true;
 }
@@ -834,694 +767,6 @@ wi_boolean_t wd_files_link_path(wi_string_t *frompath, wi_string_t *topath, wd_u
 
 
 #pragma mark -
-
-wi_boolean_t wd_files_search(wi_string_t *query, wd_user_t *user, wi_p7_message_t *message) {
-	wi_pool_t			*pool;
-	wi_p7_message_t		*reply;
-	wi_file_t			*file;
-	wi_string_t			*name, *path, *accountpath, *newpath;
-	wd_account_t		*account;
-	char				*buffer = NULL, *messagebuffer;
-	wi_uinteger_t		i = 0, bufferlength, messagelength, accountpathlength;
-	uint32_t			entrylength, namelength;
-	wi_boolean_t		deleted, sendreply;
-	
-	wi_rwlock_rdlock(wd_files_index_lock);
-	
-	file = wi_file_for_reading(wd_files_index_path);
-	
-	if(!file) {
-		wi_log_error(WI_STR("Could not open \"%@\": %m"), wd_files_index_path);
-		wd_user_reply_file_errno(user, message);
-
-		wi_rwlock_unlock(wd_files_index_lock);
-
-		return false;
-	}
-	
-	account				= wd_user_account(user);
-	accountpath			= wd_account_files(account);
-	accountpathlength	= accountpath ? wi_string_length(accountpath) : 0;
-	bufferlength		= 0;
-	
-	pool = wi_pool_init(wi_pool_alloc());
-	
-	wi_file_seek(file, sizeof(wd_files_index_header_t));
-
-	while(wi_file_read_buffer(file, &entrylength, sizeof(entrylength)) > 0) {
-		if(!buffer) {
-			bufferlength = entrylength * 2;
-			buffer = wi_malloc(bufferlength);
-		}
-		else if(entrylength > bufferlength) {
-			bufferlength = entrylength * 2;
-			buffer = wi_realloc(buffer, bufferlength);
-		}
-		
-		if(wi_file_read_buffer(file, buffer, entrylength) != (wi_integer_t) entrylength)
-			break;
-		
-		namelength		= *(uint32_t *) (uintptr_t) buffer;
-		name			= wi_string_init_with_cstring_no_copy(wi_string_alloc(), buffer + sizeof(namelength), false);
-		messagelength	= entrylength - sizeof(namelength) - namelength;
-		
-		if(wd_files_name_matches_query(name, query)) {
-			messagebuffer	= buffer + sizeof(namelength) + namelength;
-			path			= wi_string_init_with_cstring_no_copy(wi_string_alloc(),
-																  messagebuffer + sizeof(int32_t) + sizeof(int32_t) + sizeof(int32_t),
-																  false);
-			
-			wi_set_rdlock(wd_files_index_deleted_files);
-			deleted = wi_set_contains_data(wd_files_index_deleted_files, path);
-			wi_set_unlock(wd_files_index_deleted_files);
-			
-			if(!deleted) {
-				sendreply = true;
-				messagelength = wd_files_search_replace_privileges_for_account(messagebuffer, messagelength, path, account);
-				
-				if(accountpath && accountpathlength > 0) {
-					if(wi_string_has_prefix(path, accountpath)) {
-						newpath = wi_string_substring_from_index(path, accountpathlength);
-						
-						if(wi_string_has_prefix(newpath, WI_STR("/")))
-							messagelength = wd_files_search_replace_path_with_path(messagebuffer, messagelength, path, newpath);
-						else
-							sendreply = false;
-					}
-				}
-	
-				if(sendreply) {
-					reply = wi_p7_message_with_bytes(messagebuffer, messagelength, WI_P7_BINARY, wd_p7_spec);
-					
-					if(reply)
-						wd_user_reply_message(user, reply, message);
-					else
-						wi_log_error(WI_STR("Could not create message from search entry: %m"));
-				}
-			}
-			
-			wi_release(path);
-		}
-		
-		wi_release(name);
-
-		if(++i % 100 == 0)
-			wi_pool_drain(pool);
-	}
-
-	wi_rwlock_unlock(wd_files_index_lock);
-	
-	if(buffer)
-		wi_free(buffer);
-
-	wi_release(pool);
-
-	reply = wi_p7_message_with_name(WI_STR("wired.file.search_list.done"), wd_p7_spec);
-	wd_user_reply_message(user, reply, message);
-	
-	return true;
-}
-
-
-
-static wi_uinteger_t wd_files_search_replace_privileges_for_account(char *messagebuffer, wi_uinteger_t messagelength, wi_string_t *path, wd_account_t *account) {
-	wi_string_t				*realpath;
-	wd_files_privileges_t	*privileges;
-	wi_uinteger_t			pathlength, typeoffset;
-	uint32_t				type;
-	
-	pathlength	= wi_string_length(path);
-	typeoffset	= sizeof(uint32_t) + sizeof(uint32_t) + sizeof(uint32_t) + pathlength + 1 + sizeof(uint32_t);
-	type		= wi_read_swap_big_to_host_int32(messagebuffer, typeoffset);
-	
-	if(type == WD_FILE_TYPE_DROPBOX) {
-		realpath	= wi_string_by_resolving_aliases_in_path(wd_files_real_path(path, NULL));
-		privileges	= wd_files_drop_box_privileges(realpath);
-		
-		if(wd_files_privileges_is_readable_by_account(privileges, account))
-			memcpy(messagebuffer + typeoffset + sizeof(uint32_t) + sizeof(uint32_t), "\1", 1);
-
-		if(wd_files_privileges_is_writable_by_account(privileges, account))
-			memcpy(messagebuffer + typeoffset + sizeof(uint32_t) + sizeof(uint32_t) + 1 + sizeof(uint32_t), "\1", 1);
-	}
-	
-	return messagelength;
-}
-
-
-
-static wi_uinteger_t wd_files_search_replace_path_with_path(char *messagebuffer, wi_uinteger_t messagelength, wi_string_t *oldpath, wi_string_t *newpath) {
-	wi_uinteger_t		oldpathlength, newpathlength, pathlengthoffset, pathoffset;
-	
-	oldpathlength		= wi_string_length(oldpath);
-	newpathlength		= wi_string_length(newpath);
-	pathlengthoffset	= sizeof(uint32_t) + sizeof(uint32_t);
-	pathoffset			= pathlengthoffset + sizeof(uint32_t);
-	
-	wi_write_swap_host_to_big_int32(messagebuffer, pathlengthoffset, newpathlength + 1);
-	memmove(messagebuffer + pathoffset + newpathlength + 1,
-			messagebuffer + pathoffset + oldpathlength + 1,
-			messagelength - pathoffset - oldpathlength);
-	memcpy(messagebuffer + pathoffset, wi_string_cstring(newpath), newpathlength + 1);
-	
-	return messagelength - (oldpathlength - newpathlength);
-}
-
-
-
-#pragma mark -
-
-static void wd_files_index_update(wi_timer_t *timer) {
-	wd_files_index(false);
-}
-
-
-
-void wd_files_index(wi_boolean_t startup) {
-	wi_fs_stat_t		sb;
-	wi_time_interval_t	interval, index_time;
-	wi_boolean_t		index = true;
-	
-	if(startup) {
-		if(wi_fs_stat_path(wd_files_index_path, &sb)) {
-			interval = wi_date_time_interval_since_now(wi_date_with_time(sb.mtime));
-			index_time  = (wd_files_index_time > 0.0) ? wd_files_index_time : 3600.0;
-			
-			if(interval < index_time && wd_files_index_update_size()) {
-				wi_log_info(WI_STR("Found %u %s and %u %s for a total of %@ (%llu bytes) in %@ created %.2f seconds ago"),
-					wd_files_count,
-					wd_files_count == 1
-						? "file"
-						: "files",
-					wd_directories_count,
-					wd_directories_count == 1
-						? "directory"
-						: "directories",
-					wd_files_string_for_bytes(wd_files_size),
-					wd_files_size,
-					wd_files_index_path,
-					interval);
-				
-				wd_trackers_register();
-				
-				index = false;
-			}
-		}
-	}
-	
-	if(index) {
-		if(!wi_thread_create_thread_with_priority(wd_files_index_thread, wi_number_with_bool(startup), 0.0))
-			wi_log_error(WI_STR("Could not create an index thread: %m"));
-	}
-}
-
-
-
-static wi_boolean_t wd_files_index_update_size(void) {
-	wi_file_t					*file;
-	wd_files_index_header_t		header;
-	
-	file = wi_file_for_reading(wd_files_index_path);
-	
-	if(!file)
-		return false;
-	
-	if(wi_file_read_buffer(file, &header, sizeof(header)) != sizeof(header))
-		return false;
-	
-	if(memcmp(header.magic, WD_FILES_INDEX_MAGIC, sizeof(header.magic)) == 0) {
-		if(header.version == WD_FILES_INDEX_VERSION) {
-			wd_files_count			= header.files_count;
-			wd_directories_count	= header.directories_count;
-			wd_files_size			= header.files_size;
-			
-			return true;
-		} else {
-			wi_log_error(WI_STR("Could not read \"%@\": Wrong version (%u != %u)"),
-				wd_files_index_path, header.version, WD_FILES_INDEX_VERSION);
-		}
-	} else {
-		wi_log_error(WI_STR("Could not read \"%@\": Wrong magic"),
-			wd_files_index_path);
-	}
-
-	return false;
-}
-
-
-
-static void wd_files_index_thread(wi_runtime_instance_t *argument) {
-	wi_pool_t					*pool;
-	wi_file_t					*file;
-	wi_string_t					*path;
-	wd_files_index_header_t		header = { WD_FILES_INDEX_MAGIC, WD_FILES_INDEX_VERSION, 0, 0, 0 };
-	wi_time_interval_t			interval;
-	wi_boolean_t				startup = wi_number_bool(argument);
-	
-	pool = wi_pool_init(wi_pool_alloc());
-	
-	if(wi_lock_trylock(wd_files_indexer_lock)) {
-		wi_log_info(WI_STR("Indexing files..."));
-		
-		interval				= wi_time_interval();
-		wd_files_count			= 0;
-		wd_directories_count	= 0;
-		wd_files_size			= 0;
-		wd_files_index_level	= 0;
-		
-		wd_files_index_dictionary = wi_dictionary_init_with_capacity_and_callbacks(wi_mutable_dictionary_alloc(), 0,
-			wi_dictionary_null_key_callbacks, wi_dictionary_default_value_callbacks);
-		
-		path = wi_string_with_format(WI_STR("%@~"), wd_files_index_path);
-		file = wi_file_for_writing(path);
-		
-		if(!file) {
-			wi_log_error(WI_STR("Could not open \"%@\": %m"), path);
-		} else {
-			wi_file_write_buffer(file, &header, sizeof(header));
-			
-			wd_files_index_path_to_file(wi_string_by_resolving_aliases_in_path(wd_files), file, NULL);
-			
-			header.files_count			= wd_files_count;
-			header.directories_count	= wd_directories_count;
-			header.files_size			= wd_files_size;
-			
-			wi_file_seek(file, 0);
-			wi_file_write_buffer(file, &header, sizeof(header));
-			wi_file_close(file);
-			
-			wi_rwlock_wrlock(wd_files_index_lock);
-			
-			if(wi_fs_rename_path(path, wd_files_index_path)) {
-				wi_log_info(WI_STR("Indexed %u %s and %u %s for a total of %@ (%llu bytes) in %.2f seconds"),
-					wd_files_count,
-					wd_files_count == 1
-						? "file"
-						: "files",
-					wd_directories_count,
-					wd_directories_count == 1
-						? "directory"
-						: "directories",
-					wd_files_string_for_bytes(wd_files_size),
-					wd_files_size,
-					wi_time_interval() - interval);
-			} else {
-				wi_log_error(WI_STR("Could not rename \"%@\" to \"%@\": %m"),
-					path, wd_files_index_path);
-			}
-			
-			wi_set_wrlock(wd_files_index_deleted_files);
-			wi_mutable_set_remove_all_data(wd_files_index_deleted_files);
-			wi_set_unlock(wd_files_index_deleted_files);
-			
-			wi_rwlock_unlock(wd_files_index_lock);
-			
-			wd_broadcast_message(wd_server_info_message());
-			
-			if(startup)
-				wd_trackers_register();
-		}
-		
-		wi_lock_unlock(wd_files_indexer_lock);
-	}
-	
-	wi_release(pool);
-}
-
-
-
-static void wd_files_index_path_to_file(wi_string_t *path, wi_file_t *file, wi_string_t *pathprefix) {
-	wi_pool_t					*pool;
-	wi_fsenumerator_t			*fsenumerator;
-	wi_string_t					*filepath, *virtualpath, *resolvedpath, *newpathprefix;
-	wi_mutable_set_t			*set;
-	wi_number_t					*number;
-	wi_file_offset_t			datasize, rsrcsize;
-	wi_fs_stat_t				dsb, sb, lsb;
-	wi_fsenumerator_status_t	status;
-	wd_file_label_t				label;
-	wi_uinteger_t				i = 0, pathlength, directorycount;
-	wi_boolean_t				alias, recurse;
-	wd_file_type_t				type;
-	uint32_t					device;
-	
-	if(wd_files_index_level >= WD_FILES_MAX_LEVEL) {
-		wi_log_warn(WI_STR("Skipping index of \"%@\": %s"),
-			path, "Directory too deep");
-		
-		return;
-	}
-
-	if(!wi_fs_stat_path(path, &dsb)) {
-		wi_log_error(WI_STR("Could not read info for \"%@\": %m"), path);
-		
-		return;
-	}
-	
-	fsenumerator = wi_fs_enumerator_at_path(path);
-
-	if(!fsenumerator) {
-		wi_log_error(WI_STR("Could not open \"%@\": %m"), path);
-		
-		return;
-	}
-	
-	pool = wi_pool_init_with_debug(wi_pool_alloc(), false);
-	
-	pathlength = wi_string_length(path);
-	
-	if(pathlength == 1)
-		pathlength--;
-	
-	wd_files_index_level++;
-
-	while((status = wi_fsenumerator_get_next_path(fsenumerator, &filepath)) != WI_FSENUMERATOR_EOF) {
-		if(status == WI_FSENUMERATOR_ERROR) {
-			wi_log_warn(WI_STR("Skipping index of \"%@\": %m"), filepath);
-			
-			continue;
-		}
-		
-		if(wi_fs_path_is_invisible(filepath)) {
-			wi_fsenumerator_skip_descendents(fsenumerator);
-			
-			continue;
-		}
-
-		alias = wi_fs_path_is_alias(filepath);
-		
-		if(alias)
-			resolvedpath = wi_string_by_resolving_aliases_in_path(filepath);
-		else
-			resolvedpath = filepath;
-		
-		if(!wi_fs_lstat_path(resolvedpath, &lsb)) {
-			wi_log_warn(WI_STR("Skipping index of \"%@\": %m"), resolvedpath);
-			wi_fsenumerator_skip_descendents(fsenumerator);
-		} else {
-			if(!wi_fs_stat_path(resolvedpath, &sb))
-				sb = lsb;
-			
-			set = wi_dictionary_data_for_key(wd_files_index_dictionary, (void *) (intptr_t) lsb.dev);
-			
-			if(!set) {
-				set = wi_set_init_with_capacity(wi_mutable_set_alloc(), 1000, false);
-				wi_mutable_dictionary_set_data_for_key(wd_files_index_dictionary, set, (void *) (intptr_t) lsb.dev);
-				wi_release(set);
-			}
-			
-			number = wi_number_init_with_value(wi_number_alloc(), WI_NUMBER_INT64, &lsb.ino);
-			
-			if(!wi_set_contains_data(set, number)) {
-				wi_mutable_set_add_data(set, number);
-				
-				recurse = (alias && S_ISDIR(sb.mode));
-				
-				type = wd_files_type_with_stat(resolvedpath, &sb);
-				
-				switch(type) {
-					case WD_FILE_TYPE_DROPBOX:
-						datasize		= 0;
-						rsrcsize		= 0;
-						directorycount	= 0;
-						break;
-						
-					case WD_FILE_TYPE_DIR:
-					case WD_FILE_TYPE_UPLOADS:
-						datasize		= 0;
-						rsrcsize		= 0;
-						directorycount	= wd_files_count_path(resolvedpath, NULL, NULL);
-						break;
-						
-					case WD_FILE_TYPE_FILE:
-					default:
-						datasize		= sb.size;
-						rsrcsize		= wi_fs_resource_fork_size_for_path(resolvedpath);
-						directorycount	= 0;
-						break;
-				}
-				
-				device = alias ? dsb.dev : sb.dev;
-				
-				if(device == wd_files_root_volume)
-					device = 0;
-				
-				label = wd_files_label(filepath);
-				
-				virtualpath	= wi_string_substring_from_index(filepath, pathlength);
-				
-				if(pathprefix)
-					virtualpath = wi_string_by_inserting_string_at_index(virtualpath, pathprefix, 0);
-				
-				wd_files_index_write_entry(file,
-										   virtualpath,
-										   type,
-										   datasize,
-										   rsrcsize,
-										   directorycount,
-										   sb.birthtime,
-										   sb.mtime,
-										   (alias || S_ISLNK(lsb.mode)),
-										   (type == WD_FILE_TYPE_FILE && sb.mode & 0111),
-										   label,
-										   device);
-
-				if(S_ISDIR(sb.mode)) {
-					wd_directories_count++;
-				} else {
-					wd_files_count++;
-					wd_files_size += datasize + rsrcsize;
-				}
-				
-				if(type == WD_FILE_TYPE_DROPBOX) {
-					wi_fsenumerator_skip_descendents(fsenumerator);
-				}
-				else if(recurse) {
-					if(pathprefix)
-						newpathprefix = wi_string_by_appending_path_component(pathprefix, wi_string_substring_from_index(filepath, pathlength + 1));
-					else
-						newpathprefix = wi_string_substring_from_index(filepath, pathlength);
-					
-					wd_files_index_path_to_file(resolvedpath, file, newpathprefix);
-				}
-			}
-		
-			wi_release(number);
-		}
-
-		if(++i % 100 == 0)
-			wi_pool_drain(pool);
-	}
-	
-	wd_files_index_level--;
-	
-	wi_release(pool);
-}
-
-
-
-static void wd_files_index_write_entry(wi_file_t *file, wi_string_t *path, wd_file_type_t type, uint64_t datasize, uint64_t rsrcsize, uint32_t directorycount, wi_time_interval_t creationtime, wi_time_interval_t modificationtime, wi_boolean_t link, wi_boolean_t executable, uint32_t label, uint32_t volume) {
-	static char				*buffer;
-	static wi_uinteger_t	bufferlength;
-	static uint32_t			searchlistid, pathid, typeid, datasizeid, rsrcsizeid, directorycountid, creationid, modificationid;
-	static uint32_t			linkid, executableid, labelid, volumeid, readableid, writableid;
-	wi_string_t				*name;
-	uint32_t				totalentrylength, entrylength, namelength, pathlength;
-	char					*p;
-	
-	if(searchlistid == 0) {
-		searchlistid		= wi_p7_spec_message_id(wi_p7_spec_message_with_name(wd_p7_spec, WI_STR("wired.file.search_list")));
-		pathid				= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.path")));
-		typeid				= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.type")));
-		datasizeid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.data_size")));
-		rsrcsizeid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.rsrc_size")));
-		directorycountid	= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.directory_count")));
-		creationid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.creation_time")));
-		modificationid		= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.modification_time")));
-		linkid				= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.link")));
-		executableid		= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.executable")));
-		labelid				= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.label")));
-		volumeid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.volume")));
-		readableid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.readable")));
-		writableid			= wi_p7_spec_field_id(wi_p7_spec_field_with_name(wd_p7_spec, WI_STR("wired.file.writable")));
-	}
-
-	name					= wi_string_last_path_component(path);
-	namelength				= wi_string_length(name) + 1;
-	pathlength				= wi_string_length(path) + 1;
-	entrylength				= sizeof(namelength) + namelength +
-							  sizeof(searchlistid) + 
-							  sizeof(pathid) + sizeof(pathlength) + pathlength +
-							  sizeof(typeid) + sizeof(type) + 
-							  sizeof(creationid) + sizeof(creationtime) +
-							  sizeof(modificationid) + sizeof(modificationtime) +
-							  sizeof(linkid) + 1 +
-							  sizeof(executableid) + 1 +
-							  sizeof(labelid) + sizeof(label) +
-							  sizeof(volumeid) + sizeof(volume);
-	
-	if(type == WD_FILE_TYPE_FILE) {
-		entrylength += sizeof(datasizeid) + sizeof(datasize);
-		entrylength += sizeof(rsrcsizeid) + sizeof(rsrcsize);
-	} else {
-		entrylength += sizeof(directorycountid) + sizeof(directorycount);
-	}
-	
-	if(type == WD_FILE_TYPE_DROPBOX) {
-		entrylength += sizeof(readableid) + 1;
-		entrylength += sizeof(writableid) + 1;
-	}
-	
-	totalentrylength	= sizeof(entrylength) + entrylength;
-	
-	if(!buffer) {
-		bufferlength = totalentrylength * 2;
-		buffer = wi_malloc(bufferlength);
-	}
-	else if(bufferlength < totalentrylength) {
-		bufferlength = totalentrylength * 2;
-		buffer = wi_realloc(buffer, bufferlength);
-	}
-	
-	p = buffer;
-	
-	memcpy(p, &entrylength, sizeof(entrylength));							p += sizeof(entrylength);
-	memcpy(p, &namelength, sizeof(namelength));								p += sizeof(namelength);
-	memcpy(p, wi_string_cstring(name), namelength);							p += namelength;
-	wi_write_swap_host_to_big_int32(p, 0, searchlistid);					p += sizeof(searchlistid);
-	wi_write_swap_host_to_big_int32(p, 0, pathid);							p += sizeof(pathid);
-	wi_write_swap_host_to_big_int32(p, 0, pathlength);						p += sizeof(pathlength);
-	memcpy(p, wi_string_cstring(path), pathlength);							p += pathlength;
-	wi_write_swap_host_to_big_int32(p, 0, typeid);							p += sizeof(typeid);
-	wi_write_swap_host_to_big_int32(p, 0, type);							p += sizeof(type);
-	
-	if(type == WD_FILE_TYPE_DROPBOX) {
-		wi_write_swap_host_to_big_int32(p, 0, readableid);					p += sizeof(readableid);
-		memcpy(p, "\0", 1);													p += 1;
-		wi_write_swap_host_to_big_int32(p, 0, writableid);					p += sizeof(writableid);
-		memcpy(p, "\0", 1);													p += 1;
-	}
-	
-	if(type == WD_FILE_TYPE_FILE) {
-		wi_write_swap_host_to_big_int32(p, 0, datasizeid);					p += sizeof(datasizeid);
-		wi_write_swap_host_to_big_int64(p, 0, datasize);					p += sizeof(datasize);
-		wi_write_swap_host_to_big_int32(p, 0, rsrcsizeid);					p += sizeof(rsrcsizeid);
-		wi_write_swap_host_to_big_int64(p, 0, rsrcsize);					p += sizeof(rsrcsize);
-	} else {
-		wi_write_swap_host_to_big_int32(p, 0, directorycountid);			p += sizeof(directorycountid);
-		wi_write_swap_host_to_big_int32(p, 0, directorycount);				p += sizeof(directorycount);
-	}
-	
-	wi_write_swap_host_to_big_int32(p, 0, creationid);						p += sizeof(creationid);
-	wi_write_double_to_ieee754(p, 0, creationtime);							p += sizeof(creationtime);
-	wi_write_swap_host_to_big_int32(p, 0, modificationid);					p += sizeof(modificationid);
-	wi_write_double_to_ieee754(p, 0, modificationtime);						p += sizeof(modificationtime);
-	wi_write_swap_host_to_big_int32(p, 0, linkid);							p += sizeof(linkid);
-	memcpy(p, link ? "\1" : "\0", 1);										p += 1;
-	wi_write_swap_host_to_big_int32(p, 0, executableid);					p += sizeof(executableid);
-	memcpy(p, executable ? "\1" : "\0", 1);									p += 1;
-	wi_write_swap_host_to_big_int32(p, 0, labelid);							p += sizeof(labelid);
-	wi_write_swap_host_to_big_int32(p, 0, label);							p += sizeof(label);
-	wi_write_swap_host_to_big_int32(p, 0, volumeid);						p += sizeof(volumeid);
-	wi_write_swap_host_to_big_int32(p, 0, volume);
-	
-	wi_file_write_buffer(file, buffer, totalentrylength);
-}
-
-
-
-void wd_files_index_add_file(wi_string_t *path) {
-	wi_file_t			*file;
-	wi_string_t			*virtualpath;
-	wi_fs_stat_t		sb, lsb;
-	wi_file_offset_t	datasize, rsrcsize;
-	wd_file_label_t		label;
-	wi_uinteger_t		directorycount;
-	wd_file_type_t		type;
-	wi_boolean_t		deleted;
-	
-	virtualpath	= wi_string_substring_from_index(path, wi_string_length(wd_files));
-
-	wi_set_wrlock(wd_files_index_deleted_files);
-
-	deleted = wi_set_contains_data(wd_files_index_deleted_files, virtualpath);
-	
-	if(deleted) {
-		wi_mutable_set_remove_data(wd_files_index_deleted_files, virtualpath);
-	} else {
-		if(wi_lock_trylock(wd_files_indexer_lock)) {
-			if(wi_fs_lstat_path(path, &lsb)) {
-				if(!wi_fs_stat_path(path, &sb))
-					sb = lsb;
-
-				type = wd_files_type_with_stat(path, &sb);
-				
-				switch(type) {
-					case WD_FILE_TYPE_DROPBOX:
-						datasize		= 0;
-						rsrcsize		= 0;
-						directorycount	= 0;
-						break;
-						
-					case WD_FILE_TYPE_DIR:
-					case WD_FILE_TYPE_UPLOADS:
-						datasize		= 0;
-						rsrcsize		= 0;
-						directorycount	= wd_files_count_path(path, NULL, NULL);
-						break;
-						
-					case WD_FILE_TYPE_FILE:
-					default:
-						datasize		= sb.size;
-						rsrcsize		= wi_fs_resource_fork_size_for_path(path);
-						directorycount	= 0;
-						break;
-				}
-				
-				label = wd_files_label(path);
-				
-				wi_rwlock_wrlock(wd_files_index_lock);
-			
-				file = wi_file_for_updating(wd_files_index_path);
-				
-				wd_files_index_write_entry(file,
-										   virtualpath,
-										   type,
-										   datasize,
-										   rsrcsize,
-										   directorycount,
-										   sb.birthtime,
-										   sb.mtime,
-										   S_ISLNK(lsb.mode),
-										   (type == WD_FILE_TYPE_FILE && sb.mode & 0111),
-										   label,
-										   sb.dev == wd_files_root_volume ? 0 : sb.dev);
-			
-				wi_file_close(file);
-				
-				wi_rwlock_unlock(wd_files_index_lock);
-			}
-
-			wi_lock_unlock(wd_files_indexer_lock);
-		}
-	}
-
-	wi_set_unlock(wd_files_index_deleted_files);
-}
-
-
-
-void wd_files_index_delete_file(wi_string_t *path) {
-	wi_string_t		*virtualpath;
-	
-	virtualpath	= wi_string_substring_from_index(path, wi_string_length(wd_files));
-	
-	wi_set_wrlock(wd_files_index_deleted_files);
-	wi_mutable_set_add_data(wd_files_index_deleted_files, virtualpath);
-	wi_set_unlock(wd_files_index_deleted_files);
-}
-
-
 
 #pragma mark -
 
@@ -1637,7 +882,7 @@ wd_file_type_t wd_files_type(wi_string_t *path) {
 
 
 
-static wd_file_type_t wd_files_type_with_stat(wi_string_t *realpath, wi_fs_stat_t *sbp) {
+wd_file_type_t wd_files_type_with_stat(wi_string_t *realpath, wi_fs_stat_t *sbp) {
 	wi_string_t		*typepath, *string;
 	wi_fs_stat_t	sb;
 	wd_file_type_t	type;
@@ -1851,26 +1096,6 @@ wi_boolean_t wd_files_remove_comment(wi_string_t *path, wd_user_t *user, wi_p7_m
 
 #pragma mark -
 
-static wd_file_label_t wd_files_label(wi_string_t *path) {
-#ifdef HAVE_CORESERVICES_CORESERVICES_H
-	return wi_fs_finder_label_for_path(path);
-#else
-	wi_runtime_instance_t	*instance;
-	wi_number_t				*label;
-	wi_string_t				*name, *dirpath, *labelspath;
-
-	name			= wi_string_last_path_component(path);
-	dirpath			= wi_string_by_deleting_last_path_component(path);
-	labelspath		= wi_string_by_appending_path_component(dirpath, WI_STR(WD_FILES_META_LABELS_PATH));
-	instance		= wi_plist_read_instance_from_file(labelspath);
-	label			= instance ? wi_dictionary_data_for_key(instance, name) : NULL;
-	
-	return label ? wi_number_int32(label) : WD_FILE_LABEL_NONE;
-#endif
-}
-
-
-
 wi_boolean_t wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_user_t *user, wi_p7_message_t *message) {
 	wi_runtime_instance_t	*instance;
 #ifdef HAVE_CORESERVICES_CORESERVICES_H
@@ -1925,6 +1150,26 @@ wi_boolean_t wd_files_set_label(wi_string_t *path, wd_file_label_t label, wd_use
 #endif
 	
 	return true;
+}
+
+
+
+wd_file_label_t wd_files_label(wi_string_t *path) {
+#ifdef HAVE_CORESERVICES_CORESERVICES_H
+	return wi_fs_finder_label_for_path(path);
+#else
+	wi_runtime_instance_t	*instance;
+	wi_number_t				*label;
+	wi_string_t				*name, *dirpath, *labelspath;
+
+	name			= wi_string_last_path_component(path);
+	dirpath			= wi_string_by_deleting_last_path_component(path);
+	labelspath		= wi_string_by_appending_path_component(dirpath, WI_STR(WD_FILES_META_LABELS_PATH));
+	instance		= wi_plist_read_instance_from_file(labelspath);
+	label			= instance ? wi_dictionary_data_for_key(instance, name) : NULL;
+	
+	return label ? wi_number_int32(label) : WD_FILE_LABEL_NONE;
+#endif
 }
 
 
@@ -2047,6 +1292,43 @@ wd_files_privileges_t * wd_files_privileges(wi_string_t *path, wd_user_t *user) 
 
 
 
+wd_files_privileges_t * wd_files_drop_box_privileges(wi_string_t *path) {
+	wi_string_t				*permissionspath, *string;
+	wd_files_privileges_t	*privileges;
+	wi_fs_stat_t			sb;
+	
+	permissionspath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PERMISSIONS_PATH));
+	
+	if(!wi_fs_stat_path(permissionspath, &sb))
+		return wd_files_privileges_default_drop_box_privileges();
+	
+	if(sb.size > 128) {
+		wi_log_error(WI_STR("Could not read \"%@\": Size is too large (%u"), permissionspath, sb.size);
+		
+		return wd_files_privileges_default_drop_box_privileges();
+	}
+	
+	string = wi_autorelease(wi_string_init_with_contents_of_file(wi_string_alloc(), permissionspath));
+	
+	if(!string) {
+		wi_log_error(WI_STR("Could not read \"%@\": %m"), permissionspath);
+		
+		return wd_files_privileges_default_drop_box_privileges();
+	}
+	
+	privileges = wd_files_privileges_with_string(string);
+	
+	if(!privileges) {
+		wi_log_error(WI_STR("Could not read \"%@\": Contents is malformed (\"%@\")"), permissionspath, string);
+		
+		return wd_files_privileges_default_drop_box_privileges();
+	}
+	
+	return privileges;
+}
+
+
+
 #pragma mark -
 
 wi_boolean_t wd_files_path_is_valid(wi_string_t *path) {
@@ -2139,43 +1421,6 @@ wi_boolean_t wd_files_has_uploads_or_drop_box_in_path(wi_string_t *path, wd_user
 
 #pragma mark -
 
-static wd_files_privileges_t * wd_files_drop_box_privileges(wi_string_t *path) {
-	wi_string_t				*permissionspath, *string;
-	wd_files_privileges_t	*privileges;
-	wi_fs_stat_t			sb;
-	
-	permissionspath = wi_string_by_appending_path_component(path, WI_STR(WD_FILES_META_PERMISSIONS_PATH));
-	
-	if(!wi_fs_stat_path(permissionspath, &sb))
-		return wd_files_privileges_default_drop_box_privileges();
-	
-	if(sb.size > 128) {
-		wi_log_error(WI_STR("Could not read \"%@\": Size is too large (%u"), permissionspath, sb.size);
-		
-		return wd_files_privileges_default_drop_box_privileges();
-	}
-	
-	string = wi_autorelease(wi_string_init_with_contents_of_file(wi_string_alloc(), permissionspath));
-	
-	if(!string) {
-		wi_log_error(WI_STR("Could not read \"%@\": %m"), permissionspath);
-		
-		return wd_files_privileges_default_drop_box_privileges();
-	}
-	
-	privileges = wd_files_privileges_with_string(string);
-	
-	if(!privileges) {
-		wi_log_error(WI_STR("Could not read \"%@\": Contents is malformed (\"%@\")"), permissionspath, string);
-		
-		return wd_files_privileges_default_drop_box_privileges();
-	}
-	
-	return privileges;
-}
-
-
-
 static wi_string_t * wd_files_drop_box_path_in_path(wi_string_t *path, wd_user_t *user) {
 	wi_mutable_string_t		*realpath;
 	wi_array_t				*array;
@@ -2193,31 +1438,6 @@ static wi_string_t * wd_files_drop_box_path_in_path(wi_string_t *path, wd_user_t
 	}
 	
 	return NULL;
-}
-
-
-
-static wi_boolean_t wd_files_name_matches_query(wi_string_t *name, wi_string_t *query) {
-#ifdef HAVE_CORESERVICES_CORESERVICES_H
-	CFMutableStringRef		nameString;
-	CFStringRef				queryString;
-	CFRange					range;
-	
-	nameString = CFStringCreateMutable(NULL, 0);
-	CFStringAppendCString(nameString, wi_string_cstring(name), kCFStringEncodingUTF8);
-	CFStringNormalize(nameString, kCFStringNormalizationFormC);
-	
-	queryString = CFStringCreateWithCString(NULL, wi_string_cstring(query), kCFStringEncodingUTF8);
-
-	range = CFStringFind(nameString, queryString, kCFCompareCaseInsensitive);
-
-	CFRelease(nameString);
-	CFRelease(queryString);
-	
-	return (range.location != kCFNotFound);
-#else
-	return (wi_string_index_of_string(name, query, WI_STRING_CASE_INSENSITIVE) != WI_NOT_FOUND);
-#endif
 }
 
 

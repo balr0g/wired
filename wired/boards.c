@@ -1,7 +1,7 @@
 /* $Id$ */
 
 /*
- *  Copyright (c) 2008 Axel Andersson
+ *  Copyright (c) 2008-2009 Axel Andersson
  *  All rights reserved.
  *
  *  Redistribution and use in source and binary forms, with or without
@@ -35,18 +35,6 @@
 #include "server.h"
 #include "settings.h"
 
-#define WD_BOARDS_META_PATH						".wired"
-#define WD_BOARDS_META_PERMISSIONS_PATH			".wired/permissions"
-
-#define WD_BOARDS_POST_EXTENSION				"WiredPost"
-#define WD_BOARDS_THREAD_EXTENSION				"WiredThread"
-
-#define WD_BOARDS_PERMISSIONS_FIELD_SEPARATOR	"\34"
-
-#define WD_BOARDS_NEWS_FIELD_SEPARATOR			"\34"
-#define WD_BOARDS_NEWS_POST_SEPARATOR			"\35"
-
-
 struct _wd_board_privileges {
 	wi_runtime_base_t							base;
 	
@@ -55,37 +43,41 @@ struct _wd_board_privileges {
 	wi_uinteger_t								mode;
 };
 
+enum _wd_board_permissions {
+	WD_BOARD_OWNER_WRITE						= (2 << 6),
+	WD_BOARD_OWNER_READ							= (4 << 6),
+	WD_BOARD_GROUP_WRITE						= (2 << 3),
+	WD_BOARD_GROUP_READ							= (4 << 3),
+	WD_BOARD_EVERYONE_WRITE						= (2 << 0),
+	WD_BOARD_EVERYONE_READ						= (4 << 0)
+};
+typedef enum _wd_board_permissions				wd_board_permissions_t;
 
-static void										wd_boards_broadcast_message(wi_p7_message_t *, wd_board_privileges_t *, wi_boolean_t);
-static void										wd_boards_send_thread_added(wi_string_t *, wi_uuid_t *, wd_user_t *);
+typedef struct _wd_board_privileges				wd_board_privileges_t;
 
-static wi_boolean_t								wd_boards_get_boards_and_privileges(wi_array_t **, wi_array_t **);
-static void										wd_boards_rename_account(wi_boolean_t, wi_string_t *, wi_string_t *);
-static wi_dictionary_t *						wd_boards_dictionary_with_post(wd_user_t *, wi_string_t *, wi_string_t *);
-static wi_p7_message_t *						wd_boards_message_with_post_for_user(wi_string_t *, wi_string_t *, wi_uuid_t *, wi_uuid_t *, wi_dictionary_t *, wd_user_t *);
-static wi_string_t *							wd_boards_board_path(wi_string_t *);
-static wi_string_t *							wd_boards_thread_path(wi_string_t *, wi_uuid_t *);
-static wi_string_t *							wd_boards_post_path(wi_string_t *, wi_uuid_t *, wi_uuid_t *);
 
-static wi_boolean_t								wd_boards_set_privileges(wi_string_t *, wd_board_privileges_t *);
-static wd_board_privileges_t *					wd_boards_privileges(wi_string_t *);
-static wi_boolean_t								wd_boards_convert_news_to_boards(wi_string_t *, wi_string_t *);
-static wi_boolean_t								wd_boards_rename_board_path(wi_string_t *, wi_string_t *, wd_user_t *, wi_p7_message_t *);
+static void										wd_boards_create_tables(void);
+static void										wd_boards_convert_boards(void);
+static wi_boolean_t								wd_boards_convert_boards_to_database(wi_string_t *);
+static wi_boolean_t								wd_boards_convert_thread_to_database(wi_string_t *, wi_string_t *);
+static wi_boolean_t								wd_boards_convert_news_to_database(wi_string_t *, wi_string_t *);
+static wd_board_privileges_t *					wd_boards_privileges_for_path(wi_string_t *);
+
+static void										wd_boards_changed_thread(wi_uuid_t *, wd_board_privileges_t *);
+static wd_board_privileges_t *					wd_boards_privileges_for_board(wi_string_t *);
+static wd_board_privileges_t *					wd_boards_privileges_for_thread(wi_uuid_t *);
+static wd_board_privileges_t *					wd_boards_privileges_for_post(wi_uuid_t *);
 
 static wd_board_privileges_t *					wd_board_privileges_alloc(void);
 static void										wd_board_privileges_dealloc(wi_runtime_instance_t *);
 
+static wd_board_privileges_t *					wd_board_privileges_with_message(wi_p7_message_t *);
 static wd_board_privileges_t *					wd_board_privileges_with_owner(wi_string_t *, wi_string_t *, wi_uinteger_t);
-static wd_board_privileges_t *					wd_board_privileges_with_string(wi_string_t *);
+static wd_board_privileges_t *					wd_board_privileges_with_sqlite3_results(wi_dictionary_t *);
 
-static wi_string_t *							wd_board_privileges_string(wd_board_privileges_t *);
-static wi_boolean_t								wd_board_privileges_is_readable_by_user(wd_board_privileges_t *, wd_user_t *);
-static wi_boolean_t								wd_board_privileges_is_writable_by_user(wd_board_privileges_t *, wd_user_t *);
-static wi_boolean_t								wd_board_privileges_is_readable_and_writable_by_user(wd_board_privileges_t *, wd_user_t *);
+static wi_boolean_t								wd_board_privileges_is_readable_by_account(wd_board_privileges_t *, wd_account_t *);
+static wi_boolean_t								wd_board_privileges_is_writable_by_account(wd_board_privileges_t *, wd_account_t *);
 
-
-static wi_string_t								*wd_boards_path;
-static wi_rwlock_t								*wd_boards_lock;
 
 static wi_runtime_id_t							wd_board_privileges_runtime_id = WI_RUNTIME_ID_NULL;
 static wi_runtime_class_t						wd_board_privileges_runtime_class = {
@@ -100,16 +92,1251 @@ static wi_runtime_class_t						wd_board_privileges_runtime_class = {
 
 
 void wd_boards_initialize(void) {
-	wd_boards_path = WI_STR("boards");
-	wd_boards_lock = wi_rwlock_init(wi_rwlock_alloc());
-
 	wd_board_privileges_runtime_id = wi_runtime_register_class(&wd_board_privileges_runtime_class);
 	
-	if(wi_fs_path_exists(WI_STR("board"), NULL))
-		wd_boards_path = WI_STR("board");
+	wd_boards_create_tables();
+	wd_boards_convert_boards();
+}
+
+
+
+#pragma mark -
+
+void wd_boards_renamed_user(wi_string_t *olduser, wi_string_t *newuser) {
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("UPDATE boards SET owner = ? WHERE owner = ?"),
+									 newuser ? newuser : wi_null(),
+									 olduser,
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+	}
 	
+	if(newuser) {
+		if(!wi_sqlite3_execute_statement(wd_database, WI_STR("UPDATE threads SET login = ? WHERE login = ?"),
+										 newuser,
+										 olduser,
+										 NULL)) {
+			wi_log_error(WI_STR("Could not execute database statement: %m"));
+		}
+		
+		if(!wi_sqlite3_execute_statement(wd_database, WI_STR("UPDATE posts SET login = ? WHERE login = ?"),
+										 newuser,
+										 olduser,
+										 NULL)) {
+			wi_log_error(WI_STR("Could not execute database statement: %m"));
+		}
+	}
+}
+
+
+
+void wd_boards_renamed_group(wi_string_t *oldgroup, wi_string_t *newgroup) {
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("UPDATE boards SET `group` = ? WHERE `group` = ?"),
+									 newgroup ? newgroup : wi_null(),
+									 oldgroup,
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+	}
+}
+
+
+
+void wd_boards_reload_account(wd_user_t *user, wd_account_t *oldaccount, wd_account_t *newaccount) {
+	wi_sqlite3_statement_t		*statement;
+	wi_p7_message_t				*broadcast;
+	wi_dictionary_t				*results;
+	wi_runtime_instance_t		*board;
+	wd_board_privileges_t		*privileges;
+	wi_boolean_t				oldreadable, newreadable;
+	wi_boolean_t				oldwritable, newwritable;
+	
+	statement = wi_sqlite3_prepare_statement(wd_database, WI_STR("SELECT board, owner, `group`, mode FROM boards"), NULL);
+
+	if(!statement) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return;
+	}
+	
+	while((results = wi_sqlite3_fetch_statement_results(wd_database, statement)) && wi_dictionary_count(results) > 0) {
+		board			= wi_dictionary_data_for_key(results, WI_STR("board"));
+		privileges		= wd_board_privileges_with_sqlite3_results(results);
+		oldreadable		= wd_board_privileges_is_readable_by_account(privileges, oldaccount);
+		newreadable		= wd_board_privileges_is_readable_by_account(privileges, newaccount);
+		oldwritable		= wd_board_privileges_is_writable_by_account(privileges, oldaccount);
+		newwritable		= wd_board_privileges_is_writable_by_account(privileges, newaccount);
+		
+		if(!(oldreadable || oldwritable) && (newreadable || newwritable)) {
+			broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_added"), wd_p7_spec);
+			wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+			wi_p7_message_set_bool_for_name(broadcast, newreadable, WI_STR("wired.board.readable"));
+			wi_p7_message_set_bool_for_name(broadcast, newwritable, WI_STR("wired.board.writable"));
+			wd_user_send_message(user, broadcast);
+		}
+		else if((oldreadable || oldwritable) && !(newreadable || newwritable)) {
+			broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_deleted"), wd_p7_spec);
+			wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+			wd_user_send_message(user, broadcast);
+		}
+	}
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return;
+	}
+}
+
+
+
+#pragma mark -
+
+void wd_boards_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
+	wi_sqlite3_statement_t		*statement;
+	wi_dictionary_t				*results;
+	wi_p7_message_t				*reply;
+	wd_board_privileges_t		*privileges;
+	wi_boolean_t				readable, writable;
+
+	statement = wi_sqlite3_prepare_statement(wd_database, WI_STR("SELECT board, owner, `group`, mode FROM boards"), NULL);
+	
+	if(!statement) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return;
+	}
+	
+	while((results = wi_sqlite3_fetch_statement_results(wd_database, statement)) && wi_dictionary_count(results) > 0) {
+		privileges		= wd_board_privileges_with_sqlite3_results(results);
+		readable		= wd_board_privileges_is_readable_by_account(privileges, wd_user_account(user));
+		writable		= wd_board_privileges_is_writable_by_account(privileges, wd_user_account(user));
+		
+		if(readable || writable) {
+			reply = wi_p7_message_with_name(WI_STR("wired.board.board_list"), wd_p7_spec);
+			wi_p7_message_set_string_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("board")), WI_STR("wired.board.board"));
+			wi_p7_message_set_bool_for_name(reply, readable, WI_STR("wired.board.readable"));
+			wi_p7_message_set_bool_for_name(reply, writable, WI_STR("wired.board.writable"));
+			wd_user_reply_message(user, reply, message);
+		}
+	}
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return;
+	}
+
+	reply = wi_p7_message_with_name(WI_STR("wired.board.board_list.done"), wd_p7_spec);
+	wd_user_reply_message(user, reply, message);
+}
+
+
+
+void wd_boards_reply_threads(wi_string_t *board, wd_user_t *user, wi_p7_message_t *message) {
+	wi_sqlite3_statement_t		*statement;
+	wi_dictionary_t				*results;
+	wi_p7_message_t				*reply;
+	wi_string_t					*query;
+	wi_runtime_instance_t		*thread, *login, *postdate, *editdate, *latestreply, *latestreplydate;
+	wd_board_privileges_t		*privileges;
+	
+	if(board) {
+		query = WI_STR("SELECT thread, threads.board, subject, post_date, edit_date, nick, login, "
+					   "owner, `group`, mode, "
+					   "(SELECT COUNT(*) FROM posts WHERE posts.thread = threads.thread) AS replies, "
+					   "(SELECT post FROM posts WHERE posts.thread = threads.thread ORDER BY post_date DESC LIMIT 1) AS latest_reply, "
+					   "(SELECT post_date FROM posts WHERE posts.thread = threads.thread ORDER BY post_date DESC LIMIT 1) AS latest_reply_date "
+					   "FROM threads "
+					   "LEFT JOIN boards ON threads.board = boards.board "
+					   "WHERE boards.board = ?");
+	} else {
+		query = WI_STR("SELECT thread, threads.board, subject, post_date, edit_date, nick, login, "
+					   "owner, `group`, mode, "
+					   "(SELECT COUNT(*) FROM posts WHERE posts.thread = threads.thread) AS replies, "
+					   "(SELECT post FROM posts WHERE posts.thread = threads.thread ORDER BY post_date DESC LIMIT 1) AS latest_reply, "
+					   "(SELECT post_date FROM posts WHERE posts.thread = threads.thread ORDER BY post_date DESC LIMIT 1) AS latest_reply_date "
+					   "FROM threads "
+					   "LEFT JOIN boards ON threads.board = boards.board");
+	}
+	
+	statement = wi_sqlite3_prepare_statement(wd_database, query, board, NULL);
+	
+	if(!statement) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return;
+	}
+	
+	while((results = wi_sqlite3_fetch_statement_results(wd_database, statement)) && wi_dictionary_count(results) > 0) {
+		privileges = wd_board_privileges_with_sqlite3_results(results);
+		
+		if(wd_board_privileges_is_readable_by_account(privileges, wd_user_account(user))) {
+			thread				= wi_dictionary_data_for_key(results, WI_STR("thread"));
+			postdate			= wi_dictionary_data_for_key(results, WI_STR("post_date"));
+			editdate			= wi_dictionary_data_for_key(results, WI_STR("edit_date"));
+			login				= wi_dictionary_data_for_key(results, WI_STR("login"));
+			latestreply			= wi_dictionary_data_for_key(results, WI_STR("latest_reply"));
+			latestreplydate		= wi_dictionary_data_for_key(results, WI_STR("latest_reply_date"));
+		
+			reply = wi_p7_message_with_name(WI_STR("wired.board.thread_list"), wd_p7_spec);
+			wi_p7_message_set_string_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("board")), WI_STR("wired.board.board"));
+			wi_p7_message_set_uuid_for_name(reply, wi_uuid_with_string(thread), WI_STR("wired.board.thread"));
+			wi_p7_message_set_date_for_name(reply, wi_date_with_sqlite3_string(postdate), WI_STR("wired.board.post_date"));
+			
+			if(editdate != wi_null())
+				wi_p7_message_set_date_for_name(reply, wi_date_with_sqlite3_string(editdate), WI_STR("wired.board.edit_date"));
+
+			wi_p7_message_set_bool_for_name(reply, wi_is_equal(login, wd_user_login(user)), WI_STR("wired.board.own_thread"));
+			wi_p7_message_set_number_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("replies")), WI_STR("wired.board.replies"));
+			
+			if(latestreply != wi_null())
+				wi_p7_message_set_uuid_for_name(reply, wi_uuid_with_string(latestreply), WI_STR("wired.board.latest_reply"));
+			
+			if(latestreplydate != wi_null())
+				wi_p7_message_set_date_for_name(reply, wi_date_with_sqlite3_string(latestreplydate), WI_STR("wired.board.latest_reply_date"));
+			
+			wi_p7_message_set_string_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("subject")), WI_STR("wired.board.subject"));
+			wi_p7_message_set_string_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("nick")), WI_STR("wired.user.nick"));
+
+			wd_user_reply_message(user, reply, message);
+		}
+	}
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return;
+	}
+
+	reply = wi_p7_message_with_name(WI_STR("wired.board.thread_list.done"), wd_p7_spec);
+	wd_user_reply_message(user, reply, message);
+}
+
+
+
+wi_boolean_t wd_boards_reply_thread(wi_uuid_t *thread, wd_user_t *user, wi_p7_message_t *message) {
+	wi_sqlite3_statement_t		*statement;
+	wi_dictionary_t				*results;
+	wi_p7_message_t				*reply;
+	wi_runtime_instance_t		*post, *postdate, *editdate, *login;
+	wd_board_privileges_t		*privileges;
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT thread, threads.board, `text`, icon, "
+															   "owner, `group`, mode "
+															   "FROM threads "
+															   "LEFT JOIN boards ON threads.board = boards.board "
+															   "WHERE thread = ?"),
+										   wi_uuid_string(thread),
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	if(wi_dictionary_count(results) == 0) {
+		wd_user_reply_error(user, WI_STR("wired.error.thread_not_found"), message);
+		
+		return false;
+	}
+	
+	privileges = wd_board_privileges_with_sqlite3_results(results);
+	
+	if(!wd_board_privileges_is_readable_by_account(privileges, wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return false;
+	}
+	
+	reply = wi_p7_message_with_name(WI_STR("wired.board.thread"), wd_p7_spec);
+	wi_p7_message_set_uuid_for_name(reply, thread, WI_STR("wired.board.thread"));
+	wi_p7_message_set_string_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("text")), WI_STR("wired.board.text"));
+	wi_p7_message_set_data_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("icon")), WI_STR("wired.user.icon"));
+	wd_user_reply_message(user, reply, message);
+	
+	statement = wi_sqlite3_prepare_statement(wd_database, WI_STR("SELECT post, thread, `text`, post_date, edit_date, text, nick, login, icon "
+																 "FROM posts "
+																 "WHERE thread = ?"),
+											 wi_uuid_string(thread),
+											 NULL);
+	
+	if(!statement) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	while((results = wi_sqlite3_fetch_statement_results(wd_database, statement)) && wi_dictionary_count(results) > 0) {
+		post			= wi_dictionary_data_for_key(results, WI_STR("post"));
+		postdate		= wi_dictionary_data_for_key(results, WI_STR("post_date"));
+		editdate		= wi_dictionary_data_for_key(results, WI_STR("edit_date"));
+		login			= wi_dictionary_data_for_key(results, WI_STR("login"));
+		
+		reply = wi_p7_message_with_name(WI_STR("wired.board.post_list"), wd_p7_spec);
+		wi_p7_message_set_uuid_for_name(reply, thread, WI_STR("wired.board.thread"));
+		wi_p7_message_set_uuid_for_name(reply, wi_uuid_with_string(post), WI_STR("wired.board.post"));
+		wi_p7_message_set_date_for_name(reply, wi_date_with_sqlite3_string(postdate), WI_STR("wired.board.post_date"));
+		
+		if(editdate != wi_null())
+			wi_p7_message_set_date_for_name(reply, wi_date_with_sqlite3_string(editdate), WI_STR("wired.board.edit_date"));
+		
+		wi_p7_message_set_string_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("text")), WI_STR("wired.board.text"));
+		wi_p7_message_set_bool_for_name(reply, wi_is_equal(login, wd_user_login(user)), WI_STR("wired.board.own_post"));
+		wi_p7_message_set_string_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("nick")), WI_STR("wired.user.nick"));
+		wi_p7_message_set_data_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("icon")), WI_STR("wired.user.icon"));
+		
+		wd_user_reply_message(user, reply, message);
+	}
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	reply = wi_p7_message_with_name(WI_STR("wired.board.post_list.done"), wd_p7_spec);
+	wi_p7_message_set_uuid_for_name(reply, thread, WI_STR("wired.board.thread"));
+	wd_user_reply_message(user, reply, message);
+	
+	return true;
+}
+
+
+
+#pragma mark -
+
+wi_boolean_t wd_boards_add_board(wi_string_t *board, wd_user_t *user, wi_p7_message_t *message) {
+	wi_enumerator_t			*enumerator;
+	wi_p7_message_t			*broadcast;
+	wd_user_t				*peer;
+	wd_board_privileges_t	*privileges;
+	wi_boolean_t			readable, writable;
+	
+	privileges = wd_board_privileges_with_message(message);
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO boards (board, owner, `group`, mode) VALUES (?, ?, ?, ?)"),
+									 board,
+									 privileges->owner,
+									 privileges->group,
+									 WI_INT32(privileges->mode),
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	wi_dictionary_rdlock(wd_users);
+
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((peer = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(peer)) {
+			readable = wd_board_privileges_is_readable_by_account(privileges, wd_user_account(peer));
+			writable = wd_board_privileges_is_writable_by_account(privileges, wd_user_account(peer));
+
+			if(readable || writable) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_added"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+				wi_p7_message_set_bool_for_name(broadcast, readable, WI_STR("wired.board.readable"));
+				wi_p7_message_set_bool_for_name(broadcast, writable, WI_STR("wired.board.writable"));
+				wd_user_send_message(peer, broadcast);
+			}
+		}
+	}
+	
+	wi_dictionary_unlock(wd_users);
+	
+	return true;
+}
+
+
+
+wi_boolean_t wd_boards_rename_board(wi_string_t *oldboard, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
+	wi_enumerator_t			*enumerator;
+	wi_p7_message_t			*broadcast;
+	wd_user_t				*peer;
+	wd_board_privileges_t	*privileges;
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("UPDATE boards SET board = ? WHERE board = ?"),
+									 newboard,
+									 oldboard,
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	privileges = wd_boards_privileges_for_board(newboard);
+	
+	wi_dictionary_rdlock(wd_users);
+
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((peer = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(peer)) {
+			if(wd_board_privileges_is_readable_by_account(privileges, wd_user_account(peer)) ||
+			   wd_board_privileges_is_writable_by_account(privileges, wd_user_account(peer))) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_renamed"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
+				wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
+				wd_user_send_message(peer, broadcast);
+			}
+		}
+	}
+	
+	wi_dictionary_unlock(wd_users);
+
+	return true;
+}
+
+
+
+wi_boolean_t wd_boards_move_board(wi_string_t *oldboard, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
+	wi_enumerator_t			*enumerator;
+	wi_p7_message_t			*broadcast;
+	wd_user_t				*peer;
+	wd_board_privileges_t	*privileges;
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("UPDATE boards SET board = ? WHERE board = ?"),
+									 newboard,
+									 oldboard,
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	privileges = wd_boards_privileges_for_board(newboard);
+	
+	wi_dictionary_rdlock(wd_users);
+
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((peer = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(peer)) {
+			if(wd_board_privileges_is_readable_by_account(privileges, wd_user_account(peer)) ||
+			   wd_board_privileges_is_writable_by_account(privileges, wd_user_account(peer))) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_moved"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
+				wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
+				wd_user_send_message(peer, broadcast);
+			}
+		}
+	}
+	
+	wi_dictionary_unlock(wd_users);
+	
+	return true;
+}
+
+
+
+wi_boolean_t wd_boards_delete_board(wi_string_t *board, wd_user_t *user, wi_p7_message_t *message) {
+	wi_enumerator_t			*enumerator;
+	wi_p7_message_t			*broadcast;
+	wd_user_t				*peer;
+	wd_board_privileges_t	*privileges;
+	
+	privileges = wd_boards_privileges_for_board(board);
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("DELETE FROM boards WHERE board = ?"),
+									 board,
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	wi_dictionary_rdlock(wd_users);
+
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((peer = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(peer)) {
+			if(wd_board_privileges_is_readable_by_account(privileges, wd_user_account(peer)) ||
+			   wd_board_privileges_is_writable_by_account(privileges, wd_user_account(peer))) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_deleted"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+				wd_user_send_message(peer, broadcast);
+			}
+		}
+	}
+	
+	wi_dictionary_unlock(wd_users);
+	
+	return true;
+}
+
+
+
+wi_boolean_t wd_boards_get_board_info(wi_string_t *board, wd_user_t *user, wi_p7_message_t *message) {
+	wi_p7_message_t			*reply;
+	wd_board_privileges_t	*privileges;
+	
+	privileges = wd_boards_privileges_for_board(board);
+	
+	reply = wi_p7_message_with_name(WI_STR("wired.board.board_info"), wd_p7_spec);
+	wi_p7_message_set_string_for_name(reply, board, WI_STR("wired.board.board"));
+	wi_p7_message_set_string_for_name(reply, privileges->owner, WI_STR("wired.board.owner"));
+	wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
+	wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
+	wi_p7_message_set_string_for_name(reply, privileges->group, WI_STR("wired.board.group"));
+	wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
+	wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
+	wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
+	wi_p7_message_set_bool_for_name(reply, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
+	wd_user_reply_message(user, reply, message);
+	
+	return true;
+}
+
+
+
+wi_boolean_t wd_boards_set_board_info(wi_string_t *board, wd_user_t *user, wi_p7_message_t *message) {
+	wi_enumerator_t			*enumerator;
+	wi_p7_message_t			*broadcast;
+	wd_user_t				*peer;
+	wd_board_privileges_t	*oldprivileges, *newprivileges;
+	wi_boolean_t			oldreadable, newreadable;
+	wi_boolean_t			oldwritable, newwritable;
+	
+	oldprivileges = wd_boards_privileges_for_board(board);
+	newprivileges = wd_board_privileges_with_message(message);
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("UPDATE boards SET owner = ?, `group` = ?, mode = ? WHERE board = ?"),
+									 newprivileges->owner,
+									 newprivileges->group,
+									 WI_INT32(newprivileges->mode),
+									 board,
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	wi_dictionary_rdlock(wd_users);
+
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((peer = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(peer)) {
+			oldreadable = wd_board_privileges_is_readable_by_account(oldprivileges, wd_user_account(peer));
+			newreadable = wd_board_privileges_is_readable_by_account(newprivileges, wd_user_account(peer));
+			oldwritable = wd_board_privileges_is_writable_by_account(oldprivileges, wd_user_account(peer));
+			newwritable = wd_board_privileges_is_writable_by_account(newprivileges, wd_user_account(peer));
+			
+			if((oldreadable || oldwritable) && (!newreadable && !newwritable)) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_deleted"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+				wd_user_send_message(peer, broadcast);
+			}
+			else if((!oldreadable && !oldwritable) && (newreadable || newwritable)) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_added"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+				wi_p7_message_set_bool_for_name(broadcast, newreadable, WI_STR("wired.board.readable"));
+				wi_p7_message_set_bool_for_name(broadcast, newwritable, WI_STR("wired.board.writable"));
+				wd_user_send_message(peer, broadcast);
+			}
+			else if((oldreadable || oldwritable) && (newreadable || newwritable)) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_info_changed"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+				wi_p7_message_set_bool_for_name(broadcast, newreadable, WI_STR("wired.board.readable"));
+				wi_p7_message_set_bool_for_name(broadcast, newwritable, WI_STR("wired.board.writable"));
+				wd_user_send_message(peer, broadcast);
+			}
+		}
+	}
+	
+	wi_dictionary_unlock(wd_users);
+	
+	return true;
+}
+
+
+
+#pragma mark -
+
+wi_boolean_t wd_boards_has_board_with_name(wi_string_t *board) {
+	wi_dictionary_t		*results;
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT board FROM boards WHERE board = ?"),
+										   board,
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return false;
+	}
+	
+	return (wi_dictionary_count(results) > 0);
+}
+
+
+
+wi_string_t * wd_boards_board_for_thread(wi_uuid_t *thread) {
+	wi_dictionary_t		*results;
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT board FROM threads WHERE thread = ?"),
+										   wi_uuid_string(thread),
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return NULL;
+	}
+	
+	return wi_dictionary_data_for_key(results, WI_STR("board"));
+}
+
+
+
+wi_string_t * wd_boards_subject_for_thread(wi_uuid_t *thread) {
+	wi_dictionary_t		*results;
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT subject FROM threads WHERE thread = ?"),
+										   wi_uuid_string(thread),
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return NULL;
+	}
+	
+	return wi_dictionary_data_for_key(results, WI_STR("subject"));
+}
+
+
+
+wi_string_t * wd_boards_board_for_post(wi_uuid_t *post) {
+	wi_dictionary_t		*results;
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT boards.board FROM posts "
+															   "LEFT JOIN threads ON posts.thread = threads.thread "
+															   "LEFT JOIN boards ON threads.board = boards.board "
+															   "WHERE post = ?"),
+										   wi_uuid_string(post),
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return NULL;
+	}
+	
+	return wi_dictionary_data_for_key(results, WI_STR("board"));
+}
+
+
+
+wi_string_t * wd_boards_subject_for_post(wi_uuid_t *post) {
+	wi_dictionary_t		*results;
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT subject FROM posts "
+															   "LEFT JOIN threads ON posts.thread = threads.thread "
+															   "WHERE post = ?"),
+										   wi_uuid_string(post),
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return NULL;
+	}
+	
+	return wi_dictionary_data_for_key(results, WI_STR("subject"));
+}
+
+
+
+#pragma mark -
+
+wi_boolean_t wd_boards_add_thread(wi_string_t *board, wi_string_t *subject, wi_string_t *text, wd_user_t *user, wi_p7_message_t *message) {
+	wi_enumerator_t			*enumerator;
+	wi_p7_message_t			*broadcast;
+	wi_uuid_t				*thread;
+	wi_date_t				*postdate;
+	wd_user_t				*peer;
+	wd_board_privileges_t	*privileges;
+	
+	privileges = wd_boards_privileges_for_board(board);
+	
+	if(!wd_board_privileges_is_writable_by_account(privileges, wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return false;
+	}
+	
+	thread			= wi_uuid();
+	postdate		= wi_date();
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO threads "
+														 "(thread, board, subject, `text`, post_date, nick, login, ip, icon) "
+														 "VALUES "
+														 "(?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+									 wi_uuid_string(thread),
+									 board,
+									 subject,
+									 text,
+									 wi_date_sqlite3_string(postdate),
+									 wd_user_nick(user),
+									 wd_user_login(user),
+									 wd_user_ip(user),
+									 wd_user_icon(user),
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	wi_dictionary_rdlock(wd_users);
+
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((peer = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(peer)) {
+			if(wd_board_privileges_is_readable_by_account(privileges, wd_user_account(peer))) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_added"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
+				wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+				wi_p7_message_set_date_for_name(broadcast, postdate, WI_STR("wired.board.post_date"));
+				wi_p7_message_set_string_for_name(broadcast, subject, WI_STR("wired.board.subject"));
+				wi_p7_message_set_uint32_for_name(broadcast, 0, WI_STR("wired.board.replies"));
+				wi_p7_message_set_bool_for_name(broadcast, wi_is_equal(wd_user_login(peer), wd_user_login(user)), WI_STR("wired.board.own_thread"));
+				wi_p7_message_set_string_for_name(broadcast, wd_user_nick(user), WI_STR("wired.user.nick"));
+				wi_p7_message_set_data_for_name(broadcast, wd_user_icon(user), WI_STR("wired.user.icon"));
+				wd_user_send_message(peer, broadcast);
+			}
+		}
+	}
+	
+	wi_dictionary_unlock(wd_users);
+	
+	return true;
+}
+
+
+
+wi_boolean_t wd_boards_edit_thread(wi_uuid_t *thread, wi_string_t *subject, wi_string_t *text, wd_user_t *user, wi_p7_message_t *message) {
+	wi_dictionary_t			*results;
+	wd_board_privileges_t	*privileges;
+	
+	privileges = wd_boards_privileges_for_thread(thread);
+	
+	if(!wd_board_privileges_is_writable_by_account(privileges, wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return false;
+	}
+	
+	if(!wd_account_board_edit_all_threads_and_posts(wd_user_account(user))) {
+		results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT login FROM threads WHERE thread = ?"),
+											   wi_uuid_string(thread),
+											   NULL);
+		
+		if(!results) {
+			wi_log_error(WI_STR("Could not execute database statement: %m"));
+			wd_user_reply_internal_error(user, wi_error_string(), message);
+			
+			return false;
+		}
+		
+		if(!wi_is_equal(wd_user_login(user), wi_dictionary_data_for_key(results, WI_STR("login")))) {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+			
+			return false;
+		}
+	}
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("UPDATE threads SET subject = ?, `text` = ?, edit_date = ? "
+														 "WHERE thread = ?"),
+									 subject,
+									 text,
+									 wi_date_sqlite3_string(wi_date()),
+									 wi_uuid_string(thread),
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+									 
+	
+	wd_boards_changed_thread(thread, privileges);
+	
+	return true;
+}
+
+
+
+wi_boolean_t wd_boards_move_thread(wi_uuid_t *thread, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
+	wi_enumerator_t			*enumerator;
+	wi_p7_message_t			*broadcast;
+	wi_dictionary_t			*results;
+	wi_runtime_instance_t	*postdate, *editdate, *login;
+	wd_user_t				*peer;
+	wd_board_privileges_t	*oldprivileges, *newprivileges;
+	wi_boolean_t			oldreadable, newreadable;
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT board, thread, post_date, edit_date, subject, nick, login, icon "
+															   "FROM threads "
+															   "WHERE thread = ?"),
+										   wi_uuid_string(thread),
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	if(wi_dictionary_count(results) == 0) {
+		wd_user_reply_error(user, WI_STR("wired.error.thread_not_found"), message);
+		
+		return false;
+	}
+	
+	oldprivileges = wd_boards_privileges_for_board(wi_dictionary_data_for_key(results, WI_STR("board")));
+	newprivileges = wd_boards_privileges_for_board(newboard);
+	
+	if(!wd_board_privileges_is_writable_by_account(oldprivileges, wd_user_account(user)) &&
+	   !wd_board_privileges_is_writable_by_account(newprivileges, wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return false;
+	}
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("UPDATE threads SET board = ? WHERE thread = ?"),
+									 newboard,
+									 wi_uuid_string(thread),
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	wi_dictionary_rdlock(wd_users);
+
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((peer = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(peer)) {
+			oldreadable = wd_board_privileges_is_readable_by_account(oldprivileges, wd_user_account(peer));
+			newreadable = wd_board_privileges_is_readable_by_account(newprivileges, wd_user_account(peer));
+			
+			if(oldreadable && newreadable) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_moved"), wd_p7_spec);
+				wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+				wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
+				wd_user_send_message(peer, broadcast);
+			}
+			else if(oldreadable) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_deleted"), wd_p7_spec);
+				wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+				wd_user_send_message(peer, broadcast);
+			}
+			else if(newreadable) {
+				postdate	= wi_dictionary_data_for_key(results, WI_STR("post_date"));
+				editdate	= wi_dictionary_data_for_key(results, WI_STR("edit_date"));
+				login		= wi_dictionary_data_for_key(results, WI_STR("login"));
+
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_added"), wd_p7_spec);
+				wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.board"));
+				wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+				wi_p7_message_set_date_for_name(broadcast, wi_date_with_sqlite3_string(postdate), WI_STR("wired.board.post_date"));
+				
+				if(editdate != wi_null())
+					wi_p7_message_set_date_for_name(broadcast, wi_date_with_sqlite3_string(editdate), WI_STR("wired.board.edit_date"));
+				
+				wi_p7_message_set_bool_for_name(broadcast, wi_is_equal(login, wd_user_login(user)), WI_STR("wired.board.post_date"));
+				wi_p7_message_set_string_for_name(broadcast, wi_dictionary_data_for_key(results, WI_STR("subject")), WI_STR("wired.board.subject"));
+				wi_p7_message_set_string_for_name(broadcast, wi_dictionary_data_for_key(results, WI_STR("nick")), WI_STR("wired.user.nick"));
+				wi_p7_message_set_data_for_name(broadcast, wi_dictionary_data_for_key(results, WI_STR("icon")), WI_STR("wired.user.icon"));
+				wd_user_send_message(peer, broadcast);
+			}
+		}
+	}
+	
+	wi_dictionary_unlock(wd_users);
+
+	return true;
+}
+
+
+
+wi_boolean_t wd_boards_delete_thread(wi_uuid_t *thread, wd_user_t *user, wi_p7_message_t *message) {
+	wi_enumerator_t			*enumerator;
+	wi_dictionary_t			*results;
+	wi_p7_message_t			*broadcast;
+	wd_user_t				*peer;
+	wd_board_privileges_t	*privileges;
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT board, login FROM threads WHERE thread = ?"),
+										   wi_uuid_string(thread),
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	if(wi_dictionary_count(results) == 0) {
+		wd_user_reply_error(user, WI_STR("wired.error.thread_not_found"), message);
+		
+		return false;
+	}
+	
+	privileges = wd_boards_privileges_for_thread(thread);
+	
+	if(!wd_board_privileges_is_writable_by_account(privileges, wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return false;
+	}
+	
+	if(!wd_account_board_delete_all_threads_and_posts(wd_user_account(user))) {
+		if(!wi_is_equal(wd_user_login(user), wi_dictionary_data_for_key(results, WI_STR("login")))) {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+			
+			return false;
+		}
+	}
+	
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("DELETE FROM threads WHERE thread = ?"),
+									 wi_uuid_string(thread),
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	wi_dictionary_rdlock(wd_users);
+
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((peer = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(peer)) {
+			if(wd_board_privileges_is_readable_by_account(privileges, wd_user_account(peer))) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_deleted"), wd_p7_spec);
+				wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+				wd_user_send_message(peer, broadcast);
+			}
+		}
+	}
+	
+	wi_dictionary_unlock(wd_users);
+	
+	return true;
+}
+
+
+
+#pragma mark -
+
+wi_boolean_t wd_boards_add_post(wi_uuid_t *thread, wi_string_t *text, wd_user_t *user, wi_p7_message_t *message) {
+	wi_uuid_t				*post;
+	wi_date_t				*postdate;
+	wi_string_t				*board;
+	wd_board_privileges_t	*privileges;
+	
+	board = wd_boards_board_for_thread(thread);
+	
+	if(!board) {
+		wd_user_reply_error(user, WI_STR("wired.error.thread_not_found"), message);
+		
+		return false;
+	}
+	
+	privileges = wd_boards_privileges_for_board(board);
+	
+	if(!wd_board_privileges_is_writable_by_account(privileges, wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return false;
+	}
+	
+	post			= wi_uuid();
+	postdate		= wi_date();
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO posts "
+														 "(post, thread, `text`, post_date, nick, login, ip, icon) "
+														 "VALUES "
+														 "(?, ?, ?, ?, ?, ?, ?, ?)"),
+									 wi_uuid_string(post),
+									 wi_uuid_string(thread),
+									 text,
+									 wi_date_sqlite3_string(postdate),
+									 wd_user_nick(user),
+									 wd_user_login(user),
+									 wd_user_ip(user),
+									 wd_user_icon(user),
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	wd_boards_changed_thread(thread, privileges);
+	
+	return true;
+}
+
+
+
+wi_boolean_t wd_boards_edit_post(wi_uuid_t *post, wi_string_t *text, wd_user_t *user, wi_p7_message_t *message) {
+	wi_uuid_t				*thread;
+	wi_dictionary_t			*results;
+	wd_board_privileges_t	*privileges;
+	
+	privileges = wd_boards_privileges_for_post(post);
+	
+	if(!wd_board_privileges_is_writable_by_account(privileges, wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return false;
+	}
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT thread, login FROM posts WHERE post = ?"),
+										   wi_uuid_string(post),
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	if(wi_dictionary_count(results) == 0) {
+		wd_user_reply_error(user, WI_STR("wired.error.post_not_found"), message);
+		
+		return false;
+	}
+	
+	thread = wi_uuid_with_string(wi_dictionary_data_for_key(results, WI_STR("thread")));
+	
+	if(!wd_account_board_edit_all_threads_and_posts(wd_user_account(user))) {
+		if(!wi_is_equal(wd_user_login(user), wi_dictionary_data_for_key(results, WI_STR("login")))) {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+			
+			return false;
+		}
+	}
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("UPDATE posts SET `text` = ?, edit_date = ? "
+														 "WHERE post = ?"),
+									 text,
+									 wi_date_sqlite3_string(wi_date()),
+									 wi_uuid_string(post),
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	wd_boards_changed_thread(thread, privileges);
+	
+	return true;
+}
+
+
+
+wi_boolean_t wd_boards_delete_post(wi_uuid_t *post, wd_user_t *user, wi_p7_message_t *message) {
+	wi_uuid_t				*thread;
+	wi_dictionary_t			*results;
+	wd_board_privileges_t	*privileges;
+	
+	privileges = wd_boards_privileges_for_post(post);
+	
+	if(!wd_board_privileges_is_writable_by_account(privileges, wd_user_account(user))) {
+		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		
+		return false;
+	}
+	
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT thread, login FROM posts WHERE post = ?"),
+										   wi_uuid_string(post),
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	if(wi_dictionary_count(results) == 0) {
+		wd_user_reply_error(user, WI_STR("wired.error.post_not_found"), message);
+		
+		return false;
+	}
+	
+	thread = wi_uuid_with_string(wi_dictionary_data_for_key(results, WI_STR("thread")));
+	
+	if(!wd_account_board_delete_all_threads_and_posts(wd_user_account(user))) {
+		if(!wi_is_equal(wd_user_login(user), wi_dictionary_data_for_key(results, WI_STR("login")))) {
+			wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+			
+			return false;
+		}
+	}
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("DELETE FROM posts WHERE post = ?"),
+									 wi_uuid_string(post),
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	wd_boards_changed_thread(thread, privileges);
+	
+	return true;
+}
+
+
+
+#pragma mark -
+
+static void wd_boards_create_tables(void) {
+	wi_uinteger_t		version;
+	
+	version = wd_database_version_for_table(WI_STR("boards"));
+	
+	switch(version) {
+		case 0:
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TABLE boards ("
+																 "board TEXT NOT NULL, "
+																 "owner TEXT NOT NULL, "
+																 "`group` TEXT NOT NULL, "
+																 "mode INTEGER NOT NULL, "
+																 "PRIMARY KEY (board) "
+																 ")"),
+											 NULL)) {
+				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+			}
+
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TRIGGER boards_delete_trigger "
+																 "BEFORE DELETE ON boards "
+																 "FOR EACH ROW BEGIN "
+																 "DELETE FROM threads WHERE threads.board = OLD.board; "
+																 "END"),
+											 NULL)) {
+				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+			}
+			break;
+	}
+	
+	wd_database_set_version_for_table(1, WI_STR("boards"));
+	
+	version = wd_database_version_for_table(WI_STR("threads"));
+	
+	switch(version) {
+		case 0:
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TABLE threads ("
+																 "thread TEXT NOT NULL, "
+																 "board TEXT NOT NULL, "
+																 "subject TEXT NOT NULL, "
+																 "`text` TEXT NOT NULL, "
+																 "post_date TEXT NOT NULL, "
+																 "edit_date TEXT, "
+																 "nick TEXT NOT NULL, "
+																 "login TEXT NOT NULL, "
+																 "ip TEXT NOT NULL, "
+																 "icon BLOB, "
+																 "PRIMARY KEY (thread) "
+																 /* "FOREIGN KEY (board) REFERENCES boards (board) ON DELETE CASCADE " */
+																 ")"),
+											 NULL)) {
+				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+			}
+			
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TRIGGER threads_delete_trigger "
+																 "BEFORE DELETE ON threads "
+																 "FOR EACH ROW BEGIN "
+																 "DELETE FROM posts WHERE posts.thread = OLD.threads; "
+																 "END"),
+											 NULL)) {
+				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+			}
+			break;
+	}
+	
+	wd_database_set_version_for_table(1, WI_STR("threads"));
+	
+	version = wd_database_version_for_table(WI_STR("posts"));
+	
+	switch(version) {
+		case 0:
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TABLE posts ("
+																 "post TEXT NOT NULL, "
+																 "thread TEXT NOT NULL, "
+																 "`text` TEXT NOT NULL, "
+																 "post_date TEXT NOT NULL, "
+																 "edit_date TEXT, "
+																 "nick TEXT NOT NULL, "
+																 "login TEXT NOT NULL, "
+																 "ip TEXT NOT NULL, "
+																 "icon BLOB, "
+																 "PRIMARY KEY (post) "
+																 /* "FOREIGN KEY (thread) REFERENCES threads (thread) ON DELETE CASCADE " */
+																 ")"),
+											 NULL)) {
+				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+			}
+			break;
+	}
+	
+	wd_database_set_version_for_table(1, WI_STR("posts"));
+}
+
+
+
+static void wd_boards_convert_boards(void) {
+	if(wi_fs_path_exists(WI_STR("board"), NULL)) {
+		if(!wi_fs_rename_path(WI_STR("board"), WI_STR("boards")))
+			wi_log_error(WI_STR("Could not move \"%@\" to \"%@\": %m"), WI_STR("board"), WI_STR("boards"));
+	}
+	
+	if(wi_fs_path_exists(WI_STR("boards"), NULL)) {
+		wi_sqlite3_begin_immediate_transaction(wd_database);
+		
+		if(wd_boards_convert_boards_to_database(WI_STR("boards"))) {
+			wi_log_info(WI_STR("Migrated boards to database"));
+			wi_fs_delete_path(WI_STR("boards"));
+
+			wi_sqlite3_commit_transaction(wd_database);
+		} else {
+			wi_sqlite3_rollback_transaction(wd_database);
+		}
+	}
+
 	if(wi_fs_path_exists(WI_STR("news"), NULL)) {
-		if(wd_boards_convert_news_to_boards(WI_STR("news"), WI_STR("News"))) {
+		if(wd_boards_convert_news_to_database(WI_STR("news"), WI_STR("News"))) {
 			wi_log_info(WI_STR("Migrated news to board \"News\""));
 			wi_fs_delete_path(WI_STR("news"));
 		}
@@ -118,562 +1345,245 @@ void wd_boards_initialize(void) {
 
 
 
-#pragma mark -
-
-void wd_boards_rename_owner(wi_string_t *name, wi_string_t *new_name) {
-	wd_boards_rename_account(true, name, new_name);
-}
-
-
-
-void wd_boards_rename_group(wi_string_t *name, wi_string_t *new_name) {
-	wd_boards_rename_account(false, name, new_name);
-}
-
-
-
-#pragma mark -
-
-void wd_boards_reply_boards(wd_user_t *user, wi_p7_message_t *message) {
-	wi_array_t					*boards, *privileges;
-	wi_string_t					*board;
-	wi_p7_message_t				*reply;
-	wd_board_privileges_t		*privs;
-	wi_uinteger_t				i, count;
-	
-	if(wd_boards_get_boards_and_privileges(&boards, &privileges)) {
-		count = wi_array_count(boards);
-		
-		for(i = 0; i < count; i++) {
-			board = WI_ARRAY(boards, i);
-			privs = WI_ARRAY(privileges, i);
-			
-			if(wd_board_privileges_is_readable_by_user(privs, user) ||
-			   wd_board_privileges_is_writable_by_user(privs, user)) {
-				reply = wi_p7_message_with_name(WI_STR("wired.board.board_list"), wd_p7_spec);
-				wi_p7_message_set_string_for_name(reply, board, WI_STR("wired.board.board"));
-				wi_p7_message_set_string_for_name(reply, privs->owner, WI_STR("wired.board.owner"));
-				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
-				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
-				wi_p7_message_set_string_for_name(reply, privs->group, WI_STR("wired.board.group"));
-				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
-				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
-				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
-				wi_p7_message_set_bool_for_name(reply, (privs->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
-				wd_user_reply_message(user, reply, message);
-			}
-		}
-		
-		reply = wi_p7_message_with_name(WI_STR("wired.board.board_list.done"), wd_p7_spec);
-		wd_user_reply_message(user, reply, message);
-	} else {
-		wd_user_reply_internal_error(user, wi_error_string(), message);
-	}
-}
-
-
-
-void wd_boards_reply_posts(wd_user_t *user, wi_p7_message_t *message) {
-	wi_runtime_instance_t		*instance;
+static wi_boolean_t wd_boards_convert_boards_to_database(wi_string_t *path) {
 	wi_fsenumerator_t			*fsenumerator;
-	wi_p7_message_t				*reply;
 	wi_array_t					*components;
-	wi_uuid_t					*thread, *post;
-	wi_string_t					*path, *board;
-	wd_board_privileges_t		*privileges;
+	wi_string_t					*childpath, *board;
+	wd_board_privileges_t		*privileges, *defaultprivileges;
 	wi_fsenumerator_status_t	status;
-	wi_uinteger_t				pathlength, count;
-	
-	pathlength = wi_string_length(wd_boards_path);
-	
-	wi_rwlock_rdlock(wd_boards_lock);
-	
-	fsenumerator = wi_fs_enumerator_at_path(wd_boards_path);
-	
-	if(fsenumerator) {
-		while((status = wi_fsenumerator_get_next_path(fsenumerator, &path)) != WI_FSENUMERATOR_EOF) {
-			if(status == WI_FSENUMERATOR_ERROR) {
-				wi_log_error(WI_STR("Could not read board \"%@\": %m"), path);
-				
-				continue;
-			}
-			
-			if(!wi_is_equal(wi_string_path_extension(path), WI_STR(WD_BOARDS_POST_EXTENSION)))
-				continue;
-			
-			instance = wi_plist_read_instance_from_file(path);
-			
-			if(instance && wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
-				components	= wi_string_path_components(wi_string_substring_from_index(path, pathlength + 1));
-				count		= wi_array_count(components);
-				
-				post		= wi_uuid_with_string(wi_string_by_deleting_path_extension(WI_ARRAY(components, count - 1)));
-				thread		= wi_uuid_with_string(wi_string_by_deleting_path_extension(WI_ARRAY(components, count - 2)));
-				board		= wi_array_components_joined_by_string(wi_array_subarray_with_range(components, wi_make_range(0, count - 2)), WI_STR("/"));
-				privileges	= wd_boards_privileges(board);
-				
-				if(privileges && wd_board_privileges_is_readable_by_user(privileges, user)) {
-					reply = wd_boards_message_with_post_for_user(WI_STR("wired.board.post_list"), board, thread, post, instance, user);
-					
-					wd_user_reply_message(user, reply, message);
-				}
-			}
-		}
+	wi_uinteger_t				count;
 
-		reply = wi_p7_message_with_name(WI_STR("wired.board.post_list.done"), wd_p7_spec);
-		wd_user_reply_message(user, reply, message);
-	} else {
-		wi_log_error(WI_STR("Could not open \"%@\": %m"), wd_boards_path);
-		wd_user_reply_internal_error(user, wi_error_string(), message);
-	}
-	
-	wi_rwlock_unlock(wd_boards_lock);
-}
-
-
-
-#pragma mark -
-
-wi_boolean_t wd_boards_add_board(wi_string_t *board, wd_board_privileges_t *privileges, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*broadcast;
-	wi_string_t				*path;
-	wi_boolean_t			added = false;
-	
-	path = wd_boards_board_path(board);
-	
-	wi_rwlock_wrlock(wd_boards_lock);
-	
-	if(!wi_fs_path_exists(path, NULL)) {
-		if(wi_fs_create_directory(path, 0755)) {
-			if(wd_boards_set_privileges(board, privileges)) {
-				broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_added"), wd_p7_spec);
-				wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-				wi_p7_message_set_string_for_name(broadcast, privileges->owner, WI_STR("wired.board.owner"));
-				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
-				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
-				wi_p7_message_set_string_for_name(broadcast, privileges->group, WI_STR("wired.board.group"));
-				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
-				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
-				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
-				wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
-				wd_boards_broadcast_message(broadcast, privileges, false);
-				
-				added = true;
-			} else {
-				wd_user_reply_file_errno(user, message);
-			}
-		} else {
-			wi_log_error(WI_STR("Could not create \"%@\": %m"), path);
-			wd_user_reply_internal_error(user, wi_error_string(), message);
-		}
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
-	}
-	
-	wi_rwlock_unlock(wd_boards_lock);
-	
-	return added;
-}
-
-
-
-wi_boolean_t wd_boards_rename_board(wi_string_t *oldboard, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*broadcast;
-	wd_board_privileges_t	*privileges;
-	
-	if(wd_boards_rename_board_path(oldboard, newboard, user, message)) {
-		privileges = wd_boards_privileges(newboard);
-		
-		broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_renamed"), wd_p7_spec);
-		wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
-		wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
-		wd_boards_broadcast_message(broadcast, privileges, false);
-		
-		return true;
-	}
-	
-	return false;
-}
-
-
-
-wi_boolean_t wd_boards_move_board(wi_string_t *oldboard, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*broadcast;
-	wd_board_privileges_t	*privileges;
-	
-	if(wd_boards_rename_board_path(oldboard, newboard, user, message)) {
-		privileges = wd_boards_privileges(newboard);
-		
-		broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_moved"), wd_p7_spec);
-		wi_p7_message_set_string_for_name(broadcast, oldboard, WI_STR("wired.board.board"));
-		wi_p7_message_set_string_for_name(broadcast, newboard, WI_STR("wired.board.new_board"));
-		wd_boards_broadcast_message(broadcast, privileges, false);
-		
-		return true;
-	}
-	
-	return false;
-}
-
-
-
-wi_boolean_t wd_boards_set_board_privileges(wi_string_t *board, wd_board_privileges_t *privileges, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*broadcast;
-	
-	if(wd_boards_set_privileges(board, privileges)) {
-		broadcast = wi_p7_message_with_name(WI_STR("wired.board.permissions_changed"), wd_p7_spec);
-		wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-		wi_p7_message_set_string_for_name(broadcast, privileges->owner, WI_STR("wired.board.owner"));
-		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
-		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
-		wi_p7_message_set_string_for_name(broadcast, privileges->group, WI_STR("wired.board.group"));
-		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
-		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
-		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
-		wi_p7_message_set_bool_for_name(broadcast, (privileges->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
-		wd_boards_broadcast_message(broadcast, privileges, false);
-		
-		return true;
-	} else {
-		wd_user_reply_file_errno(user, message);
-	}
-	
-	return false;
-}
-
-
-
-wi_boolean_t wd_boards_delete_board(wi_string_t *board, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*broadcast;
-	wi_string_t				*path;
-	wd_board_privileges_t	*privileges;
-	wi_boolean_t			deleted = false;
-	
-	path = wd_boards_board_path(board);
-	
-	wi_rwlock_wrlock(wd_boards_lock);
-	
-	if(wi_fs_path_exists(path, NULL)) {
-		privileges = wd_boards_privileges(board);
-		
-		if(wi_fs_delete_path(path)) {
-			broadcast = wi_p7_message_with_name(WI_STR("wired.board.board_deleted"), wd_p7_spec);
-			wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-			wd_boards_broadcast_message(broadcast, privileges, false);
-			
-			deleted = true;
-		} else {
-			wi_log_error(WI_STR("Could not delete \"%@\": %m"), path);
-			wd_user_reply_internal_error(user, wi_error_string(), message);
-		}
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
-	}
-	
-	wi_rwlock_unlock(wd_boards_lock);
-	
-	return deleted;
-}
-
-
-
-#pragma mark -
-
-wi_boolean_t wd_boards_board_is_valid(wi_string_t *board) {
-	if(wi_string_length(board) == 0)
-		return false;
-	
-	if(wi_string_contains_string(board, WI_STR(".."), 0))
-		return false;
-	
-	if(wi_string_has_prefix(board, WI_STR("/")))
-		return false;
-	
-	return true;
-}
-
-
-
-#pragma mark -
-
-static void wd_boards_broadcast_message(wi_p7_message_t *message, wd_board_privileges_t *privileges, wi_boolean_t readable) {
-	wi_enumerator_t		*enumerator;
-	wd_user_t			*user;
-	
-	wi_dictionary_rdlock(wd_users);
-
-	enumerator = wi_dictionary_data_enumerator(wd_users);
-	
-	while((user = wi_enumerator_next_data(enumerator))) {
-		if(wd_user_state(user) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(user)) {
-			if((readable && wd_board_privileges_is_readable_by_user(privileges, user)) ||
-			   (!readable && wd_board_privileges_is_readable_and_writable_by_user(privileges, user)))
-				wd_user_send_message(user, message);
-		}
-	}
-	
-	wi_dictionary_unlock(wd_users);
-}
-
-
-
-static void wd_boards_send_thread_added(wi_string_t *board, wi_uuid_t *thread, wd_user_t *user) {
-	wi_runtime_instance_t		*instance;
-	wi_fsenumerator_t			*fsenumerator;
-	wi_p7_message_t				*message;
-	wi_uuid_t					*post;
-	wi_string_t					*path;
-	wi_fsenumerator_status_t	status;
-	
-	path = wd_boards_thread_path(board, thread);
+	defaultprivileges = wd_board_privileges_with_owner(WI_STR("admin"), WI_STR(""),
+		WD_BOARD_OWNER_WRITE | WD_BOARD_OWNER_READ | WD_BOARD_GROUP_WRITE | WD_BOARD_GROUP_READ | WD_BOARD_EVERYONE_WRITE | WD_BOARD_EVERYONE_READ);
 	
 	fsenumerator = wi_fs_enumerator_at_path(path);
 	
 	if(!fsenumerator) {
 		wi_log_error(WI_STR("Could not open \"%@\": %m"), path);
 		
-		return;
+		return false;
 	}
 	
-	while((status = wi_fsenumerator_get_next_path(fsenumerator, &path)) != WI_FSENUMERATOR_EOF) {
+	while((status = wi_fsenumerator_get_next_path(fsenumerator, &childpath)) != WI_FSENUMERATOR_EOF) {
 		if(status == WI_FSENUMERATOR_ERROR) {
 			wi_log_error(WI_STR("Could not read board \"%@\": %m"), path);
 			
 			continue;
 		}
 		
-		if(!wi_is_equal(wi_string_path_extension(path), WI_STR(WD_BOARDS_POST_EXTENSION)))
-			continue;
-		
-		instance = wi_plist_read_instance_from_file(path);
-		
-		if(instance && wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
-			post = wi_uuid_with_string(wi_string_by_deleting_path_extension(wi_string_last_path_component(path)));
-
-			message = wd_boards_message_with_post_for_user(WI_STR("wired.board.post_added"), board, thread, post, instance, user);
+		if(wi_is_equal(wi_string_path_extension(childpath), WI_STR("WiredThread"))) {
+			components		= wi_string_path_components(wi_string_substring_from_index(childpath, wi_string_length(path) + 1));
+			count			= wi_array_count(components);
+			board			= wi_array_components_joined_by_string(wi_array_subarray_with_range(components, wi_make_range(0, count - 1)), WI_STR("/"));
 			
-			wd_user_send_message(user, message);
+			if(!wd_boards_convert_thread_to_database(board, childpath))
+				return false;
+
+			wi_fsenumerator_skip_descendents(fsenumerator);
+		} else {
+			board			= wi_string_substring_from_index(childpath, wi_string_length(path) + 1);
+			privileges		= wd_boards_privileges_for_path(childpath);
+			
+			if(!privileges)
+				privileges = defaultprivileges;
+			
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO boards "
+																 "(board, owner, `group`, mode) "
+																 "VALUES "
+																 "(?, ?, ?, ?)"),
+											 board,
+											 privileges->owner,
+											 privileges->group,
+											 WI_INT32(privileges->mode),
+											 NULL)) {
+				wi_log_error(WI_STR("Could not execute database statement: %m"));
+				
+				return false;
+			}
 		}
 	}
-}
-
-
-
-#pragma mark -
-
-static wi_boolean_t wd_boards_get_boards_and_privileges(wi_array_t **boards_out, wi_array_t **privileges_out) {
-	wi_fsenumerator_t			*fsenumerator;
-	wi_mutable_array_t			*boards, *privileges;
-	wi_string_t					*path, *board, *extension;
-	wd_board_privileges_t		*privs;
-	wi_fsenumerator_status_t	status;
-	wi_uinteger_t				pathlength;
 	
-	pathlength	= wi_string_length(wd_boards_path);
-	boards		= wi_mutable_array();
-	privileges	= wi_mutable_array();
-	
-	wi_rwlock_rdlock(wd_boards_lock);
-	
-	fsenumerator = wi_fs_enumerator_at_path(wd_boards_path);
-	
-	if(fsenumerator) {
-		while((status = wi_fsenumerator_get_next_path(fsenumerator, &path)) != WI_FSENUMERATOR_EOF) {
-			if(status == WI_FSENUMERATOR_ERROR) {
-				wi_log_error(WI_STR("Could not read board \"%@\": %m"), path);
-				
-				continue;
-			}
-			
-			extension = wi_string_path_extension(path);
-			
-			if(wi_is_equal(extension, WI_STR(WD_BOARDS_POST_EXTENSION)) || wi_is_equal(extension, WI_STR(WD_BOARDS_THREAD_EXTENSION))) {
-				wi_fsenumerator_skip_descendents(fsenumerator);
-				
-				continue;
-			}
-			
-			board = wi_string_substring_from_index(path, pathlength + 1);
-			privs = wd_boards_privileges(board);
-			
-			if(privs) {
-				wi_mutable_array_add_data(boards, board);
-				wi_mutable_array_add_data(privileges, privs);
-			}
-		}
-	} else {
-		wi_log_error(WI_STR("Could not open \"%@\": %m"), wd_boards_path);
-	}
-	
-	wi_rwlock_unlock(wd_boards_lock);
-	
-	*boards_out			= boards;
-	*privileges_out		= privileges;
-		
 	return true;
 }
 
 
 
-static void wd_boards_rename_account(wi_boolean_t user, wi_string_t *name, wi_string_t *new_name) {
-	wi_array_t					*boards, *privileges;
-	wi_string_t					*board;
-	wi_p7_message_t				*broadcast;
-	wd_board_privileges_t		*privs;
-	wi_uinteger_t				i, count;
+static wi_boolean_t wd_boards_convert_thread_to_database(wi_string_t *board, wi_string_t *path) {
+	wi_fsenumerator_t			*fsenumerator;
+	wi_enumerator_t				*enumerator;
+	wi_mutable_dictionary_t		*posts;
+	wi_dictionary_t				*dictionary;
+	wi_array_t					*dates;
+	wi_string_t					*childpath;
+	wi_uuid_t					*post, *thread;
+	wi_date_t					*date;
+	wi_runtime_instance_t		*instance;
+	wi_fsenumerator_status_t	status;
+
+	fsenumerator = wi_fs_enumerator_at_path(path);
 	
-	if(wd_boards_get_boards_and_privileges(&boards, &privileges)) {
-		count = wi_array_count(boards);
-		
-		for(i = 0; i < count; i++) {
-			board = WI_ARRAY(boards, i);
-			privs = WI_ARRAY(privileges, i);
-			
-			if((user && wi_is_equal(privs->owner, name)) || (!user && wi_is_equal(privs->group, name))) {
-				if(user) {
-					wi_release(privs->owner);
-					privs->owner = wi_retain(new_name);
-				} else {
-					wi_release(privs->group);
-					privs->group = wi_retain(new_name);
-				}
-				
-				if(wd_boards_set_privileges(board, privs)) {
-					broadcast = wi_p7_message_with_name(WI_STR("wired.board.permissions_changed"), wd_p7_spec);
-					wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-					wi_p7_message_set_string_for_name(broadcast, privs->owner, WI_STR("wired.board.owner"));
-					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_OWNER_READ), WI_STR("wired.board.owner.read"));
-					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_OWNER_WRITE), WI_STR("wired.board.owner.write"));
-					wi_p7_message_set_string_for_name(broadcast, privs->group, WI_STR("wired.board.group"));
-					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_GROUP_READ), WI_STR("wired.board.group.read"));
-					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_GROUP_WRITE), WI_STR("wired.board.group.write"));
-					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_EVERYONE_READ), WI_STR("wired.board.everyone.read"));
-					wi_p7_message_set_bool_for_name(broadcast, (privs->mode & WD_BOARD_EVERYONE_WRITE), WI_STR("wired.board.everyone.write"));
-					wd_boards_broadcast_message(broadcast, privs, false);
-				}
-			}
-		}
-	}
-}
-
-
-
-static wi_dictionary_t * wd_boards_dictionary_with_post(wd_user_t *user, wi_string_t *subject, wi_string_t *text) {
-	wi_mutable_dictionary_t		*dictionary;
-	wi_data_t					*icon;
-	
-	dictionary = wi_mutable_dictionary();
-	wi_mutable_dictionary_set_data_for_key(dictionary, wd_user_nick(user), WI_STR("wired.user.nick"));
-	wi_mutable_dictionary_set_data_for_key(dictionary, wd_user_login(user), WI_STR("wired.user.login"));
-	wi_mutable_dictionary_set_data_for_key(dictionary, wi_date(), WI_STR("wired.board.post_date"));
-	wi_mutable_dictionary_set_data_for_key(dictionary, subject, WI_STR("wired.board.subject"));
-	wi_mutable_dictionary_set_data_for_key(dictionary, text, WI_STR("wired.board.text"));
-	
-	icon = wd_user_icon(user);
-	
-	if(icon)
-		wi_mutable_dictionary_set_data_for_key(dictionary, icon, WI_STR("wired.user.icon"));
-	
-	return dictionary;
-}
-
-
-
-static wi_p7_message_t * wd_boards_message_with_post_for_user(wi_string_t *name, wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, wi_dictionary_t *dictionary, wd_user_t *user) {
-	wi_p7_message_t		*message;
-	wi_date_t			*edit_date;
-	wi_string_t			*login;
-	
-	message = wi_p7_message_with_name(name, wd_p7_spec);
-	wi_p7_message_set_string_for_name(message, board, WI_STR("wired.board.board"));
-	wi_p7_message_set_uuid_for_name(message, thread, WI_STR("wired.board.thread"));
-	wi_p7_message_set_uuid_for_name(message, post, WI_STR("wired.board.post"));
-	wi_p7_message_set_date_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.post_date")), WI_STR("wired.board.post_date"));
-	
-	edit_date = wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.edit_date"));
-	
-	if(edit_date)
-		wi_p7_message_set_date_for_name(message, edit_date, WI_STR("wired.board.edit_date"));
-	
-	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.nick")), WI_STR("wired.user.nick"));
-	
-	login = wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.login"));
-
-	wi_p7_message_set_bool_for_name(message, wi_is_equal(login, wd_user_login(user)), WI_STR("wired.board.own_post"));
-	wi_p7_message_set_data_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.icon")), WI_STR("wired.user.icon"));
-	
-	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.subject")), WI_STR("wired.board.subject"));
-	wi_p7_message_set_string_for_name(message, wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.text")), WI_STR("wired.board.text"));
-
-	return message;
-}
-
-
-
-static wi_string_t * wd_boards_board_path(wi_string_t *board) {
-	return wi_string_by_appending_path_component(wd_boards_path, board);
-}
-
-
-
-static wi_string_t * wd_boards_thread_path(wi_string_t *board, wi_uuid_t *thread) {
-	wi_string_t		*path;
-	
-	path = wi_string_by_appending_path_component(wd_boards_board_path(board), wi_uuid_string(thread));
-	
-	return wi_string_by_appending_path_extension(path, WI_STR(WD_BOARDS_THREAD_EXTENSION));
-}
-
-
-
-static wi_string_t * wd_boards_post_path(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post) {
-	wi_string_t		*path;
-	
-	path = wi_string_by_appending_path_component(wd_boards_thread_path(board, thread), wi_uuid_string(post));
-
-	return wi_string_by_appending_path_extension(path, WI_STR(WD_BOARDS_POST_EXTENSION));
-}
-
-
-
-#pragma mark -
-
-static wi_boolean_t wd_boards_set_privileges(wi_string_t *board, wd_board_privileges_t *privileges) {
-	wi_string_t		*path, *metapath, *permissionspath;
-	wi_string_t		*string;
-	
-	path				= wd_boards_board_path(board);
-	metapath			= wi_string_by_appending_path_component(path, WI_STR(WD_BOARDS_META_PATH));
-	permissionspath		= wi_string_by_appending_path_component(path, WI_STR(WD_BOARDS_META_PERMISSIONS_PATH));
-	
-	if(!wi_fs_create_directory(metapath, 0777)) {
-		if(wi_error_code() != EEXIST) {
-			wi_log_error(WI_STR("Could not create \"%@\": %m"), metapath);
-			
-			return false;
-		}
-	}
-	
-	string = wi_string_by_appending_string(wd_board_privileges_string(privileges), WI_STR("\n"));
-	
-	if(!wi_string_write_to_file(string, permissionspath)) {
-		wi_log_error(WI_STR("Could not write to \"%@\": %m"), permissionspath);
+	if(!fsenumerator) {
+		wi_log_error(WI_STR("Could not open \"%@\": %m"), path);
 		
 		return false;
 	}
 	
+	posts = wi_mutable_dictionary();
+	
+	while((status = wi_fsenumerator_get_next_path(fsenumerator, &childpath)) != WI_FSENUMERATOR_EOF) {
+		if(status == WI_FSENUMERATOR_ERROR) {
+			wi_log_error(WI_STR("Could not read thread \"%@\": %m"), path);
+			
+			continue;
+		}
+		
+		if(wi_is_equal(wi_string_path_extension(childpath), WI_STR("WiredPost"))) {
+			instance = wi_plist_read_instance_from_file(childpath);
+				
+			if(instance && wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
+				post = wi_uuid_with_string(wi_string_by_deleting_path_extension(wi_string_last_path_component(childpath)));
+				date = wi_dictionary_data_for_key(instance, WI_STR("wired.board.post_date"));
+				
+				wi_mutable_dictionary_set_data_for_key(instance, post, WI_STR("wired.board.post"));
+				wi_mutable_dictionary_set_data_for_key(posts, instance, date);
+			}
+		}
+	}
+	
+	dates = wi_array_by_sorting(wi_dictionary_all_keys(posts), wi_date_compare);
+	
+	if(wi_array_count(dates) > 0) {
+		dictionary		= wi_dictionary_data_for_key(posts, WI_ARRAY(dates, 0));
+		thread			= wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.post"));
+		
+		if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO threads "
+															 "(thread, board, subject, `text`, post_date, edit_date, nick, login, ip, icon) "
+															 "VALUES "
+															 "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+										 thread,
+										 board,
+										 wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.subject")),
+										 wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.text")),
+										 wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.post_date")),
+										 wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.edit_date"))
+											? wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.edit_date"))
+											: wi_null(),
+										 wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.nick")),
+										 wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.login")),
+										 WI_STR(""),
+										 wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.icon")),
+										 NULL)) {
+			wi_log_error(WI_STR("Could not execute database statement: %m"));
+			
+			return false;
+		}
+		
+		if(wi_array_count(dates) > 1) {
+			enumerator = wi_array_data_enumerator(wi_array_subarray_with_range(dates, wi_make_range(1, wi_array_count(dates) - 1)));
+			
+			while((date = wi_enumerator_next_data(enumerator))) {
+				dictionary = wi_dictionary_data_for_key(posts, date);
+				
+				if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO posts "
+																	 "(post, thread, `text`, post_date, edit_date, nick, login, ip, icon) "
+																	 "VALUES "
+																	 "(?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+												 wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.post")),
+												 thread,
+												 wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.text")),
+												 wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.post_date")),
+												 wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.edit_date"))
+													? wi_dictionary_data_for_key(dictionary, WI_STR("wired.board.edit_date"))
+													: wi_null(),
+												 wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.nick")),
+												 wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.login")),
+												 WI_STR(""),
+												 wi_dictionary_data_for_key(dictionary, WI_STR("wired.user.icon")),
+												 NULL)) {
+					wi_log_error(WI_STR("Could not execute database statement: %m"));
+					
+					return false;
+				}
+			}
+		}
+	}
+	
 	return true;
 }
 
 
 
-static wd_board_privileges_t * wd_boards_privileges(wi_string_t *board) {
-	wi_string_t				*path, *permissionspath, *string;
-	wd_board_privileges_t	*privileges;
+static wi_boolean_t wd_boards_convert_news_to_database(wi_string_t *path, wi_string_t *board) {
+	wi_array_t			*array;
+	wi_file_t			*file;
+	wi_string_t			*string, *subject;
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO boards "
+														 "(board, owner, `group`, mode) "
+														 "VALUES "
+														 "(?, ?, ?, ?)"),
+									 board,
+									 WI_STR("admin"),
+									 WI_STR(""),
+									 WI_INT32(WD_BOARD_OWNER_WRITE | WD_BOARD_OWNER_READ |
+											  WD_BOARD_GROUP_WRITE | WD_BOARD_GROUP_READ |
+											  WD_BOARD_EVERYONE_WRITE | WD_BOARD_EVERYONE_READ),
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return false;
+	}
+	
+	file = wi_file_for_reading(path);
+	
+	if(!file) {
+		wi_log_error(WI_STR("Could not open \"%@\": %m"), path);
+		
+		return false;
+	}
+	
+	while((string = wi_file_read_to_string(file, WI_STR("\35")))) {
+		array = wi_string_components_separated_by_string(string, WI_STR("\34"));
+		
+		if(wi_array_count(array) == 3) {
+			subject = WI_ARRAY(array, 2);
+			
+			if(wi_string_length(subject) > 32)
+				subject = wi_string_with_format(WI_STR("%@..."), wi_string_substring_to_index(subject, 31));
+			
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO threads "
+																 "(thread, board, subject, `text`, post_date, edit_date, nick, login, ip, icon) "
+																 "VALUES "
+																 "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+											 wi_uuid(),
+											 board,
+											 subject,
+											 WI_ARRAY(array, 2),
+											 wi_date_with_rfc3339_string(WI_ARRAY(array, 1)),
+											 wi_null(),
+											 WI_ARRAY(array, 0),
+											 WI_STR(""),
+											 WI_STR(""),
+											 wi_null(),
+											 NULL)) {
+				wi_log_error(WI_STR("Could not execute database statement: %m"));
+				
+				return false;
+			}
+		}
+	}
+	
+	return true;
+}
+
+
+
+static wd_board_privileges_t * wd_boards_privileges_for_path(wi_string_t *path) {
+	wi_string_t				*permissionspath, *string;
+	wi_array_t				*array;
 	wi_fs_stat_t			sb;
 	
-	path				= wd_boards_board_path(board);
-	permissionspath		= wi_string_by_appending_path_component(path, WI_STR(WD_BOARDS_META_PERMISSIONS_PATH));
+	permissionspath = wi_string_by_appending_path_component(path, WI_STR("wired/.permissions"));
 	
 	if(!wi_fs_stat_path(permissionspath, &sb)) {
 		wi_log_error(WI_STR("Could not open \"%@\": %m"), permissionspath);
@@ -695,558 +1605,139 @@ static wd_board_privileges_t * wd_boards_privileges(wi_string_t *board) {
 		return NULL;
 	}
 	
-	privileges = wd_board_privileges_with_string(string);
+	string		= wi_string_by_deleting_surrounding_whitespace(string);
+	array		= wi_string_components_separated_by_string(string, WI_STR("\34"));
 	
-	if(!privileges) {
+	if(wi_array_count(array) != 3) {
 		wi_log_error(WI_STR("Could not read \"%@\": Contents is malformed (\"%@\")"), permissionspath, string);
 		
 		return NULL;
 	}
 	
-	return privileges;
-}
-
-
-
-static wi_boolean_t wd_boards_convert_news_to_boards(wi_string_t *news_path, wi_string_t *board) {
-	wi_array_t				*array;
-	wi_file_t				*file;
-	wi_dictionary_t			*dictionary;
-	wi_uuid_t				*thread, *post;
-	wi_string_t				*string, *subject, *board_path, *thread_path, *post_path;
-	wd_board_privileges_t	*privileges;
-	
-	board_path = wd_boards_board_path(board);
-	
-	if(wi_fs_path_exists(board_path, NULL)) {
-		wi_log_error(WI_STR("Could not convert news to \"%@\": Board already exists"), board);
-
-		return false;
-	}
-	
-	if(!wi_fs_create_directory(board_path, 0755)) {
-		wi_log_error(WI_STR("Could not open \"%@\": %m"), news_path);
-		
-		return false;
-	}
-	
-	privileges = wd_board_privileges_with_owner(WI_STR("admin"), WI_STR(""),
-		WD_BOARD_OWNER_WRITE | WD_BOARD_OWNER_READ | WD_BOARD_GROUP_WRITE | WD_BOARD_GROUP_READ | WD_BOARD_EVERYONE_WRITE | WD_BOARD_EVERYONE_READ);
-	
-	if(!wd_boards_set_privileges(board, privileges))
-		return false;
-
-	file = wi_file_for_reading(news_path);
-	
-	if(!file) {
-		wi_log_error(WI_STR("Could not open \"%@\": %m"), news_path);
-		
-		return false;
-	}
-	
-	while((string = wi_file_read_to_string(file, WI_STR(WD_BOARDS_NEWS_POST_SEPARATOR)))) {
-		array = wi_string_components_separated_by_string(string, WI_STR(WD_BOARDS_NEWS_FIELD_SEPARATOR));
-		
-		if(wi_array_count(array) == 3) {
-			thread		= wi_uuid();
-			post		= wi_uuid();
-			thread_path	= wd_boards_thread_path(board, thread);
-			post_path	= wd_boards_post_path(board, thread, post);
-			subject		= WI_ARRAY(array, 2);
-			
-			if(!wi_fs_create_directory(thread_path, 0755)) {
-				wi_log_error(WI_STR("Could not create \"%@\": %m"), post_path);
-				
-				continue;
-			}
-			
-			if(wi_string_length(subject) > 32)
-				subject = wi_string_with_format(WI_STR("%@..."), wi_string_substring_to_index(subject, 31));
-			
-			dictionary = wi_dictionary_with_data_and_keys(
-				WI_ARRAY(array, 0),									WI_STR("wired.user.nick"),
-				WI_STR("admin"),									WI_STR("wired.user.login"),
-				wi_date_with_rfc3339_string(WI_ARRAY(array, 1)),	WI_STR("wired.board.post_date"),
-				subject,											WI_STR("wired.board.subject"),
-				WI_ARRAY(array, 2),									WI_STR("wired.board.text"),
-				NULL);
-			
-			if(!wi_plist_write_instance_to_file(dictionary, post_path))
-				wi_log_error(WI_STR("Could not create \"%@\": %m"), post_path);
-		}
-	}
-	
-	return true;
-}
-
-
-
-static wi_boolean_t wd_boards_rename_board_path(wi_string_t *oldboard, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
-	wi_string_t			*path, *oldpath, *newpath;
-	wi_boolean_t		renamed = false;
-	
-	oldpath = wd_boards_board_path(oldboard);
-	newpath = wd_boards_board_path(newboard);
-
-	wi_rwlock_wrlock(wd_boards_lock);
-	
-	if(wi_fs_path_exists(oldpath, NULL)) {
-		if(wi_string_case_insensitive_compare(oldpath, newpath) == 0) {
-			path = wi_fs_temporary_path_with_template(
-				wi_string_with_format(WI_STR("%@/.%@.XXXXXXXX"),
-					  wi_string_by_deleting_last_path_component(oldpath),
-					  wi_string_last_path_component(newpath)));
-			
-			if(path) {
-				if(wi_fs_rename_path(oldpath, path)) {
-					if(wi_fs_rename_path(path, newpath)) {
-						renamed = true;
-					} else {
-						wi_log_error(WI_STR("Could not rename %@ to \"%@\": %m"), path, newpath);
-						wd_user_reply_internal_error(user, wi_error_string(), message);
-					}
-				} else {
-					wi_log_error(WI_STR("Could not rename \"%@\" to \"%@\": %m"), oldpath, path);
-					wd_user_reply_internal_error(user, wi_error_string(), message);
-				}
-			}
-		} else {
-			if(!wi_fs_path_exists(newpath, NULL)) {
-				if(wi_fs_rename_path(oldpath, newpath)) {
-					renamed = true;
-				} else {
-					wi_log_error(WI_STR("Could not rename \"%@\" to \"%@\": %m"), oldpath, newpath);
-					wd_user_reply_internal_error(user, wi_error_string(), message);
-				}
-			} else {
-				wd_user_reply_error(user, WI_STR("wired.error.board_exists"), message);
-			}
-		}
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.board_not_found"), message);
-	}
-	
-	wi_rwlock_unlock(wd_boards_lock);
-	
-	return renamed;
+	return wd_board_privileges_with_owner(WI_ARRAY(array, 0), WI_ARRAY(array, 1), wi_string_uint32(WI_ARRAY(array, 2)));
 }
 
 
 
 #pragma mark -
 
-wi_boolean_t wd_boards_add_thread(wi_string_t *board, wi_string_t *subject, wi_string_t *text, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*reply;
+static void wd_boards_changed_thread(wi_uuid_t *thread, wd_board_privileges_t *privileges) {
 	wi_enumerator_t			*enumerator;
-	wi_dictionary_t			*dictionary;
-	wi_uuid_t				*thread, *post;
-	wi_array_t				*users;
-	wi_string_t				*path;
-	wd_board_privileges_t	*privileges;
-	wd_user_t				*peer;
-	wi_boolean_t			result = false;
-	
-	wi_rwlock_wrlock(wd_boards_lock);
-	
-	thread		= wi_uuid();
-	path		= wd_boards_thread_path(board, thread);
-	privileges	= wd_boards_privileges(board);
-	
-	if(privileges && wd_board_privileges_is_writable_by_user(privileges, user)) {
-		if(wi_fs_create_directory(path, 0755)) {
-			dictionary	= wd_boards_dictionary_with_post(user, subject, text);
-			post		= wi_uuid();
-			path		= wd_boards_post_path(board, thread, post);
-			
-			if(wi_plist_write_instance_to_file(dictionary, path)) {
-				users = wd_chat_users(wd_public_chat);
-				
-				wi_array_rdlock(users);
-				
-				enumerator = wi_array_data_enumerator(users);
-				
-				while((peer = wi_enumerator_next_data(enumerator))) {
-					if(wd_user_state(peer) == WD_USER_LOGGED_IN &&
-					   wd_board_privileges_is_readable_by_user(privileges, peer) &&
-					   wd_user_is_subscribed_boards(peer)) {
-						reply = wd_boards_message_with_post_for_user(WI_STR("wired.board.post_added"), board, thread, post, dictionary, peer);
-						
-						wd_user_send_message(peer, reply);
-					}
-				}
-				
-				wi_array_unlock(users);
-				
-				result = true;
-			} else {
-				wi_log_error(WI_STR("Could not create \"%@\": %m"), path);
-				wd_user_reply_internal_error(user, wi_error_string(), message);
-			}
-		} else {
-			wi_log_error(WI_STR("Could not create \"%@\": %m"), path);
-			wd_user_reply_internal_error(user, wi_error_string(), message);
-		}
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-	}
-	
-	wi_rwlock_unlock(wd_boards_lock);
-	
-	return result;
-}
-
-
-
-wi_boolean_t wd_boards_move_thread(wi_string_t *oldboard, wi_uuid_t *thread, wi_string_t *newboard, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*movedmessage, *deletedmessage;
-	wi_enumerator_t			*enumerator;
-	wi_array_t				*users;
-	wi_string_t				*oldpath, *newpath;
-	wd_board_privileges_t	*oldprivileges, *newprivileges;
-	wd_user_t				*peer;
-	wi_boolean_t			oldreadable, newreadable;
-	wi_boolean_t			result = false;
-	
-	wi_rwlock_wrlock(wd_boards_lock);
-	
-	oldpath			= wd_boards_thread_path(oldboard, thread);
-	newpath			= wd_boards_thread_path(newboard, thread);
-	oldprivileges	= wd_boards_privileges(oldboard);
-	newprivileges	= wd_boards_privileges(newboard);
-	
-	if(oldprivileges && wd_board_privileges_is_writable_by_user(oldprivileges, user) &&
-	   newprivileges && wd_board_privileges_is_writable_by_user(newprivileges, user)) {
-		if(wi_fs_rename_path(oldpath, newpath)) {
-			movedmessage = wi_p7_message_with_name(WI_STR("wired.board.thread_moved"), wd_p7_spec);
-			wi_p7_message_set_string_for_name(movedmessage, oldboard, WI_STR("wired.board.board"));
-			wi_p7_message_set_string_for_name(movedmessage, newboard, WI_STR("wired.board.new_board"));
-			wi_p7_message_set_uuid_for_name(movedmessage, thread, WI_STR("wired.board.thread"));
-			
-			deletedmessage = wi_p7_message_with_name(WI_STR("wired.board.thread_deleted"), wd_p7_spec);
-			wi_p7_message_set_string_for_name(deletedmessage, oldboard, WI_STR("wired.board.board"));
-			wi_p7_message_set_uuid_for_name(deletedmessage, thread, WI_STR("wired.board.thread"));
-			
-			users = wd_chat_users(wd_public_chat);
-			
-			wi_array_rdlock(users);
-			
-			enumerator = wi_array_data_enumerator(users);
-			
-			while((peer = wi_enumerator_next_data(enumerator))) {
-				if(wd_user_state(peer) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(peer)) {
-					oldreadable = wd_board_privileges_is_readable_by_user(oldprivileges, peer);
-					newreadable = wd_board_privileges_is_readable_by_user(newprivileges, peer);
-					
-					if(oldreadable && newreadable)
-						wd_user_send_message(peer, movedmessage);
-					else if(oldreadable)
-						wd_user_send_message(peer, deletedmessage);
-					else if(newreadable)
-						wd_boards_send_thread_added(newboard, thread, peer);
-				}
-			}
-			
-			wi_array_unlock(users);
-			
-			result = true;
-		} else {
-			wi_log_error(WI_STR("Could not move \"%@\" to \"%@\": %m"), oldpath, newpath);
-			wd_user_reply_internal_error(user, wi_error_string(), message);
-		}
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-	}
-	
-	wi_rwlock_unlock(wd_boards_lock);
-	
-	return result;
-}
-
-
-
-wi_boolean_t wd_boards_delete_thread(wi_string_t *board, wi_uuid_t *thread, wd_user_t *user, wi_p7_message_t *message) {
+	wi_dictionary_t			*results;
 	wi_p7_message_t			*broadcast;
-	wi_string_t				*path;
-	wd_board_privileges_t	*privileges;
-	wi_boolean_t			result = false;
+	wi_runtime_instance_t	*subject, *editdate, *replies, *latestreply, *latestreplydate;
+	wd_user_t				*user;
 	
-	wi_rwlock_wrlock(wd_boards_lock);
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT subject, edit_date, "
+															   "(SELECT COUNT(*) FROM posts WHERE posts.thread = threads.thread) AS replies, "
+															   "(SELECT post FROM posts WHERE posts.thread = threads.thread ORDER BY post_date DESC LIMIT 1) AS latest_reply, "
+															   "(SELECT post_date FROM posts WHERE posts.thread = threads.thread ORDER BY post_date DESC LIMIT 1) AS latest_reply_date "
+															   "FROM threads "
+															   "WHERE thread = ?"),
+										   wi_uuid_string(thread),
+										   NULL);
 	
-	privileges = wd_boards_privileges(board);
-	
-	if(privileges && wd_board_privileges_is_writable_by_user(privileges, user)) {
-		path = wd_boards_thread_path(board, thread);
-
-		if(wi_fs_delete_path(path)) {
-			broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_deleted"), wd_p7_spec);
-			wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-			wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
-			wd_boards_broadcast_message(broadcast, privileges, true);
-			
-			result = true;
-		} else {
-			wi_log_error(WI_STR("Could not delete \"%@\": %m"), path);
-			wd_user_reply_internal_error(user, wi_error_string(), message);
-		}
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-	}
-	
-	wi_rwlock_unlock(wd_boards_lock);
-	
-	return result;
-}
-
-
-
-#pragma mark -
-
-wi_boolean_t wd_boards_add_post(wi_string_t *board, wi_uuid_t *thread, wi_string_t *subject, wi_string_t *text, wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t			*reply;
-	wi_enumerator_t			*enumerator;
-	wi_dictionary_t			*dictionary;
-	wi_string_t				*path;
-	wi_uuid_t				*post;
-	wi_array_t				*users;
-	wd_board_privileges_t	*privileges;
-	wd_user_t				*peer;
-	wi_boolean_t			result = false;
-	
-	wi_rwlock_wrlock(wd_boards_lock);
-	
-	privileges = wd_boards_privileges(board);
-
-	if(privileges && wd_board_privileges_is_writable_by_user(privileges, user)) {
-		post		= wi_uuid();
-		path		= wd_boards_post_path(board, thread, post);
-		dictionary	= wd_boards_dictionary_with_post(user, subject, text);
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
 		
-		if(wi_plist_write_instance_to_file(dictionary, path)) {
-			users = wd_chat_users(wd_public_chat);
-			
-			wi_array_rdlock(users);
-			
-			enumerator = wi_array_data_enumerator(users);
-			
-			while((peer = wi_enumerator_next_data(enumerator))) {
-				if(wd_user_state(peer) == WD_USER_LOGGED_IN &&
-				   wd_board_privileges_is_readable_by_user(privileges, peer) &&
-				   wd_user_is_subscribed_boards(peer)) {
-					reply = wd_boards_message_with_post_for_user(WI_STR("wired.board.post_added"), board, thread, post, dictionary, peer);
-					
-					wd_user_send_message(peer, reply);
-				}
-			}
-			
-			wi_array_unlock(users);
-			
-			result = true;
-		} else {
-			wi_log_error(WI_STR("Could not create \"%@\": %m"), path);
-			wd_user_reply_internal_error(user, wi_error_string(), message);
-		}
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
+		return;
 	}
 	
-	wi_rwlock_unlock(wd_boards_lock);
+	subject				= wi_dictionary_data_for_key(results, WI_STR("subject"));
+	editdate			= wi_dictionary_data_for_key(results, WI_STR("edit_date"));
+	replies				= wi_dictionary_data_for_key(results, WI_STR("replies"));
+	latestreply			= wi_dictionary_data_for_key(results, WI_STR("latest_reply"));
+	latestreplydate		= wi_dictionary_data_for_key(results, WI_STR("latest_reply_date"));
 	
-	return result;
+	wi_dictionary_rdlock(wd_users);
+
+	enumerator = wi_dictionary_data_enumerator(wd_users);
+	
+	while((user = wi_enumerator_next_data(enumerator))) {
+		if(wd_user_state(user) == WD_USER_LOGGED_IN && wd_user_is_subscribed_boards(user)) {
+			if(wd_board_privileges_is_readable_by_account(privileges, wd_user_account(user))) {
+				broadcast = wi_p7_message_with_name(WI_STR("wired.board.thread_changed"), wd_p7_spec);
+				wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
+				wi_p7_message_set_string_for_name(broadcast, subject, WI_STR("wired.board.subject"));
+
+				if(editdate != wi_null())
+					wi_p7_message_set_date_for_name(broadcast, wi_date_with_sqlite3_string(editdate), WI_STR("wired.board.edit_date"));
+				
+				wi_p7_message_set_number_for_name(broadcast, replies, WI_STR("wired.board.replies"));
+				
+				if(latestreply != wi_null())
+					wi_p7_message_set_uuid_for_name(broadcast, wi_uuid_with_string(latestreply), WI_STR("wired.board.latest_reply"));
+				
+				if(latestreplydate != wi_null())
+					wi_p7_message_set_date_for_name(broadcast, wi_date_with_sqlite3_string(latestreplydate), WI_STR("wired.board.latest_reply_date"));
+				
+				wd_user_send_message(user, broadcast);
+			}
+		}
+	}
+	
+	wi_dictionary_unlock(wd_users);
 }
 
 
 
-wi_boolean_t wd_boards_edit_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, wi_string_t *subject, wi_string_t *text, wd_user_t *user, wi_p7_message_t *message) {
-	wi_runtime_instance_t	*instance;
-	wi_p7_message_t			*broadcast;
-	wi_date_t				*edit_date;
-	wi_string_t				*path, *login;
-	wd_account_t			*account;
-	wd_board_privileges_t	*privileges;
-	wi_boolean_t			edit = true, result = false;
+static wd_board_privileges_t * wd_boards_privileges_for_board(wi_string_t *board) {
+	wi_dictionary_t		*results;
 	
-	wi_rwlock_wrlock(wd_boards_lock);
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT owner, `group`, mode FROM boards WHERE board = ?"),
+										   board,
+										   NULL);
 	
-	privileges = wd_boards_privileges(board);
-	
-	if(privileges && wd_board_privileges_is_writable_by_user(privileges, user)) {
-		path		= wd_boards_post_path(board, thread, post);
-		instance	= wi_plist_read_instance_from_file(path);
-
-		if(instance) {
-			if(wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
-				account = wd_user_account(user);
-				
-				if(!wd_account_board_edit_all_posts(account)) {
-					login = wi_dictionary_data_for_key(instance, WI_STR("wired.user.login"));
-					
-					if(!wi_is_equal(login, wd_user_login(user))) {
-						wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-						
-						edit = false;
-					}
-				}
-				
-				if(edit) {
-					edit_date = wi_date();
-					
-					wi_mutable_dictionary_set_data_for_key(instance, edit_date, WI_STR("wired.board.edit_date"));
-					wi_mutable_dictionary_set_data_for_key(instance, subject, WI_STR("wired.board.subject"));
-					wi_mutable_dictionary_set_data_for_key(instance, text, WI_STR("wired.board.text"));
-					
-					if(wi_plist_write_instance_to_file(instance, path)) {
-						broadcast = wi_p7_message_with_name(WI_STR("wired.board.post_edited"), wd_p7_spec);
-						wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-						wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
-						wi_p7_message_set_uuid_for_name(broadcast, post, WI_STR("wired.board.post"));
-						wi_p7_message_set_date_for_name(broadcast, edit_date, WI_STR("wired.board.edit_date"));
-						wi_p7_message_set_string_for_name(broadcast, subject, WI_STR("wired.board.subject"));
-						wi_p7_message_set_string_for_name(broadcast, text, WI_STR("wired.board.text"));
-						wd_boards_broadcast_message(broadcast, privileges, true);
-						
-						result = true;
-					} else {
-						wi_log_error(WI_STR("Could not edit \"%@\": %m"), path);
-						wd_user_reply_internal_error(user, wi_error_string(), message);
-					}
-				}
-			} else {
-				wi_log_error(WI_STR("Could not edit \"%@\": File is not a dictionary"), path);
-				wd_user_reply_internal_error(user, wi_error_string(), message);
-			}
-		} else {
-			wi_log_error(WI_STR("Could not open \"%@\": %m"), path);
-			wd_user_reply_internal_error(user, wi_error_string(), message);
-		}
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-	}
-	
-	wi_rwlock_unlock(wd_boards_lock);
-	
-	return result;
-}
-
-
-
-wi_boolean_t wd_boards_delete_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post, wd_user_t *user, wi_p7_message_t *message) {
-	wi_runtime_instance_t	*instance;
-	wi_p7_message_t			*broadcast;
-	wi_string_t				*path, *login;
-	wd_account_t			*account;
-	wd_board_privileges_t	*privileges;
-	wi_boolean_t			delete = true, result = false;
-	
-	wi_rwlock_wrlock(wd_boards_lock);
-	
-	privileges = wd_boards_privileges(board);
-	
-	if(privileges && wd_board_privileges_is_writable_by_user(privileges, user)) {
-		path		= wd_boards_post_path(board, thread, post);
-		instance	= wi_plist_read_instance_from_file(path);
-
-		if(instance) {
-			if(wi_runtime_id(instance) == wi_dictionary_runtime_id()) {
-				account = wd_user_account(user);
-				
-				if(!wd_account_board_delete_all_posts(account)) {
-					login = wi_dictionary_data_for_key(instance, WI_STR("wired.user.login"));
-					
-					if(!wi_is_equal(login, wd_user_login(user))) {
-						wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-						
-						delete = false;
-					}
-				}
-				
-				if(delete) {
-					if(wi_fs_delete_path(path)) {
-						(void) rmdir(wi_string_cstring(wi_string_by_deleting_last_path_component(path)));
-
-						broadcast = wi_p7_message_with_name(WI_STR("wired.board.post_deleted"), wd_p7_spec);
-						wi_p7_message_set_string_for_name(broadcast, board, WI_STR("wired.board.board"));
-						wi_p7_message_set_uuid_for_name(broadcast, thread, WI_STR("wired.board.thread"));
-						wi_p7_message_set_uuid_for_name(broadcast, post, WI_STR("wired.board.post"));
-						wd_boards_broadcast_message(broadcast, privileges, true);
-						
-						result = true;
-					} else {
-						wi_log_error(WI_STR("Could not delete \"%@\": %m"), path);
-						wd_user_reply_internal_error(user, wi_error_string(), message);
-					}
-				}
-			} else {
-				wi_log_error(WI_STR("Could not delete \"%@\": File is not a dictionary"), path);
-				wd_user_reply_internal_error(user, wi_error_string(), message);
-			}
-		} else {
-			wi_log_error(WI_STR("Could not open \"%@\": %m"), path);
-			wd_user_reply_internal_error(user, wi_error_string(), message);
-		}
-	} else {
-		wd_user_reply_error(user, WI_STR("wired.error.permission_denied"), message);
-	}
-	
-	wi_rwlock_unlock(wd_boards_lock);
-	
-	return result;
-}
-
-
-
-#pragma mark -
-
-wi_string_t * wd_boards_subject_for_thread(wi_string_t *board, wi_uuid_t *thread) {
-	wi_fsenumerator_t			*fsenumerator;
-	wi_mutable_dictionary_t		*dictionary;
-	wi_array_t					*keys;
-	wi_string_t					*path, *subject = NULL;
-	wi_uuid_t					*post;
-	wi_runtime_instance_t		*instance;
-	wi_fsenumerator_status_t	status;
-	
-	wi_rwlock_rdlock(wd_boards_lock);
-	
-	dictionary		= wi_mutable_dictionary();
-	fsenumerator	= wi_fs_enumerator_at_path(wd_boards_thread_path(board, thread));
-	
-	while((status = wi_fsenumerator_get_next_path(fsenumerator, &path)) != WI_FSENUMERATOR_EOF) {
-		if(status == WI_FSENUMERATOR_ERROR)
-			continue;
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
 		
-		post		= wi_uuid_with_string(wi_string_by_deleting_path_extension(wi_string_last_path_component(path)));
-		instance	= wi_plist_read_instance_from_file(wd_boards_post_path(board, thread, post));
-		
-		if(instance && wi_runtime_id(instance) == wi_dictionary_runtime_id())
-			wi_mutable_dictionary_set_data_for_key(dictionary, instance, wi_dictionary_data_for_key(instance, WI_STR("wired.board.post_date")));
+		return false;
 	}
 	
-	keys = wi_array_by_sorting(wi_dictionary_all_keys(dictionary), wi_date_compare);
-	
-	if(wi_array_count(keys) > 0)
-		subject = wi_dictionary_data_for_key(wi_dictionary_data_for_key(dictionary, WI_ARRAY(keys, 0)), WI_STR("wired.board.subject"));
-
-	wi_rwlock_unlock(wd_boards_lock);
-	
-	return subject;
+	return wd_board_privileges_with_sqlite3_results(results);
 }
 
 
 
-wi_string_t * wd_boards_subject_for_post(wi_string_t *board, wi_uuid_t *thread, wi_uuid_t *post) {
-	wi_string_t				*subject = NULL;
-	wi_runtime_instance_t	*instance;
+static wd_board_privileges_t * wd_boards_privileges_for_thread(wi_uuid_t *thread) {
+	wi_dictionary_t		*results;
 	
-	wi_rwlock_rdlock(wd_boards_lock);
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT owner, `group`, mode "
+															   "FROM threads "
+															   "LEFT JOIN boards ON threads.board = boards.board "
+															   "WHERE thread = ?"),
+										   wi_uuid_string(thread),
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return false;
+	}
+	
+	return wd_board_privileges_with_sqlite3_results(results);
+}
 
-	instance = wi_plist_read_instance_from_file(wd_boards_post_path(board, thread, post));
 
-	if(instance && wi_runtime_id(instance) == wi_dictionary_runtime_id())
-		subject = wi_dictionary_data_for_key(instance, WI_STR("wired.board.subject"));
+
+static wd_board_privileges_t * wd_boards_privileges_for_post(wi_uuid_t *post) {
+	wi_dictionary_t		*results;
 	
-	wi_rwlock_unlock(wd_boards_lock);
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT owner, `group`, mode "
+															   "FROM posts "
+															   "LEFT JOIN threads ON posts.thread = threads.thread "
+															   "LEFT JOIN boards ON threads.board = boards.board "
+															   "WHERE post = ?"),
+										   wi_uuid_string(post),
+										   NULL);
 	
-	return subject;
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return false;
+	}
+	
+	return wd_board_privileges_with_sqlite3_results(results);
 }
 
 
@@ -1270,7 +1761,7 @@ static void wd_board_privileges_dealloc(wi_runtime_instance_t *instance) {
 
 #pragma mark -
 
-wd_board_privileges_t * wd_board_privileges_with_message(wi_p7_message_t *message) {
+static wd_board_privileges_t * wd_board_privileges_with_message(wi_p7_message_t *message) {
 	wd_board_privileges_t		*privileges;
 	wi_p7_boolean_t				value;
 	
@@ -1321,39 +1812,19 @@ static wd_board_privileges_t * wd_board_privileges_with_owner(wi_string_t *owner
 
 
 
-static wd_board_privileges_t * wd_board_privileges_with_string(wi_string_t *string) {
-	wi_array_t				*array;
-	
-	string = wi_string_by_deleting_surrounding_whitespace(string);
-	
-	array = wi_string_components_separated_by_string(string, WI_STR(WD_BOARDS_PERMISSIONS_FIELD_SEPARATOR));
-	
-	if(wi_array_count(array) != 3)
-		return NULL;
-	
-	return wd_board_privileges_with_owner(WI_ARRAY(array, 0), WI_ARRAY(array, 1), wi_string_uint32(WI_ARRAY(array, 2)));
+static wd_board_privileges_t * wd_board_privileges_with_sqlite3_results(wi_dictionary_t *results) {
+	return wd_board_privileges_with_owner(wi_dictionary_data_for_key(results, WI_STR("owner")),
+										  wi_dictionary_data_for_key(results, WI_STR("group")),
+										  wi_number_integer(wi_dictionary_data_for_key(results, WI_STR("mode"))));
 }
-
+	
 
 
 #pragma mark -
 
-static wi_string_t * wd_board_privileges_string(wd_board_privileges_t *privileges) {
-	return wi_string_with_format(WI_STR("%#@%s%#@%s%u"),
-	   privileges->owner,		WD_BOARDS_PERMISSIONS_FIELD_SEPARATOR,
-	   privileges->group,		WD_BOARDS_PERMISSIONS_FIELD_SEPARATOR,
-	   privileges->mode);
-}
-
-
-
-static wi_boolean_t wd_board_privileges_is_readable_by_user(wd_board_privileges_t *privileges, wd_user_t *user) {
-	wd_account_t	*account;
-	
+static wi_boolean_t wd_board_privileges_is_readable_by_account(wd_board_privileges_t *privileges, wd_account_t *account) {
 	if(privileges->mode & WD_BOARD_EVERYONE_READ)
 		return true;
-	
-	account = wd_user_account(user);
 	
 	if(privileges->mode & WD_BOARD_GROUP_READ && wi_string_length(privileges->group) > 0) {
 		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
@@ -1370,13 +1841,9 @@ static wi_boolean_t wd_board_privileges_is_readable_by_user(wd_board_privileges_
 
 
 
-static wi_boolean_t wd_board_privileges_is_writable_by_user(wd_board_privileges_t *privileges, wd_user_t *user) {
-	wd_account_t	*account;
-	
+static wi_boolean_t wd_board_privileges_is_writable_by_account(wd_board_privileges_t *privileges, wd_account_t *account) {
 	if(privileges->mode & WD_BOARD_EVERYONE_WRITE)
 		return true;
-	
-	account = wd_user_account(user);
 	
 	if(privileges->mode & WD_BOARD_GROUP_WRITE && wi_string_length(privileges->group) > 0) {
 		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
@@ -1384,29 +1851,6 @@ static wi_boolean_t wd_board_privileges_is_writable_by_user(wd_board_privileges_
 	}
 	
 	if(privileges->mode & WD_BOARD_OWNER_WRITE && wi_string_length(privileges->owner) > 0) {
-		if(wi_is_equal(privileges->owner, wd_account_name(account)))
-			return true;
-	}
-	
-	return false;
-}
-
-
-
-static wi_boolean_t wd_board_privileges_is_readable_and_writable_by_user(wd_board_privileges_t *privileges, wd_user_t *user) {
-	wd_account_t	*account;
-	
-	if(privileges->mode & WD_BOARD_EVERYONE_READ && privileges->mode & WD_BOARD_EVERYONE_WRITE)
-		return true;
-	
-	account = wd_user_account(user);
-	
-	if(privileges->mode & WD_BOARD_GROUP_READ && privileges->mode & WD_BOARD_GROUP_WRITE && wi_string_length(privileges->group) > 0) {
-		if(wi_is_equal(privileges->group, wd_account_group(account)) || wi_array_contains_data(wd_account_groups(account), privileges->group))
-			return true;
-	}
-	
-	if(privileges->mode & WD_BOARD_OWNER_READ && privileges->mode & WD_BOARD_OWNER_WRITE && wi_string_length(privileges->owner) > 0) {
 		if(wi_is_equal(privileges->owner, wd_account_name(account)))
 			return true;
 	}

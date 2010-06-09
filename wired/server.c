@@ -45,6 +45,7 @@
 #include "banlist.h"
 #include "events.h"
 #include "files.h"
+#include "index.h"
 #include "main.h"
 #include "messages.h"
 #include "portmap.h"
@@ -71,6 +72,8 @@ static void							wd_server_dnssd_register_socket_callback(CFSocketRef, CFSocket
 #endif
 
 static void							wd_server_portmap_thread(wi_runtime_instance_t *);
+static void							wd_server_portmap_timer(wi_timer_t *timer);
+
 static void							wd_server_listen_thread(wi_runtime_instance_t *);
 static void							wd_server_accept_thread(wi_runtime_instance_t *);
 static void							wd_server_receive_thread(wi_runtime_instance_t *);
@@ -155,6 +158,7 @@ void wd_server_listen(void) {
 	wi_enumerator_t			*enumerator;
 	wi_mutable_array_t		*addresses;
 	wi_array_t				*array, *config_addresses;
+	wi_timer_t				*timer;
 	wi_address_t			*address;
 	wi_socket_t				*tcp_socket, *udp_socket;
 	wi_string_t				*ip, *string;
@@ -244,6 +248,10 @@ void wd_server_listen(void) {
 	if(wi_config_bool_for_name(wd_config, WI_STR("map port"))) {
 		if(!wi_thread_create_thread(wd_server_portmap_thread, NULL))
 			wi_log_fatal(WI_STR("Could not create a portmap thread: %m"));
+		
+		timer = wi_timer_init_with_function(wi_timer_alloc(), wd_server_portmap_timer, 86400, true);
+		wi_timer_schedule(timer);
+		wi_release(timer);
 	}
 	
 	if(!wi_thread_create_thread(wd_server_listen_thread, NULL) ||
@@ -260,6 +268,7 @@ void wd_server_apply_settings(wi_set_t *changes) {
 	
 	if(banner) {
 		if(wi_set_contains_data(changes, WI_STR("banner"))) {
+			wi_release(wd_banner);
 			wd_banner = wi_data_init_with_contents_of_file(wi_data_alloc(), banner);
 			
 			if(!wd_banner)
@@ -339,8 +348,8 @@ wi_p7_message_t * wd_server_info_message(void) {
 	wi_p7_message_set_string_for_name(message, wi_config_string_for_name(wd_config, WI_STR("name")), WI_STR("wired.info.name"));
 	wi_p7_message_set_string_for_name(message, wi_config_string_for_name(wd_config, WI_STR("description")), WI_STR("wired.info.description"));
 	wi_p7_message_set_date_for_name(message, wd_start_date, WI_STR("wired.info.start_time"));
-	wi_p7_message_set_uint64_for_name(message, wd_files_count, WI_STR("wired.info.files.count"));
-	wi_p7_message_set_uint64_for_name(message, wd_files_size, WI_STR("wired.info.files.size"));
+	wi_p7_message_set_uint64_for_name(message, wd_index_files_count, WI_STR("wired.info.files.count"));
+	wi_p7_message_set_uint64_for_name(message, wd_index_files_size, WI_STR("wired.info.files.size"));
 	wi_p7_message_set_data_for_name(message, wd_banner, WI_STR("wired.info.banner"));
 	wi_p7_message_set_uint32_for_name(message, wi_config_integer_for_name(wd_config, WI_STR("total downloads")), WI_STR("wired.info.downloads"));
 	wi_p7_message_set_uint32_for_name(message, wi_config_integer_for_name(wd_config, WI_STR("total uploads")), WI_STR("wired.info.uploads"));
@@ -546,6 +555,14 @@ static void wd_server_portmap_thread(wi_runtime_instance_t *argument) {
 }
 
 
+
+static void wd_server_portmap_timer(wi_timer_t *timer) {
+	if(!wi_thread_create_thread(wd_server_portmap_thread, NULL))
+		wi_log_fatal(WI_STR("Could not create a portmap thread: %m"));
+}
+
+
+#pragma mark -
 
 static void wd_server_listen_thread(wi_runtime_instance_t *argument) {
 	wi_pool_t			*pool;

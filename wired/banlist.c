@@ -31,54 +31,22 @@
 #include <wired/wired.h>
 
 #include "banlist.h"
+#include "main.h"
 #include "server.h"
-#include "settings.h"
 
-struct _wd_ban {
-	wi_runtime_base_t					base;
-	
-	wi_string_t							*ip;
-	wi_date_t							*expiration_date;
-
-	wi_timer_t							*timer;
-};
-typedef struct _wd_ban					wd_ban_t;
-
-
-static wi_boolean_t						wd_banlist_file_contains_ip(wi_file_t *, wi_string_t *);
-static wi_boolean_t						wd_banlist_delete_ban_from_file(wi_file_t *, wi_string_t *);
-
-static wd_ban_t *						wd_ban_alloc(void);
-static wd_ban_t *						wd_ban_init_with_ip(wd_ban_t *, wi_string_t *, wi_date_t *);
-static void								wd_ban_dealloc(wi_runtime_instance_t *);
-static wi_string_t *					wd_ban_description(wi_runtime_instance_t *);
-
-static void								wd_ban_expire_timer(wi_timer_t *);
-
-
-static wi_rwlock_t						*wd_banlist_lock;
-static wi_string_t						*wd_banlist_path;
-static wi_mutable_dictionary_t			*wd_bans;
-
-static wi_runtime_id_t					wd_ban_runtime_id = WI_RUNTIME_ID_NULL;
-static wi_runtime_class_t				wd_ban_runtime_class = {
-	"wd_ban_t",
-	wd_ban_dealloc,
-	NULL,
-	NULL,
-	wd_ban_description,
-	NULL
-};
-
+static void									wd_banlist_create_tables(void);
+static wi_boolean_t							wd_banlist_convert_banlist(wi_string_t *);
 
 
 void wd_banlist_initialize(void) {
-	wd_ban_runtime_id = wi_runtime_register_class(&wd_ban_runtime_class);
-
-	wd_banlist_path = WI_STR("banlist");
-	wd_banlist_lock = wi_rwlock_init(wi_rwlock_alloc());
-
-	wd_bans = wi_dictionary_init(wi_mutable_dictionary_alloc());
+	wd_banlist_create_tables();
+	
+	if(wi_fs_path_exists(WI_STR("banlist"), NULL)) {
+		if(wd_banlist_convert_banlist(WI_STR("banlist"))) {
+			wi_log_info(WI_STR("Migrated banlist to database"));
+			wi_fs_delete_path(WI_STR("banlist"));
+		}
+	}
 }
 
 
@@ -86,34 +54,44 @@ void wd_banlist_initialize(void) {
 #pragma mark -
 
 wi_boolean_t wd_banlist_ip_is_banned(wi_string_t *ip, wi_date_t **expiration_date) {
-	wi_file_t			*file;
-	wd_ban_t			*ban;
-	wi_boolean_t		banned = false;
-
-	wi_dictionary_rdlock(wd_bans);
-	ban = wi_autorelease(wi_retain(wi_dictionary_data_for_key(wd_bans, ip)));
-	wi_dictionary_unlock(wd_bans);
+	wi_sqlite3_statement_t		*statement;
+	wi_dictionary_t				*results;
+	wi_runtime_instance_t		*instance;
 	
-	if(ban) {
-		*expiration_date = ban->expiration_date;
-
-		return true;
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("DELETE FROM banlist "
+														 "WHERE strftime('%%s', 'now') - STRFTIME('%%s', expiration_date) > 0"),
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
 	}
 	
-	wi_rwlock_rdlock(wd_banlist_lock);
+	statement = wi_sqlite3_prepare_statement(wd_database, WI_STR("SELECT ip, expiration_date FROM banlist"), NULL);
+	
+	if(!statement) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return false;
+	}
+	
+	while((results = wi_sqlite3_fetch_statement_results(wd_database, statement)) && wi_dictionary_count(results) > 0) {
+		if(wi_ip_matches_string(wi_dictionary_data_for_key(results, WI_STR("ip")), ip)) {
+			instance = wi_dictionary_data_for_key(results, WI_STR("expiration_date"));
+			
+			if(instance == wi_null())
+				*expiration_date = NULL;
+			else
+				*expiration_date = wi_date_with_sqlite3_string(instance);
+			
+			return true;
+		}
+	}
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		
+		return false;
+	}
 
-	file = wi_file_for_reading(wd_banlist_path);
-	
-	if(file)
-		banned = wd_banlist_file_contains_ip(file, ip);
-	else
-		wi_log_error(WI_STR("Could not open \"%@\": %m"), wd_banlist_path);
-	
-	wi_rwlock_unlock(wd_banlist_lock);
-	
-	*expiration_date = NULL;
-
-	return banned;
+	return false;
 }
 
 
@@ -121,40 +99,38 @@ wi_boolean_t wd_banlist_ip_is_banned(wi_string_t *ip, wi_date_t **expiration_dat
 #pragma mark -
 
 void wd_banlist_reply_bans(wd_user_t *user, wi_p7_message_t *message) {
-	wi_p7_message_t		*reply;
-	wi_enumerator_t		*enumerator;
-	wi_file_t			*file;
-	wi_string_t			*string;
-	wd_ban_t			*ban;
+	wi_sqlite3_statement_t		*statement;
+	wi_p7_message_t				*reply;
+	wi_dictionary_t				*results;
+	wi_runtime_instance_t		*instance;
 	
-	wi_rwlock_rdlock(wd_banlist_lock);
+	statement = wi_sqlite3_prepare_statement(wd_database, WI_STR("SELECT ip, expiration_date FROM banlist"), NULL);
 	
-	file = wi_file_for_reading(wd_banlist_path);
-	
-	if(!file) {
-		wi_log_error(WI_STR("Could not open \"%@\": %m"), wd_banlist_path);
-	} else {
-		while((string = wi_file_read_config_line(file))) {
-			reply = wi_p7_message_with_name(WI_STR("wired.banlist.list"), wd_p7_spec);
-			wi_p7_message_set_string_for_name(reply, string, WI_STR("wired.banlist.ip"));
-			wd_user_reply_message(user, reply, message);
-		}
+	if(!statement) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return;
 	}
 	
-	wi_rwlock_unlock(wd_banlist_lock);
-	
-	wi_dictionary_rdlock(wd_bans);
-	
-	enumerator = wi_dictionary_data_enumerator(wd_bans);
-	
-	while((ban = wi_enumerator_next_data(enumerator))) {
+	while((results = wi_sqlite3_fetch_statement_results(wd_database, statement)) && wi_dictionary_count(results) > 0) {
 		reply = wi_p7_message_with_name(WI_STR("wired.banlist.list"), wd_p7_spec);
-		wi_p7_message_set_string_for_name(reply, ban->ip, WI_STR("wired.banlist.ip"));
-		wi_p7_message_set_date_for_name(reply, ban->expiration_date, WI_STR("wired.banlist.expiration_date"));
+		wi_p7_message_set_string_for_name(reply, wi_dictionary_data_for_key(results, WI_STR("ip")), WI_STR("wired.banlist.ip"));
+		
+		instance = wi_dictionary_data_for_key(results, WI_STR("expiration_date"));
+		
+		if(instance != wi_null())
+			wi_p7_message_set_date_for_name(reply, instance, WI_STR("wired.banlist.expiration_date"));
+		
 		wd_user_reply_message(user, reply, message);
 	}
-
-	wi_dictionary_unlock(wd_bans);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return;
+	}
 
 	reply = wi_p7_message_with_name(WI_STR("wired.banlist.list.done"), wd_p7_spec);
 	wd_user_reply_message(user, reply, message);
@@ -163,198 +139,148 @@ void wd_banlist_reply_bans(wd_user_t *user, wi_p7_message_t *message) {
 
 
 wi_boolean_t wd_banlist_add_ban(wi_string_t *ip, wi_date_t *expiration_date, wd_user_t *user, wi_p7_message_t *message) {
-	wi_file_t		*file;
-	wd_ban_t		*ban;
-	wi_boolean_t	result = false;
+	wi_dictionary_t		*results;
+	wi_string_t			*string;
 	
-	if(expiration_date) {
-		if(wi_date_time_interval(expiration_date) - wi_time_interval() > 1.0) {
-			wi_dictionary_wrlock(wd_bans);
-			
-			if(!wi_dictionary_contains_key(wd_bans, ip)) {
-				ban = wd_ban_init_with_ip(wd_ban_alloc(), ip, expiration_date);
-				wi_timer_schedule(ban->timer);
-				wi_mutable_dictionary_set_data_for_key(wd_bans, ban, ip);
-				wi_release(ban);
-				
-				result = true;
-			} else {
-				wd_user_reply_error(user, WI_STR("wired.error.ban_exists"), message);
-			}
-			
-			wi_dictionary_unlock(wd_bans);
-		} else {
-			wi_log_error(WI_STR("Could not add ban for \"%@\" expiring at %@: Negative expiration date"),
-				ip, wi_date_string_with_format(expiration_date, WI_STR("%Y-%m-%d %H:%M:%S")));
-			wd_user_reply_internal_error(user, WI_STR("Ban has negative expiration date"), message);
-		}
-	} else {
-		wi_rwlock_wrlock(wd_banlist_lock);
+	if(expiration_date && wi_date_time_interval(expiration_date) - wi_time_interval() < 1.0) {
+		wi_log_error(WI_STR("Could not add ban for \"%@\" expiring at %@: Negative expiration date"),
+			ip, wi_date_string_with_format(expiration_date, WI_STR("%Y-%m-%d %H:%M:%S")));
+		wd_user_reply_internal_error(user, WI_STR("Ban has negative expiration date"), message);
 		
-		file = wi_file_for_updating(wd_banlist_path);
-		
-		if(file) {
-			if(!wd_banlist_file_contains_ip(file, ip)) {
-				wi_file_write_format(file, WI_STR("%@\n"), ip);
-				
-				result = true;
-			} else {
-				wd_user_reply_error(user, WI_STR("wired.error.ban_exists"), message);
-			}
-		} else {
-			wi_log_error(WI_STR("Could not open \"%@\": %m"), wd_banlist_path);
-			wd_user_reply_internal_error(user, wi_error_string(), message);
-		}
-		
-		wi_rwlock_unlock(wd_banlist_lock);
+		return false;
 	}
 	
-	return result;
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT ip FROM banlist WHERE ip = ?"),
+										   ip,
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	if(wi_dictionary_count(results) > 0) {
+		wd_user_reply_error(user, WI_STR("wired.error.ban_exists"), message);
+		
+		return false;
+	}
+	
+	string = expiration_date ? wi_date_sqlite3_string(expiration_date) : NULL;
+	
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO banlist "
+														 "(ip, expiration_date) "
+														 "VALUES "
+														 "(?, ?)"),
+									 ip,
+									 string,
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
+	
+	return true;
 }
 
 
 
 wi_boolean_t wd_banlist_delete_ban(wi_string_t *ip, wi_date_t *expiration_date, wd_user_t *user, wi_p7_message_t *message) {
-	wi_file_t		*file;
-	wi_boolean_t	result = false;
+	wi_dictionary_t		*results;
 	
-	if(expiration_date) {
-		wi_dictionary_wrlock(wd_bans);
+	results = wi_sqlite3_execute_statement(wd_database, WI_STR("SELECT ip FROM banlist WHERE ip = ?"),
+										   ip,
+										   NULL);
+	
+	if(!results) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
 		
-		if(wi_dictionary_contains_key(wd_bans, ip)) {
-			wi_mutable_dictionary_remove_data_for_key(wd_bans, ip);
-			
-			result = true;
-		} else {
-			wd_user_reply_error(user, WI_STR("wired.error.ban_not_found"), message);
-		}
-		
-		wi_dictionary_unlock(wd_bans);
-	} else {
-		wi_rwlock_wrlock(wd_banlist_lock);
-		
-		file = wi_file_for_updating(wd_banlist_path);
-		
-		if(file) {
-			if(wd_banlist_delete_ban_from_file(file, ip))
-				result = true;
-			else
-				wd_user_reply_error(user, WI_STR("wired.error.ban_not_found"), message);
-		} else {
-			wi_log_error(WI_STR("Could not open \"%@\": %m"), wd_banlist_path);
-			wd_user_reply_internal_error(user, wi_error_string(), message);
-		}
-		
-		wi_rwlock_unlock(wd_banlist_lock);
-	}
-	
-	return result;
-}
-
-
-
-#pragma mark -
-
-static wi_boolean_t wd_banlist_file_contains_ip(wi_file_t *file, wi_string_t *ip) {
-	wi_string_t		*string;
-	
-	while((string = wi_file_read_config_line(file))) {
-		if(wi_ip_matches_string(ip, string))
-			return true;
-	}
-	
-	return false;
-}
-
-
-
-static wi_boolean_t wd_banlist_delete_ban_from_file(wi_file_t *file, wi_string_t *ip) {
- 	wi_file_t		*tmpfile;
-	wi_string_t		*string;
-	wi_boolean_t	result = false;
-	
-	tmpfile = wi_file_temporary_file();
-	
-	if(!tmpfile) {
-		wi_log_error(WI_STR("Could not create a temporary file: %m"));
-
 		return false;
 	}
 	
-	while((string = wi_file_read_line(file))) {
-		if(wi_string_length(string) == 0 || wi_string_has_prefix(string, WI_STR("#"))) {
-			wi_file_write_format(tmpfile, WI_STR("%@\n"), string);
-		} else {
-			if(wi_is_equal(string, ip))
-				result = true;
-			else
-				wi_file_write_format(tmpfile, WI_STR("%@\n"), string);
-		}
+	if(wi_dictionary_count(results) == 0) {
+		wd_user_reply_error(user, WI_STR("wired.error.ban_not_found"), message);
+		
+		return false;
 	}
 	
-	wi_file_truncate(file, 0);
-	wi_file_seek(tmpfile, 0);
+	if(!wi_sqlite3_execute_statement(wd_database, WI_STR("DELETE FROM banlist WHERE ip = ?"),
+									 ip,
+									 NULL)) {
+		wi_log_error(WI_STR("Could not execute database statement: %m"));
+		wd_user_reply_internal_error(user, wi_error_string(), message);
+		
+		return false;
+	}
 	
-	while((string = wi_file_read(tmpfile, WI_FILE_BUFFER_SIZE)))
-		wi_file_write_format(file, WI_STR("%@"), string);
-	
-	return result;
+	return true;
 }
 
 
 
 #pragma mark -
 
-static wd_ban_t * wd_ban_alloc(void) {
-	return wi_runtime_create_instance(wd_ban_runtime_id, sizeof(wd_ban_t));
+static void wd_banlist_create_tables(void) {
+	wi_uinteger_t		version;
+	
+	version = wd_database_version_for_table(WI_STR("banlist"));
+	
+	switch(version) {
+		case 0:
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TABLE banlist ( "
+																 "ip TEXT NOT NULL, "
+																 "expiration_date TEXT, "
+																 "PRIMARY KEY (ip) "
+																 ")"),
+											 NULL)) {
+				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
+			}
+			break;
+	}
+	
+	wd_database_set_version_for_table(1, WI_STR("banlist"));
 }
 
 
 
-static wd_ban_t * wd_ban_init_with_ip(wd_ban_t *ban, wi_string_t *ip, wi_date_t *expiration_date) {
-	ban->ip					= wi_retain(ip);
-	ban->expiration_date	= wi_retain(expiration_date);
-	ban->timer				= wi_timer_init_with_function(wi_timer_alloc(),
-														  wd_ban_expire_timer,
-														  wi_date_time_interval(expiration_date) - wi_time_interval(),
-														  false);
-
-	wi_timer_set_data(ban->timer, ban);
+static wi_boolean_t wd_banlist_convert_banlist(wi_string_t *path) {
+	wi_file_t			*file;
+	wi_string_t			*string;
+	wi_boolean_t		result;
 	
-	return ban;
-}
-
-
-
-static void wd_ban_dealloc(wi_runtime_instance_t *instance) {
-	wd_ban_t		*ban = instance;
+	file = wi_file_for_reading(path);
 	
-	wi_release(ban->ip);
-	wi_release(ban->expiration_date);
-	wi_release(ban->timer);
-}
-
-
-
-static wi_string_t * wd_ban_description(wi_runtime_instance_t *instance) {
-	wd_ban_t		*ban = instance;
-	
-	return wi_string_with_format(WI_STR("<%@ %p>{ip = %@}"),
-		wi_runtime_class_name(ban),
-		ban,
-		ban->ip);
-}
-
-
-
-#pragma mark -
-
-static void wd_ban_expire_timer(wi_timer_t *timer) {
-	wd_ban_t		*ban;
-	
-	ban = wi_timer_data(timer);
-	
-	wi_dictionary_rdlock(wd_bans);
-	wi_mutable_dictionary_remove_data_for_key(wd_bans, ban->ip);
-	wi_dictionary_unlock(wd_bans);
+	if(file) {
+		result = true;
+		
+		wi_sqlite3_begin_immediate_transaction(wd_database);
+		
+		while((string = wi_file_read_config_line(file))) {
+			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("INSERT INTO banlist "
+																 "(ip, expiration_date) "
+																 "VALUES "
+																 "(?, NULL)"),
+											 string,
+											 NULL)) {
+				wi_log_error(WI_STR("Could not execute database statement: %m"));
+				
+				result = false;
+				break;
+			}
+		}
+		
+		if(result)
+			wi_sqlite3_commit_transaction(wd_database);
+		else
+			wi_sqlite3_rollback_transaction(wd_database);
+		
+		return result;
+	} else {
+		wi_log_error(WI_STR("Could not open \"%@\": %m"), path);
+		
+		return false;
+	}
 }

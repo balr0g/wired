@@ -37,6 +37,9 @@ typedef struct _wd_chat				wd_chat_t;
 
 void								wd_write_status(wi_boolean_t);
 
+void								wd_database_set_version_for_table(wi_uinteger_t, wi_string_t *);
+wi_uinteger_t						wd_database_version_for_table(wi_string_t *);
+
 
 extern wi_boolean_t					wd_running;
 
@@ -44,6 +47,8 @@ extern wi_address_family_t			wd_address_family;
 extern wi_boolean_t					wd_startup;
 
 extern wi_string_t					*wd_config_path;
+
+extern wi_sqlite3_database_t		*wd_database;
 
 extern wi_lock_t					*wd_status_lock;
 extern wi_date_t					*wd_start_date;
