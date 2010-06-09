@@ -166,14 +166,10 @@
 		77D9C2A210989471004F4F0B /* NEWS */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = NEWS; sourceTree = "<group>"; };
 		77D9C35A10989471004F4F0B /* README */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = README; sourceTree = "<group>"; };
 		77D9C35D10989471004F4F0B /* banner.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = banner.png; sourceTree = "<group>"; };
-		77D9C36110989471004F4F0B /* permissions */ = {isa = PBXFileReference; lastKnownFileType = file; path = permissions; sourceTree = "<group>"; };
-		77D9C36310989471004F4F0B /* AD70D7CB-F789-4030-A92F-40D546DBE1D9.WiredPost */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = "AD70D7CB-F789-4030-A92F-40D546DBE1D9.WiredPost"; sourceTree = "<group>"; };
 		77D9C36510989471004F4F0B /* wired.conf */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = wired.conf; sourceTree = "<group>"; };
-		77D9C36710989471004F4F0B /* current */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = current; sourceTree = "<group>"; };
 		77D9C36B10989471004F4F0B /* permissions */ = {isa = PBXFileReference; lastKnownFileType = file; path = permissions; sourceTree = "<group>"; };
 		77D9C36C10989471004F4F0B /* type */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = type; sourceTree = "<group>"; };
 		77D9C36F10989471004F4F0B /* type */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = type; sourceTree = "<group>"; };
-		77D9C37010989471004F4F0B /* groups */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = groups; sourceTree = "<group>"; };
 		77D9C37410989471004F4F0B /* wi-address.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-address.h"; sourceTree = "<group>"; };
 		77D9C37510989471004F4F0B /* wi-array.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-array.h"; sourceTree = "<group>"; };
 		77D9C37610989471004F4F0B /* wi-assert.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "wi-assert.h"; sourceTree = "<group>"; };
@@ -232,7 +228,6 @@
 		77D9C3AC10989471004F4F0B /* libnatpmp.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libnatpmp.a; sourceTree = "<group>"; };
 		77D9C3AD10989471004F4F0B /* libwired.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libwired.a; sourceTree = "<group>"; };
 		77D9C3AE10989471004F4F0B /* test */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.executable"; path = test; sourceTree = "<group>"; };
-		77D9C3B010989471004F4F0B /* users */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = users; sourceTree = "<group>"; };
 		77D9C3B210989471004F4F0B /* wired.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = wired.html; sourceTree = "<group>"; };
 		77D9C3B310989471004F4F0B /* wired.xml */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xml; path = wired.xml; sourceTree = "<group>"; };
 		77D9C3B710989471004F4F0B /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
@@ -659,50 +654,13 @@
 			isa = PBXGroup;
 			children = (
 				77D9C35D10989471004F4F0B /* banner.png */,
-				77D9C35E10989471004F4F0B /* board */,
 				77D9C36410989471004F4F0B /* etc */,
-				77D9C36610989471004F4F0B /* events */,
 				77D9C36810989471004F4F0B /* files */,
-				77D9C37010989471004F4F0B /* groups */,
 				77D9C37110989471004F4F0B /* libwired */,
-				77D9C3B010989471004F4F0B /* users */,
 				77D9C3B210989471004F4F0B /* wired.html */,
 				77D9C3B310989471004F4F0B /* wired.xml */,
 			);
 			path = run;
-			sourceTree = "<group>";
-		};
-		77D9C35E10989471004F4F0B /* board */ = {
-			isa = PBXGroup;
-			children = (
-				77D9C35F10989471004F4F0B /* General */,
-			);
-			path = board;
-			sourceTree = "<group>";
-		};
-		77D9C35F10989471004F4F0B /* General */ = {
-			isa = PBXGroup;
-			children = (
-				77D9C36010989471004F4F0B /* .wired */,
-				77D9C36210989471004F4F0B /* BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread */,
-			);
-			path = General;
-			sourceTree = "<group>";
-		};
-		77D9C36010989471004F4F0B /* .wired */ = {
-			isa = PBXGroup;
-			children = (
-				77D9C36110989471004F4F0B /* permissions */,
-			);
-			path = .wired;
-			sourceTree = "<group>";
-		};
-		77D9C36210989471004F4F0B /* BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread */ = {
-			isa = PBXGroup;
-			children = (
-				77D9C36310989471004F4F0B /* AD70D7CB-F789-4030-A92F-40D546DBE1D9.WiredPost */,
-			);
-			path = "BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread";
 			sourceTree = "<group>";
 		};
 		77D9C36410989471004F4F0B /* etc */ = {
@@ -711,14 +669,6 @@
 				77D9C36510989471004F4F0B /* wired.conf */,
 			);
 			path = etc;
-			sourceTree = "<group>";
-		};
-		77D9C36610989471004F4F0B /* events */ = {
-			isa = PBXGroup;
-			children = (
-				77D9C36710989471004F4F0B /* current */,
-			);
-			path = events;
 			sourceTree = "<group>";
 		};
 		77D9C36810989471004F4F0B /* files */ = {
