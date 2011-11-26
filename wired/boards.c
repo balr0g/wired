@@ -1276,7 +1276,7 @@ static void wd_boards_create_tables(void) {
 											 NULL)) {
 				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
 			}
-
+			/*
 			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TRIGGER boards_delete_trigger "
 																 "BEFORE DELETE ON boards "
 																 "FOR EACH ROW BEGIN "
@@ -1284,7 +1284,7 @@ static void wd_boards_create_tables(void) {
 																 "END"),
 											 NULL)) {
 				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
-			}
+			} */
 			break;
 	}
 	
@@ -1306,12 +1306,12 @@ static void wd_boards_create_tables(void) {
 																 "ip TEXT NOT NULL, "
 																 "icon BLOB, "
 																 "PRIMARY KEY (thread) "
-																 /* "FOREIGN KEY (board) REFERENCES boards (board) ON DELETE CASCADE " */
+																 "FOREIGN KEY (board) REFERENCES boards (board) ON DELETE CASCADE "
 																 ")"),
 											 NULL)) {
 				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
 			}
-			
+			/*
 			if(!wi_sqlite3_execute_statement(wd_database, WI_STR("CREATE TRIGGER threads_delete_trigger "
 																 "BEFORE DELETE ON threads "
 																 "FOR EACH ROW BEGIN "
@@ -1319,7 +1319,7 @@ static void wd_boards_create_tables(void) {
 																 "END"),
 											 NULL)) {
 				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
-			}
+			} */
 			break;
 	}
 	
@@ -1340,7 +1340,7 @@ static void wd_boards_create_tables(void) {
 																 "ip TEXT NOT NULL, "
 																 "icon BLOB, "
 																 "PRIMARY KEY (post) "
-																 /* "FOREIGN KEY (thread) REFERENCES threads (thread) ON DELETE CASCADE " */
+																 "FOREIGN KEY (thread) REFERENCES threads (thread) ON DELETE CASCADE "
 																 ")"),
 											 NULL)) {
 				wi_log_fatal(WI_STR("Could not execute database statement: %m"));
