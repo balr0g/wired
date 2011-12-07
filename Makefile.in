@@ -144,10 +144,31 @@ install-wired:
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/files/Drop\ Box/.wired/type $(installdir)/files/Drop\ Box/.wired/; \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/files/Drop\ Box/.wired/permissions $(installdir)/files/Drop\ Box/.wired/; \
 	fi
+	
+	if [ ! -d $(installdir)/events ]; then \
+		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/events/; \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/events/current $(installdir)/events/current; \
+	fi
+	
+	if [ ! -d $(installdir)/board ]; then \
+		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/board/General/.wired/; \
+		$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) -d $(installdir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/; \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/board/General/.wired/permissions $(installdir)/board/General/.wired/; \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/AD70D7CB-F789-4030-A92F-40D546DBE1D9.WiredPost $(installdir)/board/General/BC5B30BF-AC4F-4FEE-BB92-C5F3A5436E18.WiredThread/; \
+	fi
+
+	if [ ! -f $(installdir)/banlist ]; then \
+		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/banlist $(installdir)/; \
+	fi
+
 
 	if [ ! -f $(installdir)/banner.png ]; then \
 		$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/banner.png $(installdir)/; \
 	fi
+
+	$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/users $(installdir)/
+	$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/groups $(installdir)/
+
 
 	$(INSTALL) -m 644 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/wired.xml $(installdir)/
 	$(INSTALL) -m 755 -o $(WD_USER) -g $(WD_GROUP) $(rundir)/wired $(installdir)/

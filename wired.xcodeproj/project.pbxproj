@@ -929,9 +929,16 @@
 /* Begin PBXProject section */
 		77C7D06E109892860042BADC /* Project object */ = {
 			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0420;
+			};
 			buildConfigurationList = 77C7D071109892860042BADC /* Build configuration list for PBXProject "wired" */;
 			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
 			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
 			mainGroup = 77C7D06C109892860042BADC;
 			productRefGroup = 77C7D06C109892860042BADC;
 			projectDirPath = "";
